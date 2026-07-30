@@ -5,6 +5,7 @@ import {
   adapterUpdateWarning,
   catalogDialogEntries,
   catalogPrimaryAction,
+  entryLoginHint,
   entryStatusLabel,
   filterCatalogEntries,
   groupCatalogEntries,
@@ -157,7 +158,7 @@ describe("filterCatalogEntries", () => {
   const entries = [
     entry({ id: "kimi", label: "Kimi Code", command: "kimi" }),
     entry({ id: "amp", label: "Amp", command: "amp" }),
-    entry({ id: "omp", label: "Oh My Pi", command: "omp" }),
+    entry({ id: "ompk", label: "Oh My PK", command: "ompk" }),
   ];
 
   it("returns everything for a blank query", () => {
@@ -173,8 +174,8 @@ describe("filterCatalogEntries", () => {
 
   it("matches command", () => {
     assert.deepEqual(
-      filterCatalogEntries(entries, "omp").map((e) => e.id),
-      ["omp"],
+      filterCatalogEntries(entries, "ompk").map((e) => e.id),
+      ["ompk"],
     );
   });
 
@@ -299,6 +300,66 @@ describe("entryStatusLabel", () => {
           authStatus: { status: "logged_in" },
         }),
       ),
+      null,
+    );
+  });
+});
+
+// ── entryLoginHint ───────────────────────────────────────────────────────────
+
+describe("entryLoginHint", () => {
+  const hint = "Sign in with `ompk auth-broker login anthropic`.";
+
+  it("shows the hint for an installed runtime that still needs a provider", () => {
+    assert.equal(
+      entryLoginHint(
+        entry({
+          availability: "available",
+          authStatus: { status: "not_applicable" },
+          loginHint: hint,
+        }),
+      ),
+      hint,
+    );
+  });
+
+  it("shows the hint for an installed runtime that probed logged out", () => {
+    assert.equal(
+      entryLoginHint(
+        entry({
+          availability: "available",
+          authStatus: { status: "logged_out" },
+          loginHint: hint,
+        }),
+      ),
+      hint,
+    );
+  });
+
+  it("stays silent once the runtime is signed in", () => {
+    assert.equal(
+      entryLoginHint(
+        entry({
+          availability: "available",
+          authStatus: { status: "logged_in" },
+          loginHint: hint,
+        }),
+      ),
+      null,
+    );
+  });
+
+  it("stays silent while the CLI is missing — install copy owns that row", () => {
+    assert.equal(
+      entryLoginHint(entry({ availability: "not_installed", loginHint: hint })),
+      null,
+    );
+  });
+
+  it("treats an absent or blank hint as nothing to say", () => {
+    assert.equal(entryLoginHint(entry({ availability: "available" })), null);
+    assert.equal(
+      entryLoginHint(entry({ availability: "available", loginHint: "   " })),
       null,
     );
   });

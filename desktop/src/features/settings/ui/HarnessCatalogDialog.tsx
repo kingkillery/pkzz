@@ -36,6 +36,7 @@ import {
   adapterUpdateWarning,
   catalogDialogEntries,
   catalogPrimaryAction,
+  entryLoginHint,
   entryStatusLabel,
   filterCatalogEntries,
   groupCatalogEntries,
@@ -396,6 +397,7 @@ function CatalogDetail({ entry }: { entry: AcpRuntimeCatalogEntry }) {
   const [isUpdateWarningOpen, setIsUpdateWarningOpen] = React.useState(false);
   const action = catalogPrimaryAction(entry);
   const statusLabel = entryStatusLabel(entry);
+  const loginHint = entryLoginHint(entry);
   const description = harnessDescription(entry.id);
   const isReady = entry.availability === "available";
   const docsUrl = entry.installInstructionsUrl.trim();
@@ -498,6 +500,24 @@ function CatalogDetail({ entry }: { entry: AcpRuntimeCatalogEntry }) {
             <p className="text-xs font-semibold text-muted-foreground">Setup</p>
             <p className="whitespace-pre-line text-sm leading-6 text-foreground">
               {entry.installHint}
+            </p>
+          </div>
+        ) : null}
+
+        {/* Sign-in copy lives here rather than on the row: rows keep a uniform
+            height and push guidance into their overflow menu (doctor-states
+            02), while this pane is the surface with room to spell out the
+            per-provider login commands. */}
+        {loginHint ? (
+          <div className="space-y-1">
+            <p className="text-xs font-semibold text-muted-foreground">
+              Sign in
+            </p>
+            <p
+              className="whitespace-pre-line text-sm leading-6 text-foreground"
+              data-testid={`harness-catalog-login-hint-${entry.id}`}
+            >
+              {loginHint}
             </p>
           </div>
         ) : null}
