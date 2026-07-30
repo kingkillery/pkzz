@@ -7,7 +7,9 @@
  * `PRESET_LOGOS` record — so no compiler catches drift, and `RuntimeIcon`'s
  * `onError` fallback hides a missing file at runtime. This test reads the Rust
  * source as text (the same trick `motion.test.mjs` uses for CSS) and asserts
- * both directions plus on-disk existence of every mapped file.
+ * both directions plus on-disk existence of every mapped file. The Rust side
+ * lives in `discovery/presets.rs` (split out of `discovery.rs` to stay under
+ * the file-size ratchet).
  */
 
 import assert from "node:assert/strict";
@@ -24,15 +26,18 @@ const desktopRoot = path.resolve(
   "../../../..",
 );
 
-const discoveryRs = readFileSync(
-  path.join(desktopRoot, "src-tauri/src/managed_agents/discovery.rs"),
+const presetsRs = readFileSync(
+  path.join(desktopRoot, "src-tauri/src/managed_agents/discovery/presets.rs"),
   "utf8",
 );
 
-const presetBlock = discoveryRs.match(
-  /const PRESET_HARNESSES: &\[PresetHarness\] = &\[([\s\S]*?)\n\];/,
+const presetBlock = presetsRs.match(
+  /(?:pub\(crate\) )?const PRESET_HARNESSES: &\[PresetHarness\] = &\[([\s\S]*?)\n\];/,
 );
-assert.ok(presetBlock, "could not locate PRESET_HARNESSES in discovery.rs");
+assert.ok(
+  presetBlock,
+  "could not locate PRESET_HARNESSES in discovery/presets.rs",
+);
 
 const presetIds = [...presetBlock[1].matchAll(/^\s{8}id: "([^"]+)",$/gm)].map(
   (match) => match[1],

@@ -154,6 +154,26 @@ export function entryStatusLabel(entry: AcpRuntimeCatalogEntry): string | null {
 }
 
 /**
+ * Sign-in guidance to show under a row, or null when there's nothing to say.
+ *
+ * The backend already ships a `loginHint` for every runtime whose CLI needs a
+ * provider login (probe-derived for builtins, static for presets whose CLIs
+ * expose no non-interactive login-status command). It was plumbed all the way
+ * to this type and then rendered nowhere, so "how do I sign this thing in?"
+ * had no answer in the UI.
+ *
+ * Gated on `available`: an absent CLI shows install copy instead, and telling
+ * someone to run a login command for a binary they don't have is backwards.
+ * `logged_in` suppresses it — a signed-in runtime needs no instructions.
+ */
+export function entryLoginHint(entry: AcpRuntimeCatalogEntry): string | null {
+  if (entry.availability !== "available") return null;
+  if (entry.authStatus.status === "logged_in") return null;
+  const hint = entry.loginHint?.trim();
+  return hint ? hint : null;
+}
+
+/**
  * Body copy for the confirmation dialog shown before replacing an
  * already-installed (but outdated) adapter.
  *

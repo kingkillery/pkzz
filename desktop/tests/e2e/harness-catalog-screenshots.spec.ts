@@ -80,8 +80,8 @@ const CATALOG = [
     source: "preset",
   },
   {
-    id: "omp",
-    label: "Oh My Pi",
+    id: "ompk",
+    label: "Oh My PK",
     avatar_url: "",
     availability: "not_installed",
     command: null,
@@ -89,8 +89,8 @@ const CATALOG = [
     default_args: ["acp"],
     mcp_command: null,
     install_hint:
-      "Buzz talks to Oh My Pi through its CLI's ACP mode (omp acp).",
-    install_instructions_url: "https://github.com/can1357/oh-my-pi",
+      "Buzz talks to Oh My PK through its CLI's ACP mode (ompk acp).",
+    install_instructions_url: "https://github.com/kingkillery/oh-my-pk",
     can_auto_install: false,
     underlying_cli_path: null,
     node_required: false,

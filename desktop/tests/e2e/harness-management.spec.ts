@@ -87,6 +87,30 @@ const CURSOR_AVAILABLE = {
   source: "preset",
 } as const;
 
+/** Oh My PK preset, installed — carries the fork's per-provider sign-in copy.
+ * Presets run no auth probe, so `auth_status` stays `not_applicable` and the
+ * hint is static guidance rather than probe-derived state. */
+const OMPK_AVAILABLE = {
+  id: "ompk",
+  label: "Oh My PK",
+  avatar_url: "",
+  availability: "available",
+  command: "ompk",
+  binary_path: "/usr/local/bin/ompk",
+  default_args: ["acp"],
+  mcp_command: null,
+  install_hint: "Buzz talks to Oh My PK through its CLI's ACP mode (ompk acp).",
+  install_instructions_url: "https://github.com/kingkillery/oh-my-pk",
+  can_auto_install: false,
+  requires_external_cli: true,
+  underlying_cli_path: null,
+  node_required: false,
+  auth_status: { status: "not_applicable" },
+  login_hint:
+    "Sign in from a terminal with `ompk auth-broker login anthropic` (also `cursor`, `openai-codex`), or run `ompk` and use `/login`.",
+  source: "preset",
+} as const;
+
 /** Custom harness entry already persisted — always gets a row. */
 function makeCustomEntry(
   overrides: {
@@ -259,6 +283,59 @@ test.describe("your harnesses split", () => {
     await expect(page.getByTestId("harness-catalog-setup-hermes")).toHaveCount(
       0,
     );
+  });
+
+  test("installed harness spells out its sign-in commands in the catalog detail", async ({
+    page,
+  }) => {
+    await installMockBridge(page, {
+      acpRuntimesCatalog: [OMPK_AVAILABLE, OPENCLAW_NOT_INSTALLED],
+    });
+    await openHarnessSettings(page);
+    await openCatalog(page);
+
+    // Ready entries live in the collapsed "Installed" accordion.
+    await page.getByTestId("harness-catalog-section-installed").click();
+    await page.getByTestId("harness-catalog-list-item-ompk").click();
+
+    const hint = page.getByTestId("harness-catalog-login-hint-ompk");
+    await expect(hint).toBeVisible();
+    // The three providers the fork logs into, named by their provider ids.
+    await expect(hint).toContainText("anthropic");
+    await expect(hint).toContainText("cursor");
+    await expect(hint).toContainText("openai-codex");
+    await expect(page.getByTestId("harness-catalog-detail-pane")).toContainText(
+      "Sign in",
+    );
+
+    // The row itself stays uniform-height guidance-free (doctor-states 02).
+    await page.getByRole("button", { name: "Close" }).first().click();
+    await expect(page.getByTestId("doctor-runtime-ompk")).not.toContainText(
+      "auth-broker login",
+    );
+  });
+
+  test("sign-in copy stays out of the catalog until the CLI is installed", async ({
+    page,
+  }) => {
+    await installMockBridge(page, {
+      acpRuntimesCatalog: [
+        { ...OMPK_AVAILABLE, availability: "not_installed", binary_path: null },
+        OPENCLAW_NOT_INSTALLED,
+      ],
+    });
+    await openHarnessSettings(page);
+    await openCatalog(page);
+
+    await page.getByTestId("harness-catalog-list-item-ompk").click();
+    // Install copy owns an absent harness — telling the user to run `ompk
+    // auth-broker login` before `ompk` exists would be backwards.
+    await expect(page.getByTestId("harness-catalog-detail-pane")).toContainText(
+      "ompk acp",
+    );
+    await expect(
+      page.getByTestId("harness-catalog-login-hint-ompk"),
+    ).toHaveCount(0);
   });
 
   test("catalog Update for an outdated adapter requires confirmation before installing", async ({
