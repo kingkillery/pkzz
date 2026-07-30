@@ -304,6 +304,10 @@ test.describe("your harnesses split", () => {
     await expect(hint).toContainText("anthropic");
     await expect(hint).toContainText("cursor");
     await expect(hint).toContainText("openai-codex");
+    // Both routes in, not just the provider names: the headless command and
+    // the in-TUI slash command.
+    await expect(hint).toContainText("ompk auth-broker login");
+    await expect(hint).toContainText("/login");
     await expect(page.getByTestId("harness-catalog-detail-pane")).toContainText(
       "Sign in",
     );
