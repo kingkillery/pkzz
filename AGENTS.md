@@ -88,6 +88,56 @@ See CONTRIBUTING.md for full setup details and dependency requirements.
 
 ---
 
+## Docker and Local Runtime Requirements
+
+Buzz itself does **not** require Docker, WSL, or a virtual machine. Docker is
+needed only for the local infrastructure stack: Postgres, Redis, MinIO, local
+relay development, migrations that target local services, and integration or
+relay-backed E2E tests.
+
+Docker-free native workflows:
+
+```bash
+. ./bin/activate-hermit
+just desktop-standalone   # Tauri desktop; no relay, DB, Docker, migrations, or .env
+just desktop-dev          # frontend development
+just web                  # browser client development
+just test-unit            # unit tests; no infrastructure
+just check
+just ci
+just desktop-screenshot --name <name>
+```
+
+Container-backed workflows include `just setup`, `just dev`, `just relay`,
+`just test`, integration tests, and relay-backed desktop E2E. Do not start
+these workflows when a task can use the native paths above.
+
+`just bootstrap` currently checks that the Docker executable is installed.
+`just staging` and `just production` use remote relays but still depend on that
+preflight; they do not require Docker services to be running after bootstrap.
+For a completely Docker-free live-relay workflow, use `just desktop-dev` or
+`just desktop-standalone` with an explicitly configured, authorized
+`BUZZ_RELAY_URL`.
+
+---
+
+## Recent Buzz Changes
+
+As of 2026-07-31, the active working-tree change set renames the managed
+agent harness from `omp` / **Oh My Pi** to `ompk` / **Oh My PK** across:
+
+- `desktop/src-tauri/src/managed_agents/discovery.rs` — preset ID, label, and command
+- `desktop/src/features/onboarding/ui/RuntimeIcon.tsx` — runtime icon lookup and styling
+- `desktop/src/features/settings/ui/harnessCatalogCopy.ts` — catalog ID and source URL
+- `desktop/src/features/settings/ui/harnessCatalogLogic.test.mjs` — catalog filtering fixtures
+- `desktop/tests/e2e/harness-catalog-screenshots.spec.ts` — catalog screenshot fixture and install URL
+- `crates/buzz-acp/README.md` — preset catalog documentation
+
+These entries describe the current working tree; preserve unrelated changes and
+verify the rename across all harness callers before committing.
+
+---
+
 ## Quality Gates
 
 Run `just ci` before every PR — it runs `fmt` + `clippy` + desktop lint +
