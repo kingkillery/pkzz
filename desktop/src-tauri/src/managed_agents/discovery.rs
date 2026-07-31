@@ -1548,12 +1548,12 @@ const PRESET_HARNESSES: &[PresetHarness] = &[
         underlying_cli: None,
     },
     PresetHarness {
-        id: "omp",
-        label: "Oh My Pi",
-        command: "omp",
+        id: "ompk",
+        label: "Oh My PK",
+        command: "ompk",
         args: &["acp"],
-        install_instructions_url: "https://github.com/can1357/oh-my-pi",
-        install_hint: "Buzz talks to Oh My Pi through its CLI's ACP mode (omp acp).",
+        install_instructions_url: "https://github.com/kingkillery/oh-my-pk",
+        install_hint: "Buzz talks to Oh My PK through its CLI's ACP mode (ompk acp).",
         underlying_cli: None,
     },
     PresetHarness {

@@ -157,7 +157,7 @@ describe("filterCatalogEntries", () => {
   const entries = [
     entry({ id: "kimi", label: "Kimi Code", command: "kimi" }),
     entry({ id: "amp", label: "Amp", command: "amp" }),
-    entry({ id: "omp", label: "Oh My Pi", command: "omp" }),
+    entry({ id: "ompk", label: "Oh My PK", command: "ompk" }),
   ];
 
   it("returns everything for a blank query", () => {
@@ -173,8 +173,8 @@ describe("filterCatalogEntries", () => {
 
   it("matches command", () => {
     assert.deepEqual(
-      filterCatalogEntries(entries, "omp").map((e) => e.id),
-      ["omp"],
+      filterCatalogEntries(entries, "ompk").map((e) => e.id),
+      ["ompk"],
     );
   });
 
