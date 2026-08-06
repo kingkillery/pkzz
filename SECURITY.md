@@ -4,7 +4,7 @@
 
 **Please do not report security vulnerabilities through public GitHub issues.**
 
-If you discover a security vulnerability in Buzz, please report it by emailing
+If you discover a security vulnerability in Pkzz, please report it by emailing
 **buzz@block.xyz**. Include as much detail as possible:
 
 - A description of the vulnerability and its potential impact
@@ -33,7 +33,7 @@ We will credit reporters in release notes unless you prefer to remain anonymous.
 | `main` (latest) | ✅ Active |
 | Previous releases | ⚠️ Best-effort; upgrade recommended |
 
-Buzz is pre-1.0. We do not maintain long-term support branches at this stage.
+Pkzz is pre-1.0. We do not maintain long-term support branches at this stage.
 All security fixes land on `main` first.
 
 ---
@@ -75,7 +75,7 @@ for SOX-grade compliance and eDiscovery.
 
 ### Desktop Secret Storage — OS Keyring
 
-The Buzz desktop app stores nsec private keys in the operating system keyring
+The Pkzz desktop app stores nsec private keys in the operating system keyring
 rather than in plaintext files: macOS Keychain, Windows Credential Manager, or
 the Linux Secret Service (`gnome-keyring` / `kwallet` via D-Bus). This covers
 both the human identity key and every managed-agent key.

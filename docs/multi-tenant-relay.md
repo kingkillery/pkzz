@@ -1,4 +1,4 @@
-# Multi-Tenant Buzz Relay: A Formal Specification
+# Multi-Tenant Pkzz Relay: A Formal Specification
 
 `draft`
 
@@ -13,7 +13,7 @@ across the relay's logical interface (query results, authorization decisions,
 emitted errors, and audit-chain contents) — and **authorization soundness** — no
 credential, signature, or forged event lets an actor cross a community boundary.
 
-Today a Buzz relay *process* is the security boundary: one `DATABASE_URL`, one
+Today a Pkzz relay *process* is the security boundary: one `DATABASE_URL`, one
 relay keypair, one relay-global `relay_members` table, with `channel_id` (the
 `h` tag) as the only sub-relay locality. The model proven here demotes the relay
 process to stateless compute and elevates a new **community** entity to the
@@ -663,7 +663,7 @@ Each axiom is *admitted* per deployment, not assumed universally:
   migration lint asserting `channels.community_id` is never mutated after insert
   (no `UPDATE`/`ALTER`/drop-recreate). A failing lint rejects the deployment.
 - **P-SIG / A_HASH** are the standard Nostr crypto assumptions; admitted by using
-  the audited libraries the rest of Buzz uses.
+  the audited libraries the rest of Pkzz uses.
 - **P3** is admitted by the NIP-98 handler enforcing *both* timestamp-range
   validation and the seen-event-id check (`check_nip98_replay`) before any mint.
   Two structural gates make the seen-set sound, and both are conformance checks

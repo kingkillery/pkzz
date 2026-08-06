@@ -1,4 +1,4 @@
-# Buzz Push Gateway deployment
+# Pkzz Push Gateway deployment
 
 `buzz-push-gateway` is the standalone public APNs last hop intended for `push.buzz.xyz`. Build it with `Dockerfile.push-gateway`; do not run it in the relay image or give relays APNs credentials.
 
@@ -22,11 +22,11 @@
 | `BUZZ_PUSH_APNS_KEY_PATH` | Read-only mounted Apple APNs `.p8` provider key. |
 | `BUZZ_PUSH_APNS_KEY_ID` | APNs provider key id. |
 | `BUZZ_PUSH_APNS_TEAM_ID` | Apple developer team id. |
-| `BUZZ_PUSH_APNS_TOPIC` | Buzz iOS bundle id. |
+| `BUZZ_PUSH_APNS_TOPIC` | Pkzz iOS bundle id. |
 | `BUZZ_PUSH_GRANT_KEYS` | Capability AEAD keyring, `id:base64-32-bytes[,predecessor...]`; current key first. |
 | `BUZZ_PUSH_TOKEN_KEYS` | Independent token-custody AEAD keyring in the same format. Never reuse grant keys. |
 
-Optional endpoint quota policy variables are `BUZZ_PUSH_ENDPOINT_QUOTA_WINDOW_SECONDS` (default `10`, max `86400`) and `BUZZ_PUSH_ENDPOINT_QUOTA_MAX_DELIVERIES` (default `10`, max `10000`). These are Buzz policy hypotheses, not Apple-published limits; tune under load while retaining a hard ceiling.
+Optional endpoint quota policy variables are `BUZZ_PUSH_ENDPOINT_QUOTA_WINDOW_SECONDS` (default `10`, max `86400`) and `BUZZ_PUSH_ENDPOINT_QUOTA_MAX_DELIVERIES` (default `10`, max `10000`). These are Pkzz policy hypotheses, not Apple-published limits; tune under load while retaining a hard ceiling.
 
 ## Secret and key rotation rules
 
@@ -95,11 +95,11 @@ The chart defaults to the `main` image tag because `.github/workflows/docker.yml
 
 ```bash
 gh attestation verify \
-  oci://ghcr.io/block/buzz-push-gateway@sha256:<64-lowercase-hex> \
+  oci://ghcr.io/kingkillery/pkzz-push-gateway@sha256:<64-lowercase-hex> \
   --owner block
 ```
 
-Only after that command succeeds, set the exact digest as `image.digest`; the chart then renders `ghcr.io/block/buzz-push-gateway@sha256:...` and ignores the mutable tag. `values-production.yaml` is an intentionally invalid production-input contract: deployment CI must inject this verified `image.digest`, the provisioned Apple application identifier, an environment-owned Gateway parent reference, and the actual PostgreSQL network. Schema validation rejects the artifact when any remains empty; the render guard proves both rejection and a fully injected render.
+Only after that command succeeds, set the exact digest as `image.digest`; the chart then renders `ghcr.io/kingkillery/pkzz-push-gateway@sha256:...` and ignores the mutable tag. `values-production.yaml` is an intentionally invalid production-input contract: deployment CI must inject this verified `image.digest`, the provisioned Apple application identifier, an environment-owned Gateway parent reference, and the actual PostgreSQL network. Schema validation rejects the artifact when any remains empty; the render guard proves both rejection and a fully injected render.
 
 Network policy keeps APNs HTTPS and PostgreSQL egress in separate CIDR lists. APNs currently requires broad TCP/443 reachability; `networkPolicy.postgresEgressCidrs` must be narrowed to the production database network, and the DNS namespace/pod selectors must match the cluster DNS deployment. The sample private CIDR is not a claim about the production topology.
 
@@ -125,5 +125,5 @@ creates `push-chart-vX.Y.Z` and dispatches
 `.github/workflows/push-gateway-helm-chart.yml` with that immutable tag and bare
 version. The publisher verifies the checked-out commit is the tag target and the
 chart version equals `X.Y.Z` before pushing
-`oci://ghcr.io/block/buzz/charts/buzz-push-gateway`. A manually pushed
+`oci://ghcr.io/kingkillery/pkzz/charts/buzz-push-gateway`. A manually pushed
 `push-chart-vX.Y.Z` tag is the documented rescue path and runs the same checks.

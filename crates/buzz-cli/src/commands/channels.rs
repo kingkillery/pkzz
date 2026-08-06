@@ -187,7 +187,7 @@ impl ChannelSummary {
                 "d" => channel_id = val.map(str::to_string),
                 "name" => name = val.map(str::to_string),
                 "t" => channel_type = val.map(str::to_string),
-                // NIP-29 emits both `private` and `public` (Buzz adds the latter).
+                // NIP-29 emits both `private` and `public` (Pkzz adds the latter).
                 // The presence of either tag is the source of truth; tag value is unused.
                 "private" => visibility = Some("private".to_string()),
                 "public" => visibility = Some("public".to_string()),
@@ -491,7 +491,7 @@ fn apply_cardinality_rule(
                 return Err(CliError::Usage(format!(
                     "persona '{slug}' has {} live instances for this owner ({}); \
                      pass a template with a single instance per persona, or resolve \
-                     the duplicate in Buzz Desktop before creating the channel",
+                     the duplicate in Pkzz Desktop before creating the channel",
                     many.len(),
                     candidates.join(", ")
                 )));
@@ -1262,15 +1262,15 @@ mod tests {
 
     #[test]
     fn name_matches_substring_case_insensitive() {
-        assert!(name_matches("Buzz-Chat-Composer", "composer", false));
-        assert!(name_matches("Buzz-Chat-Composer", "buzz", false));
+        assert!(name_matches("Pkzz-Chat-Composer", "composer", false));
+        assert!(name_matches("Pkzz-Chat-Composer", "buzz", false));
         assert!(!name_matches("design", "composer", false));
     }
 
     #[test]
     fn name_matches_exact_case_insensitive() {
-        assert!(name_matches("Buzz", "buzz", true));
-        assert!(!name_matches("Buzz-Chat", "buzz", true));
+        assert!(name_matches("Pkzz", "buzz", true));
+        assert!(!name_matches("Pkzz-Chat", "buzz", true));
     }
 
     #[test]

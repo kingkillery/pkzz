@@ -2,9 +2,9 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:buzz/features/pairing/pairing_provider.dart';
-import 'package:buzz/features/pairing/pairing_socket.dart';
-import 'package:buzz/shared/auth/auth.dart';
+import 'package:pkzz/features/pairing/pairing_provider.dart';
+import 'package:pkzz/features/pairing/pairing_socket.dart';
+import 'package:pkzz/shared/auth/auth.dart';
 
 /// Tests for [PairingNotifier]'s legacy `buzz://` payload parsing and
 /// SSRF-prevention validation.

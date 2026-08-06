@@ -241,7 +241,7 @@ fn is_unicode_format(c: char) -> bool {
     )
 }
 
-/// Normalize a Buzz display name into a git author name, or `None` to fall
+/// Normalize a Pkzz display name into a git author name, or `None` to fall
 /// back to the npub.
 ///
 /// Strips control and Unicode format characters plus angle brackets, collapses
@@ -289,14 +289,14 @@ fn build_git_env(info: &KeyInfo) -> Vec<(String, String)> {
         .and_then(sanitize_git_user_name)
         .unwrap_or_else(|| info.npub.clone());
     let entries: Vec<(&str, String)> = vec![
-        // Identity — Buzz display name (npub fallback), NIP-05-style email
+        // Identity — Pkzz display name (npub fallback), NIP-05-style email
         ("user.name", user_name),
         ("user.email", email),
-        // Nostr credential helper is additive — it silently declines non-Buzz
+        // Nostr credential helper is additive — it silently declines non-Pkzz
         // remotes (exits 0, no credential), so git falls through to system
         // helpers (osxkeychain, store, etc.) for GitHub/GitLab/etc.
         ("credential.helper", "nostr".into()),
-        // Required: Buzz relay verifies NIP-98 against the full repo-root URL.
+        // Required: Pkzz relay verifies NIP-98 against the full repo-root URL.
         // Without useHttpPath, git only passes the host and auth is rejected.
         ("credential.useHttpPath", "true".into()),
         ("nostr.keyfile", info.keyfile_path.clone()),

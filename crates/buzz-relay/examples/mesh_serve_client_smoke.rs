@@ -1,12 +1,12 @@
 //! Local mesh serve→client→inference smoke test.
 //!
-//! Proves the full Buzz shared compute serve→consume path on a single box,
+//! Proves the full Pkzz shared compute serve→consume path on a single box,
 //! without a relay or Nostr discovery:
 //!
 //!   1. Start a SERVE node hosting a GGUF (the `serve::start` path desktop
 //!      uses in Share-compute mode), and read its mesh invite token.
 //!   2. Start a CLIENT node joined to that serve node via the invite token
-//!      (the `client::start` path a Buzz shared compute agent uses), binding
+//!      (the `client::start` path a Pkzz shared compute agent uses), binding
 //!      its own local OpenAI-compatible endpoint.
 //!   3. Drive one chat completion against the CLIENT endpoint and assert it
 //!      routed through the mesh to the serve node and produced real output.

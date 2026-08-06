@@ -1,12 +1,12 @@
 //! Owner-allowlist admission smoke test — three nodes, one per process.
 //!
-//! Proves the security claim of Buzz's membership-derived mesh admission:
+//! Proves the security claim of Pkzz's membership-derived mesh admission:
 //! possession of a dial pointer (invite token / EndpointAddr) admits nobody;
 //! only owners on the serve node's allowlist join the mesh.
 //!
 //!   1. SERVE process: hosts a GGUF with `trust_policy(Allowlist)` +
 //!      `owner_required(true)`, trusting exactly one other owner id — the
-//!      same builder calls Buzz desktop makes with a resolved member roster.
+//!      same builder calls Pkzz desktop makes with a resolved member roster.
 //!   2. TRUSTED process: client presenting the allowlisted owner key, joins
 //!      via the invite token, must see the routed model; the orchestrator
 //!      then drives a real inference through it.
@@ -16,7 +16,7 @@
 //! One process per node is load-bearing: mesh-llm keeps process-global state
 //! (ownership attestation at ~/.mesh-llm/node-ownership.json, tracing, the
 //! output sink), so multiple owner-keyed embedded nodes in one process
-//! corrupt each other — exactly how Buzz runs it in production anyway (one
+//! corrupt each other — exactly how Pkzz runs it in production anyway (one
 //! desktop = one node).
 //!
 //! Hardware-gated, not CI — loads a real model. Run with:

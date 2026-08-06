@@ -3164,7 +3164,7 @@ fn try_native_steer(
     // native and cancel+merge fallback share these so the agent gets the
     // same orientation regardless of transport). The single event block
     // is rendered by `queue::format_event_block`, the same function
-    // `queue::format_prompt` uses internally for `[Buzz event: …]`
+    // `queue::format_prompt` uses internally for `[Pkzz event: …]`
     // sections, so the rendering also cannot drift.
     //
     // Passing `None` for `channel_info` / `profile_lookup` is intentional:
@@ -3180,7 +3180,7 @@ fn try_native_steer(
         received_at: std::time::Instant::now(),
     };
     let event_block = queue::format_event_block(channel_id, None, &be, None);
-    let body = format!("{header}\n\n[Buzz event: {prompt_tag}]\n{event_block}\n\n{closing}");
+    let body = format!("{header}\n\n[Pkzz event: {prompt_tag}]\n{event_block}\n\n{closing}");
 
     let (ack_tx, ack_rx) = tokio::sync::oneshot::channel::<pool::SteerAck>();
     let request = pool::SteerRequest {
@@ -7677,12 +7677,12 @@ mod observer_payload_trim_tests {
     fn test_multi_block_prompt_retains_every_section_header_after_elision() {
         // The real session/prompt fix: format_prompt now emits one block per
         // section, so the observer payload is params.prompt = [{text: "[Base]…"},
-        // {text: "[Agent Memory — core]…"}, … {text: "[Buzz event: …]…<huge>"}].
+        // {text: "[Agent Memory — core]…"}, … {text: "[Pkzz event: …]…<huge>"}].
         // An oversized section is its own leaf, so eliding its body keeps the
         // leaf's head-3000 (which begins with the section's [Header] line) — every
         // header survives, so the desktop "Prompt context" panel counts them all.
         // This is the regression the single-fat-leaf shape caused (the trailing
-        // [Buzz event] header fell into the elided middle and the count collapsed
+        // [Pkzz event] header fell into the elided middle and the count collapsed
         // to 1).
         let sections = [
             "[Base]\nyou are a helpful agent".to_string(),
@@ -7690,7 +7690,7 @@ mod observer_payload_trim_tests {
             "[Agent Memory — core]\nremember this".to_string(),
             "[Context]\nScope: thread".to_string(),
             // The triggering event body, oversized on its own.
-            format!("[Buzz event: @mention]\nContent: {}", "E".repeat(90_000)),
+            format!("[Pkzz event: @mention]\nContent: {}", "E".repeat(90_000)),
         ];
         let block_refs: Vec<&str> = sections.iter().map(String::as_str).collect();
         // Mirror the wire shape build_prompt_params produces: each block is its
@@ -7726,7 +7726,7 @@ mod observer_payload_trim_tests {
             "[System]",
             "[Agent Memory — core]",
             "[Context]",
-            "[Buzz event: @mention]",
+            "[Pkzz event: @mention]",
         ] {
             assert!(
                 texts.iter().any(|t| t.starts_with(header)),
@@ -7736,7 +7736,7 @@ mod observer_payload_trim_tests {
         // The oversized event body was elided in place (header kept, middle cut).
         let event_block = texts
             .iter()
-            .find(|t| t.starts_with("[Buzz event: @mention]"))
+            .find(|t| t.starts_with("[Pkzz event: @mention]"))
             .unwrap();
         assert!(
             event_block.contains("…[elided"),

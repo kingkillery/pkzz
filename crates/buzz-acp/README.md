@@ -1,11 +1,11 @@
 # buzz-acp
 
-ACP harness that connects AI agents to Buzz. The harness listens for @mentions on the relay, prompts your agent, and the agent replies using the Buzz CLI.
+ACP harness that connects AI agents to Pkzz. The harness listens for @mentions on the relay, prompts your agent, and the agent replies using the Pkzz CLI.
 
 ```
-Buzz Relay ──WS──→ buzz-acp ──stdio──→ Your Agent
+Pkzz Relay ──WS──→ buzz-acp ──stdio──→ Your Agent
                                                │
-                                          Buzz CLI
+                                          Pkzz CLI
                                        (send_message, etc.)
 ```
 
@@ -13,7 +13,7 @@ Supports any agent that speaks [ACP](https://agentclientprotocol.com/) over stdi
 
 ## Prerequisites
 
-- A running Buzz relay (`just relay` starts Docker services automatically, or use a hosted instance)
+- A running Pkzz relay (`just relay` starts Docker services automatically, or use a hosted instance)
 - A Nostr keypair for the agent (see [Generating Keys](#generating-keys))
 
 Build:
@@ -25,7 +25,7 @@ export PATH="$PWD/target/release:$PATH"
 
 ## Generating Keys
 
-Each agent needs a Nostr keypair — this is the agent's identity in Buzz. Use `buzz-admin` to generate one:
+Each agent needs a Nostr keypair — this is the agent's identity in Pkzz. Use `buzz-admin` to generate one:
 
 ```bash
 cargo run -p buzz-admin -- generate-key
@@ -50,7 +50,7 @@ The harness discovers channels by querying the relay with the agent's authentica
 
 By default, the harness discovers only channels the agent is a **member** of (`GET /api/channels?member=true`). When the agent is added to a new channel, the membership notification subscription auto-subscribes to it.
 
-**Private channels** require explicit membership. The relay doesn't yet have a REST/event API for managing channel members — this is a known gap. For now, use `create_channel` via the Buzz CLI to create new channels (the creator is automatically a member).
+**Private channels** require explicit membership. The relay doesn't yet have a REST/event API for managing channel members — this is a known gap. For now, use `create_channel` via the Pkzz CLI to create new channels (the creator is automatically a member).
 
 ## Quick Start (goose)
 
@@ -62,7 +62,7 @@ export GOOSE_MODE=auto
 buzz-acp
 ```
 
-That's it. The harness spawns `goose acp`, connects to the relay, discovers channels, and starts listening. When someone @mentions the agent, goose receives the message and can reply using the Buzz CLI that the harness configures automatically.
+That's it. The harness spawns `goose acp`, connects to the relay, discovers channels, and starts listening. When someone @mentions the agent, goose receives the message and can reply using the Pkzz CLI that the harness configures automatically.
 
 ## Running with Codex
 
@@ -254,7 +254,7 @@ Forum event kinds:
 2. **Channel discovery** — Queries the relay REST API for accessible channels, subscribes to each.
 3. **Event loop** — Listens for @mention events (kind 9 with the agent's pubkey in a `#p` tag). Events queue per channel.
 4. **Prompting** — When events are pending and no prompt is in flight for that channel, drains all queued events for the oldest channel into a single batched prompt via ACP `session/prompt`.
-5. **Agent response** — The agent processes the prompt and uses the Buzz CLI (`send_message`, `get_messages`, etc.) to interact with Buzz.
+5. **Agent response** — The agent processes the prompt and uses the Pkzz CLI (`send_message`, `get_messages`, etc.) to interact with Pkzz.
 6. **Recovery** — If the agent crashes, the harness respawns it. If the relay disconnects, the harness reconnects with a `since` filter to avoid missing events.
 
 Each channel has at most one prompt in flight. Multiple channels can be processed concurrently when agents > 1.
@@ -263,11 +263,11 @@ Each channel has at most one prompt in flight. Multiple channels can be processe
 
 ## Bring Your Own Harness (BYOH)
 
-Buzz Desktop supports registering any ACP-speaking agent tool as a selectable runtime without a PR.
+Pkzz Desktop supports registering any ACP-speaking agent tool as a selectable runtime without a PR.
 
 ### How it works
 
-**Tier-1 — compiled-in runtimes** (Goose, Claude Code, Codex, Buzz Agent): have auto-installers, auth probes, and first-class onboarding. Their IDs (`goose`, `claude`, `codex`, `buzz-agent`) are reserved and cannot be overridden.
+**Tier-1 — compiled-in runtimes** (Goose, Claude Code, Codex, Pkzz Agent): have auto-installers, auth probes, and first-class onboarding. Their IDs (`goose`, `claude`, `codex`, `buzz-agent`) are reserved and cannot be overridden.
 
 **Tier-2 — preset catalog** (Cursor, Oh My PK, Grok Build, OpenCode, Kimi Code, Amp, Hermes Agent, OpenClaw): static `HarnessDefinition` entries in `desktop/src-tauri/src/managed_agents/discovery/presets.rs` (`PRESET_HARNESSES`). They are always present in the runtime catalog, PATH-probed for availability, not editable or deletable by the user. Displayed with bundled logos; if not installed, a docs link appears instead.
 
@@ -296,7 +296,7 @@ Fields:
 - `label` — human-readable name shown in the UI
 - `command` — the executable name or absolute path (must be non-empty)
 - `args` — optional default CLI arguments (array); instance-level args override this when non-empty
-- `env` — optional environment variables injected at spawn time (definition env is a floor; user/persona/global env overrides it; Buzz-reserved keys like `BUZZ_MANAGED_AGENT` are always stripped and cannot be overridden)
+- `env` — optional environment variables injected at spawn time (definition env is a floor; user/persona/global env overrides it; Pkzz-reserved keys like `BUZZ_MANAGED_AGENT` are always stripped and cannot be overridden)
 - `installInstructionsUrl` / `installHint` — shown when the binary is not on PATH
 
 Invalid files (bad JSON, unknown id, empty command) are skipped with a warning and do not break discovery for other entries.
@@ -306,7 +306,7 @@ Invalid files (bad JSON, unknown id, empty command) are skipped with a warning a
 - No install shell commands in preset or custom definitions — only the user's own PATH is consulted.
 - `can_auto_install` is always `false` for preset and custom entries.
 - No user-supplied icon URLs — icons are bundled assets keyed by id in `RuntimeIcon.tsx`.
-- `BUZZ_MANAGED_AGENT` and other Buzz identity keys cannot be overridden by `env` in a custom definition; they are stripped before merging.
+- `BUZZ_MANAGED_AGENT` and other Pkzz identity keys cannot be overridden by `env` in a custom definition; they are stripped before merging.
 
 ### Adding a preset (contributor guide)
 

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:buzz/features/settings/accent_picker_page.dart';
-import 'package:buzz/features/settings/theme_picker_page.dart';
-import 'package:buzz/features/settings/settings_page.dart';
-import 'package:buzz/shared/theme/theme.dart';
+import 'package:pkzz/features/settings/accent_picker_page.dart';
+import 'package:pkzz/features/settings/theme_picker_page.dart';
+import 'package:pkzz/features/settings/settings_page.dart';
+import 'package:pkzz/shared/theme/theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../helpers/widget_helpers.dart';
@@ -168,8 +168,8 @@ void main() {
     });
   });
 
-  group('Buzz accent behavior', () {
-    testWidgets('settings hides accent navigation for Buzz', (tester) async {
+  group('Pkzz accent behavior', () {
+    testWidgets('settings hides accent navigation for Pkzz', (tester) async {
       await _pumpPicker(
         tester,
         const SettingsPage(profileHeader: SizedBox.shrink()),
@@ -179,7 +179,7 @@ void main() {
       expect(find.text('Accent color'), findsNothing);
     });
 
-    testWidgets('settings restores accent navigation away from Buzz', (
+    testWidgets('settings restores accent navigation away from Pkzz', (
       tester,
     ) async {
       await _pumpPicker(

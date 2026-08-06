@@ -1,4 +1,4 @@
-//! Send an @mention event to a Buzz channel targeting a specific pubkey.
+//! Send an @mention event to a Pkzz channel targeting a specific pubkey.
 //! Usage: mention <channel_uuid> <target_pubkey_hex> <message>
 
 use buzz_test_client::BuzzTestClient;

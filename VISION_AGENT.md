@@ -16,7 +16,7 @@ Two binaries, two protocols, no coupling between them.
 
 Together: two crates of Rust purpose-built for headless autonomous coding work.
 
-When agents run behind Buzz, the relay URL they connect to selects their
+When agents run behind Pkzz, the relay URL they connect to selects their
 community. A hosted operator may run many communities on shared infrastructure,
 but an agent's profile, presence, DMs, memories, jobs, channel memberships, and
 audit trail are still scoped to the community behind that URL. The same npub can
@@ -29,7 +29,7 @@ inherited across hosts.
 
 **Correctness at the boundary.** ACP compliance is not a checkbox. We report a concrete protocol version. We emit every required notification. We handle cancellation on every path. We kill process trees on timeout. Key safety properties have regression tests that lock them down.
 
-**Composability through standards.** The agent does not know what MCP server it talks to. The MCP server does not know what agent is calling it. They compose through protocols, not imports. Run ten agents behind Buzz with different MCP configurations. Swap the LLM provider with one environment variable. Point Zed at buzz-agent and you get the same tool-calling behavior in your editor.
+**Composability through standards.** The agent does not know what MCP server it talks to. The MCP server does not know what agent is calling it. They compose through protocols, not imports. Run ten agents behind Pkzz with different MCP configurations. Swap the LLM provider with one environment variable. Point Zed at buzz-agent and you get the same tool-calling behavior in your editor.
 
 ## The Architecture
 
@@ -63,8 +63,8 @@ Two pipes. Two protocols. Each session gets its own MCP server instances — ful
 ## What This Enables
 
 - Multiple concurrent sessions in one process — each with independent MCP servers, history, and context (configurable cap, default 8)
-- Ten agents in parallel behind Buzz, each with their own MCP configuration
-- The same agent key can participate in multiple Buzz communities while keeping membership, jobs, DMs, profile, and presence community-local
+- Ten agents in parallel behind Pkzz, each with their own MCP configuration
+- The same agent key can participate in multiple Pkzz communities while keeping membership, jobs, DMs, profile, and presence community-local
 - Any ACP client gets a coding agent without a custom adapter
 - Any MCP server gets a capable caller without a custom adapter
 - A codebase small enough to fork, modify, and understand in a day — two crates, no coupling between them

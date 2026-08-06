@@ -9,7 +9,7 @@ remote="$tmp/remote.git"
 work="$tmp/work"
 operator="$tmp/operator"
 bin="$tmp/bin"
-canonical_origin="git@github.com:block/buzz.git"
+canonical_origin="git@github.com:kingkillery/pkzz.git"
 mkdir -p "$bin"
 
 cat > "$bin/gh" <<'GH'
@@ -17,7 +17,7 @@ cat > "$bin/gh" <<'GH'
 set -euo pipefail
 case "${1:-}:${2:-}" in
   --version:*) printf 'gh version %s (test)\n' "${GH_VERSION:-2.94.0}" ;;
-  api:repos/block/buzz/rulesets/14378754)
+  api:repos/kingkillery/pkzz/rulesets/14378754)
     case "$*" in
       *'.enforcement'*) printf '%s\n' "${GH_TAG_RULESET_STATE:-active}" ;;
       *'.current_user_can_bypass'*) printf '%s\n' "${GH_CURRENT_USER_CAN_BYPASS-always}" ;;
@@ -37,7 +37,7 @@ case "${1:-}:${2:-}" in
       exit 0
     fi
     if [[ "${GH_WORKFLOW_EXTRA_URL:-}" == "1" ]]; then
-      printf '%s\n' 'https://github.com/block/buzz/actions/runs/998'
+      printf '%s\n' 'https://github.com/kingkillery/pkzz/actions/runs/998'
     fi
     version=""
     number=""
@@ -55,7 +55,7 @@ case "${1:-}:${2:-}" in
     if [[ "${GH_WORKFLOW_NO_URL:-}" == "1" ]]; then
       exit 0
     fi
-    printf 'https://github.com/block/buzz/actions/runs/%s\n' "$number"
+    printf 'https://github.com/kingkillery/pkzz/actions/runs/%s\n' "$number"
     ;;
   run:watch)
     [[ "${GH_WORKFLOW_FAIL:-}" != "1" ]] || exit 1
@@ -72,7 +72,7 @@ case "${1:-}:${2:-}" in
         "mobile-v${version}-rc.${expected}" "$sha"
     else
       git -C "$GH_WORKTREE" -c tag.gpgSign=false tag -a \
-        -m "Buzz Mobile $version release candidate $expected" \
+        -m "Pkzz Mobile $version release candidate $expected" \
         "mobile-v${version}-rc.${expected}" "$sha"
     fi
     git -C "$GH_WORKTREE" -c core.hooksPath=/dev/null push -q \

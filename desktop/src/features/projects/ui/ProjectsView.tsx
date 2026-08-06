@@ -104,7 +104,7 @@ const REPOSITORY_SCOPE_OPTIONS: Array<{
   { label: "All", value: "all" },
   { label: "My Repositories", value: "mine" },
   { label: "Local", value: "local" },
-  { label: "Buzz-hosted", value: "buzz" },
+  { label: "Pkzz-hosted", value: "buzz" },
   { label: "Linked", value: "linked" },
 ];
 const PULL_REQUEST_SCOPE_OPTIONS: Array<{
@@ -201,7 +201,7 @@ export function ProjectsView() {
   const projectsWorkItemsQuery = useProjectsWorkItemsQuery(
     filter === "all" || filter === "prs" || filter === "issues" ? projects : [],
   );
-  // One blobless clone per primary Buzz repository, only while the overview
+  // One blobless clone per primary Pkzz repository, only while the overview
   // header is visible.
   const snapshotProjects = React.useMemo(
     () =>

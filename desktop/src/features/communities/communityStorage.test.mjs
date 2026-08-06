@@ -27,7 +27,7 @@ function createMemoryStorage(initial = {}) {
   };
 }
 
-test("migrateLegacyCommunityStorage promotes current Buzz workspace state", () => {
+test("migrateLegacyCommunityStorage promotes current Pkzz workspace state", () => {
   const storage = createMemoryStorage({
     "buzz-workspaces": '[{"id":"current"}]',
     "buzz-active-workspace-id": "current",

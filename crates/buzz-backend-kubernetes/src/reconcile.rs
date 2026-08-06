@@ -677,7 +677,7 @@ mod tests {
             context: None,
             namespace: "buzz-agents-test".into(),
             image: crate::image::parse(&format!(
-                "ghcr.io/block/buzz-sprig@sha256:{}",
+                "ghcr.io/kingkillery/pkzz-sprig@sha256:{}",
                 "a".repeat(64)
             ))
             .unwrap(),

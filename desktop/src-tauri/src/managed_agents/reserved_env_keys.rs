@@ -9,7 +9,7 @@
 // Keep this file dependency-free: no crate-internal imports, no external
 // crates. Both consumers compile it as-is.
 
-/// Env var keys that Buzz sets itself and users must not override from
+/// Env var keys that Pkzz sets itself and users must not override from
 /// the persona/agent env_vars UI. Three categories:
 ///
 /// 1. **Identity / secrets** — overriding would swap the agent's nsec or

@@ -1,6 +1,6 @@
-import 'package:buzz/features/search/recent_searches_provider.dart';
-import 'package:buzz/shared/relay/relay.dart';
-import 'package:buzz/shared/theme/theme_provider.dart';
+import 'package:pkzz/features/search/recent_searches_provider.dart';
+import 'package:pkzz/shared/relay/relay.dart';
+import 'package:pkzz/shared/theme/theme_provider.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';

@@ -48,7 +48,7 @@ use crate::{
     },
 };
 
-/// The Buzz card frame template — Tyler's gold-honeycomb base. Generation
+/// The Pkzz card frame template — Tyler's gold-honeycomb base. Generation
 /// input only: it never participates in the snapshot manifest, PNG chunk,
 /// import decoder, or attachment validation. Embedded at compile time for
 /// deterministic packaging (see `card_template_decodes` test).
@@ -344,9 +344,9 @@ pub(crate) fn build_card_instructions(
         )
     };
     format!(
-        r#"You are designing one premium collectible trading card for the Buzz agent "{agent_name}".
+        r#"You are designing one premium collectible trading card for the Pkzz agent "{agent_name}".
 
-Input image 1 is the official Buzz card frame template (gold honeycomb border, dark interior, name banner top, hex badge top-right, text box lower third). Input image 2 is the agent's avatar — study its exact art style: medium, pixel grid if any, palette, shading, background motifs.
+Input image 1 is the official Pkzz card frame template (gold honeycomb border, dark interior, name banner top, hex badge top-right, text box lower third). Input image 2 is the agent's avatar — study its exact art style: medium, pixel grid if any, palette, shading, background motifs.
 
 Persona notes for the card copy:
 {persona_notes}

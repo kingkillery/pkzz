@@ -33,7 +33,7 @@ const BUILT_IN_PERSONAS: &[BuiltInPersona] = &[
         system_prompt: FIZZ_SYSTEM_PROMPT,
         name_pool: &[
             "Nectar", "Comet", "Bramble", "Clover", "Pollen", "Amber", "Daisy", "Mason", "Thistle",
-            "Waxwing", "Hive", "Meadow", "Juniper", "Aster", "Sage", "Willow", "Orchard", "Buzz",
+            "Waxwing", "Hive", "Meadow", "Juniper", "Aster", "Sage", "Willow", "Orchard", "Pkzz",
         ],
         model: None,
         runtime: None,

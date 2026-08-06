@@ -3,7 +3,7 @@
 ## 1. Overview & Goals
 
 A **Persona Pack** is a portable, self-contained bundle that defines one or more AI agent personas
-for deployment in Buzz. It is a **superset of the [Open Plugin Spec](https://open-plugin-spec.org)**
+for deployment in Pkzz. It is a **superset of the [Open Plugin Spec](https://open-plugin-spec.org)**
 — every valid Persona Pack is also a valid OPS package, but not vice versa.
 
 A pack contains: personas (identity + system prompt), skills (on-demand instruction sets), MCP
@@ -11,7 +11,7 @@ server config, pack-level instructions, lifecycle hooks, and distribution metada
 
 ### Design Goals
 
-1. **Portable** — zip file or git repo; no Buzz tooling required to inspect
+1. **Portable** — zip file or git repo; no Pkzz tooling required to inspect
 2. **Composable** — skills and MCP servers shared across agents; per-agent overrides additive
 3. **OPS-compatible** — discoverable by any OPS-compatible tool
 4. **Harness-honest** — explicit about what the agent runtime does vs. what buzz-acp does
@@ -21,7 +21,7 @@ server config, pack-level instructions, lifecycle hooks, and distribution metada
 ## 2. Open Plugin Spec Compatibility
 
 A Persona Pack is a valid OPS package. The `.plugin/plugin.json` manifest follows the OPS schema,
-and Buzz-specific extensions live alongside the OPS fields at the top level. Since the Open
+and Pkzz-specific extensions live alongside the OPS fields at the top level. Since the Open
 Plugin Spec defines no model configuration fields, there are no collisions. OPS consumers safely
 ignore unknown fields.
 
@@ -33,7 +33,7 @@ ignore unknown fields.
   "id": "com.example.meadow-security-team",
   "name": "Meadow Security Team",
   "version": "1.2.0",
-  "description": "A four-agent security review team for Buzz.",
+  "description": "A four-agent security review team for Pkzz.",
   "author": "Meadow Engineering",
   "license": "MIT",
   "homepage": "https://github.com/example/meadow-security-team",
@@ -88,10 +88,10 @@ none of them override it.
 
 - **OPS consumers**: see standard metadata; safely ignore unknown fields including `personas`,
   `defaults`, `pack_instructions`, `mcp_config`, and `hooks_config`.
-- **Buzz**: reads both OPS fields and the Buzz-specific fields; `personas` is authoritative.
-- **Version negotiation**: `engines.buzz` specifies minimum required Buzz version; buzz-acp
+- **Pkzz**: reads both OPS fields and the Pkzz-specific fields; `personas` is authoritative.
+- **Version negotiation**: `engines.buzz` specifies minimum required Pkzz version; buzz-acp
   rejects packs requiring a newer version.
-- **Extension mechanism**: Buzz-specific fields sit at the top level of `plugin.json` alongside
+- **Extension mechanism**: Pkzz-specific fields sit at the top level of `plugin.json` alongside
   OPS fields. No OPS core field is overloaded.
 - **`defaults`**: ignored entirely by OPS consumers. buzz-acp resolves it at deploy time before
   constructing per-persona configurations (see Section 10 and Section 12).
@@ -175,7 +175,7 @@ mcp_servers:
     env:
       SEMGREP_TOKEN: "${SEMGREP_TOKEN}"
 
-# === Behavioral Config (Buzz-specific) ===
+# === Behavioral Config (Pkzz-specific) ===
 subscribe:
   - "#security-reviews"
   - "#code-reviews"
@@ -202,7 +202,7 @@ You are Lep, a security-focused code reviewer on the Meadow team.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `name` | string | ✅ | Machine name / agent ID. Lowercase, no spaces, unique within pack. |
-| `display_name` | string | ✅ | Human-readable name shown in Buzz UI. |
+| `display_name` | string | ✅ | Human-readable name shown in Pkzz UI. |
 | `avatar` | string | ❌ | Pack-relative path to avatar image. |
 | `description` | string | ✅ | One-line description. |
 | `version` | string | ❌ | Semver. Defaults to pack version if omitted. |
@@ -255,7 +255,7 @@ Each message delivered to the agent runtime includes these sections in order:
 [Thread/Conversation Context]
 <recent message history, if applicable>
 
-[Buzz event]
+[Pkzz event]
 <the triggering message or event>
 ```
 
@@ -265,12 +265,12 @@ The `[Base]` layer is compiled into buzz-acp and is **identical for every agent*
 
 | Content | Purpose |
 |---------|---------|
-| Platform identity | Tells the agent it is running inside Buzz and what that means |
+| Platform identity | Tells the agent it is running inside Pkzz and what that means |
 | MCP tool reference | Documents the tools available via the connected MCP servers |
 | Workspace layout | Describes `$AGENT_CWD`, skill discovery paths, and file conventions |
 | Message polling | Explains how to check for new messages proactively |
 
-Pack authors do not write or configure the `[Base]` layer — it is maintained by the Buzz team
+Pack authors do not write or configure the `[Base]` layer — it is maintained by the Pkzz team
 and updated in buzz-acp releases.
 
 **Disabling or customizing the base layer**: Set `BUZZ_ACP_NO_BASE_PROMPT` to omit the `[Base]`
@@ -300,7 +300,7 @@ What belongs in `[System]`:
 - How to use MCP tools (covered by `[Base]`)
 - How to poll for new messages or use the `since` parameter (covered by `[Base]`)
 - Workspace layout or skill loading mechanics (covered by `[Base]`)
-- That the agent is running inside Buzz (covered by `[Base]`)
+- That the agent is running inside Pkzz (covered by `[Base]`)
 
 Focus persona prompts on what makes this agent unique: its role, personality, domain expertise,
 and team-specific protocols.
@@ -574,7 +574,7 @@ buzz-acp means no hooks fire.
 ## 10. Behavioral Configuration
 
 The behavioral config fields in a persona's frontmatter control how the agent participates in
-Buzz conversations. These are all Buzz-specific — the agent runtime has no awareness of them. They sit
+Pkzz conversations. These are all Pkzz-specific — the agent runtime has no awareness of them. They sit
 at the top level of the frontmatter alongside identity fields like `name` and `description`.
 
 ### Pack Defaults
@@ -641,7 +641,7 @@ wins):
 ```
 1. Operator env vars           — e.g. GOOSE_MODEL, GOOSE_PROVIDER (agent-runtime-specific)
                                  already set in the parent process environment
-2. Desktop UI per-agent        — overrides set in the Buzz desktop app per-agent settings
+2. Desktop UI per-agent        — overrides set in the Pkzz desktop app per-agent settings
 3. Per-persona frontmatter     — behavioral config fields set directly in the persona's frontmatter
 4. Pack-level defaults         — the `defaults` object in plugin.json
 5. Built-in defaults           — buzz-acp's hardcoded fallback values
@@ -805,7 +805,7 @@ broadcast_replies: false
 
 ### Channel Name `#` Convention
 
-The `#` prefix in `subscribe` entries is a **display convention only**. Channel names in the Buzz
+The `#` prefix in `subscribe` entries is a **display convention only**. Channel names in the Pkzz
 relay are stored and queried **without** the `#` prefix. buzz-acp strips the leading `#` before
 making any relay API calls. `"#security-reviews"` and `"security-reviews"` are equivalent in this
 field.
@@ -899,7 +899,7 @@ buzz install git+https://gitlab.example.com/team/pack.git
 
 ### Phase 3: App Store UI
 
-A Buzz-hosted registry and in-app browser for discovering and installing packs. API-compatible
+A Pkzz-hosted registry and in-app browser for discovering and installing packs. API-compatible
 with OPS registries. Details TBD.
 
 ### Installed Pack Location
@@ -909,7 +909,7 @@ at agent startup.
 
 ### Desktop App Import
 
-The Buzz desktop app's **Agents** page does not import persona-pack `.zip` archives or
+The Pkzz desktop app's **Agents** page does not import persona-pack `.zip` archives or
 `.persona.md` files directly. It imports personas and teams as **snapshots** — files exported
 from an agent or team that already exists inside the app:
 

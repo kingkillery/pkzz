@@ -219,7 +219,7 @@ pub async fn handle_side_effects(
 
 /// Validate a standard NIP-09 deletion event before it is stored.
 ///
-/// Buzz accepts standard deletions for self-authored events, plus the owning
+/// Pkzz accepts standard deletions for self-authored events, plus the owning
 /// human deleting their agent's events (mirrors `validate_edit_ownership`).
 /// Channel admin deletions continue to use kind 9005.
 pub async fn validate_standard_deletion_event(
@@ -1079,7 +1079,7 @@ pub async fn emit_group_discovery_events(
                 tags.push(Tag::parse(["p", &pubkey_hex])?);
             }
         }
-        // Buzz channels always require explicit membership
+        // Pkzz channels always require explicit membership
         tags.push(Tag::parse(["closed"])?);
         // Channel type tag so clients can distinguish stream/forum/dm without inference
         tags.push(Tag::parse(["t", &channel.channel_type])?);

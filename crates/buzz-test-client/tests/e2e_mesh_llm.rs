@@ -1,4 +1,4 @@
-//! End-to-end acceptance tests for Buzz shared compute.
+//! End-to-end acceptance tests for Pkzz shared compute.
 //!
 //! These tests require a membership-gated buzz-relay and a mesh-enabled desktop
 //! publishing its client-signed discovery note. Live-inference rows additionally
@@ -275,7 +275,7 @@ async fn live_agent_completes_chat_over_mesh() {
 
 /// Assertion 6 (split): a model too large for one node + two serve nodes in the
 /// same mesh → mesh auto-splits → the same chat (assertion 4) completes via the
-/// split route. Auto-split is mesh runtime behavior (no Buzz code); this row
+/// split route. Auto-split is mesh runtime behavior (no Pkzz code); this row
 /// only verifies two serve desktops in one mesh produce a working split.
 ///
 /// Runbook only — needs a known too-large-for-one-node fixture + 2 serve nodes.

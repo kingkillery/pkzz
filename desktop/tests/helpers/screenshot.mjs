@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 //
-// Standalone Playwright screenshot helper for the Buzz desktop app.
+// Standalone Playwright screenshot helper for the Pkzz desktop app.
 //
 // Launches headless Chromium with the E2E mock bridge pre-injected (same
 // setup as installMockBridge in bridge.ts), navigates to a route, optionally

@@ -1,7 +1,7 @@
-import 'package:buzz/features/profile/set_status_sheet.dart';
-import 'package:buzz/features/profile/user_status.dart';
-import 'package:buzz/features/profile/user_status_provider.dart';
-import 'package:buzz/shared/custom_emoji/custom_emoji_provider.dart';
+import 'package:pkzz/features/profile/set_status_sheet.dart';
+import 'package:pkzz/features/profile/user_status.dart';
+import 'package:pkzz/features/profile/user_status_provider.dart';
+import 'package:pkzz/shared/custom_emoji/custom_emoji_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';

@@ -308,7 +308,7 @@ fn required_scope_for_kind(kind: u32, event: &Event) -> Result<Scope, &'static s
         KIND_NIP29_PUT_USER | KIND_NIP29_REMOVE_USER | KIND_NIP29_DELETE_GROUP => {
             Ok(Scope::AdminChannels)
         }
-        // NIP-43: relay membership admin commands (9030–9032) + Buzz
+        // NIP-43: relay membership admin commands (9030–9032) + Pkzz
         // workspace-profile command (9033).
         k if k == RELAY_ADMIN_ADD_MEMBER
             || k == RELAY_ADMIN_REMOVE_MEMBER

@@ -83,7 +83,7 @@ async fn create_test_channel(keys: &Keys) -> String {
     channel_uuid
 }
 
-/// Run `git` with the Buzz credential helper and isolated config.
+/// Run `git` with the Pkzz credential helper and isolated config.
 fn git_status(args: &[&str], cwd: &Path, owner_nsec: &str) -> std::process::Output {
     let helper = credential_helper();
     Command::new("git")
@@ -112,7 +112,7 @@ fn git_status(args: &[&str], cwd: &Path, owner_nsec: &str) -> std::process::Outp
         .expect("spawn git")
 }
 
-/// Run `git` with the Buzz credential helper and isolated config. Asserts the
+/// Run `git` with the Pkzz credential helper and isolated config. Asserts the
 /// command succeeds; returns stdout.
 fn git(args: &[&str], cwd: &Path, owner_nsec: &str) -> String {
     let out = git_status(args, cwd, owner_nsec);

@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:buzz/features/channels/camera_capture_cleanup.dart';
+import 'package:pkzz/features/channels/camera_capture_cleanup.dart';
 
 void main() {
   test('deletes the inline camera file after upload succeeds', () async {

@@ -1,4 +1,4 @@
-//! Terminal engine for the Buzz substrate.
+//! Terminal engine for the Pkzz substrate.
 //!
 //! Owns the emulator: grid state, the parser, the two hardening fences, and
 //! the damage encoding the renderer consumes. It does **not** own the PTY, the

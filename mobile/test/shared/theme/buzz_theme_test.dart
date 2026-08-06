@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:buzz/shared/theme/theme.dart';
-import 'package:buzz/shared/widgets/frosted_app_bar.dart';
+import 'package:pkzz/shared/theme/theme.dart';
+import 'package:pkzz/shared/widgets/frosted_app_bar.dart';
 
 void main() {
-  group('Buzz theme catalog entries', () {
+  group('Pkzz theme catalog entries', () {
     test('both halves are in the catalog', () {
       expect(findTheme(buzzThemeName), isNotNull);
       expect(findTheme(buzzDarkThemeName), isNotNull);
@@ -31,13 +31,13 @@ void main() {
       expect(themePairFor(buzzDarkThemeName), buzzThemeName);
     });
 
-    test('appear as a single System-mode option labelled "Buzz"', () {
+    test('appear as a single System-mode option labelled "Pkzz"', () {
       final paired = themeGroups().paired.map((t) => t.name);
       expect(paired, contains(buzzThemeName));
       expect(paired, isNot(contains(buzzDarkThemeName)));
-      expect(pairedThemeLabel(buzzThemeName), 'Buzz');
-      expect(themeSelectionLabel(buzzThemeName, ThemeMode.system), 'Buzz');
-      expect(themeSelectionLabel(buzzDarkThemeName, ThemeMode.system), 'Buzz');
+      expect(pairedThemeLabel(buzzThemeName), 'Pkzz');
+      expect(themeSelectionLabel(buzzThemeName, ThemeMode.system), 'Pkzz');
+      expect(themeSelectionLabel(buzzDarkThemeName, ThemeMode.system), 'Pkzz');
     });
 
     test('forces neutral rendering without changing the stored accent', () {
@@ -77,7 +77,7 @@ void main() {
     });
 
     test(
-      'fallbacks expose the effective Buzz theme for gradient selection',
+      'fallbacks expose the effective Pkzz theme for gradient selection',
       () {
         final coerced = resolveSchemes('nord', ThemeMode.light);
         expect(coerced.lightTheme?.name, buzzThemeName);
@@ -103,7 +103,7 @@ void main() {
   });
 
   group('buzzTopSectionGradient', () {
-    test('is null for non-Buzz themes', () {
+    test('is null for non-Pkzz themes', () {
       expect(buzzTopSectionGradient('github-light', Brightness.light), isNull);
       expect(buzzTopSectionGradient('nord', Brightness.dark), isNull);
     });
@@ -192,7 +192,7 @@ void main() {
       expect(decoration.color, isNull);
     });
 
-    testWidgets('non-Buzz themes keep the frosted surface fill', (
+    testWidgets('non-Pkzz themes keep the frosted surface fill', (
       tester,
     ) async {
       await tester.pumpWidget(harness(AppTheme.light()));
@@ -202,7 +202,7 @@ void main() {
       expect(decoration.color, isNotNull);
     });
 
-    testWidgets('Buzz section labels use 80% neutral foreground', (
+    testWidgets('Pkzz section labels use 80% neutral foreground', (
       tester,
     ) async {
       await tester.pumpWidget(
@@ -223,7 +223,7 @@ void main() {
       );
     });
 
-    testWidgets('navigation roles inherit non-Buzz theme tokens', (
+    testWidgets('navigation roles inherit non-Pkzz theme tokens', (
       tester,
     ) async {
       const primaryForeground = Color(0xFF123456);
@@ -257,7 +257,7 @@ void main() {
   });
 
   group('isBuzzTheme', () {
-    test('matches only the Buzz pair', () {
+    test('matches only the Pkzz pair', () {
       expect(isBuzzTheme(buzzThemeName), isTrue);
       expect(isBuzzTheme(buzzDarkThemeName), isTrue);
       expect(isBuzzTheme('github-light'), isFalse);

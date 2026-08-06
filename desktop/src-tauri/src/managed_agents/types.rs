@@ -19,12 +19,12 @@ pub struct AgentDefinition {
     pub avatar_url: Option<String>,
     pub system_prompt: String,
     /// Preferred ACP runtime ID (e.g., 'goose', 'claude', 'codex'). Determines which agent binary
-    /// Buzz spawns. When deploying from this persona, this runtime is pre-selected in the UI.
+    /// Pkzz spawns. When deploying from this persona, this runtime is pre-selected in the UI.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub runtime: Option<String>,
     /// Opaque, harness-specific model identifier string. Format depends on the runtime and its LLM
     /// provider (e.g., 'goose-claude-4-6-opus' for Databricks, 'claude-opus-4-7' for Anthropic
-    /// direct). Buzz stores and passes through without interpretation.
+    /// direct). Pkzz stores and passes through without interpretation.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
     /// LLM inference provider (e.g., 'databricks', 'anthropic', 'openai'). Optional — when set,
@@ -72,7 +72,7 @@ pub struct AgentDefinition {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub catalog_source: Option<CatalogSource>,
     /// Harness-level configuration passed to the agent subprocess as environment variables.
-    /// Opaque to Buzz — keys and values are runtime-specific.
+    /// Opaque to Pkzz — keys and values are runtime-specific.
     ///
     /// Stored as a BTreeMap for deterministic on-disk ordering.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
@@ -424,7 +424,7 @@ pub struct ManagedAgentRecord {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub definition_parallelism: Option<u32>,
     /// Typed marker for relay-mesh agents. `Some(_)` means this agent runs its
-    /// inference through Buzz's relay-mesh local endpoint; the `model_ref` is
+    /// inference through Pkzz's relay-mesh local endpoint; the `model_ref` is
     /// the served model id to route to. `None` is a normal agent.
     ///
     /// Not the source of truth. `provider == "relay-mesh"` is, resolved through
@@ -683,7 +683,7 @@ pub struct InstallStepResult {
     pub stderr: String,
     pub exit_code: Option<i32>,
     /// Actionable guidance shown in the UI when this step failed due to a
-    /// recognized condition (e.g. EACCES writing Buzz's private npm prefix).
+    /// recognized condition (e.g. EACCES writing Pkzz's private npm prefix).
     /// `None` when the step succeeded or no pattern matched.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub hint: Option<String>,

@@ -3,8 +3,8 @@ name: Mesh Lifecycle
 # relay-derived allowlist → join → CPU inference over QUIC → stranger denied
 # (relay membership rejection + no routed inference, with a differential
 # trusted-inference health proof so a dead serve node can't fake a denial).
-# Runs the full Buzz "shared compute" join story with three real mesh-llm
-# node processes on one runner, using the Buzz relay as the control plane
+# Runs the full Pkzz "shared compute" join story with three real mesh-llm
+# node processes on one runner, using the Pkzz relay as the control plane
 # (no hand-carried invite tokens). Mirrors the shape mesh-llm's own CI uses
 # for its two-node smokes (tiny CPU model, one runner, real QUIC mesh).
 

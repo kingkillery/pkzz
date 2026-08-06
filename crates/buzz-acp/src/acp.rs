@@ -240,7 +240,7 @@ fn deep_merge(
 
 /// Build the merged `CODEX_CONFIG` environment-variable value for a Codex agent spawn.
 ///
-/// Returns `Some(json_string)` when `has_generated_codex_config` is true (Buzz injected a
+/// Returns `Some(json_string)` when `has_generated_codex_config` is true (Pkzz injected a
 /// `CODEX_CONFIG` entry via `codex_network_env()`), `None` otherwise.
 ///
 /// # Merge contract (when `has_generated_codex_config` is true)
@@ -270,7 +270,7 @@ pub(crate) fn build_codex_config_env(
     parent_codex_config: Option<&str>,
     has_generated_codex_config: bool,
 ) -> Result<Option<String>, AcpError> {
-    // Without an explicit Buzz-generated overlay signal, skip the merge entirely.
+    // Without an explicit Pkzz-generated overlay signal, skip the merge entirely.
     // Any persona CODEX_CONFIG is handled by the caller with operator-wins semantics.
     if !has_generated_codex_config {
         return Ok(None);
@@ -366,11 +366,11 @@ const GOOSE_STEER_METHOD: &str = "_goose/unstable/session/steer";
 /// `{outcome}`. Gated on [`AcpClient::steering_supported`].
 const ACP_STEER_METHOD: &str = "_session/steering";
 
-/// `outcome` value meaning the steer was applied to the turn Buzz is waiting
+/// `outcome` value meaning the steer was applied to the turn Pkzz is waiting
 /// on, which therefore keeps running.
 const STEER_OUTCOME_INJECTED: &str = "injected";
 
-/// `outcome` value meaning the turn Buzz was steering had already finished, so
+/// `outcome` value meaning the turn Pkzz was steering had already finished, so
 /// the adapter began a fresh turn carrying the message. Still a delivery
 /// success, but the awaited turn is over — see the steer-response arm for why
 /// this must not renew the hard deadline.
@@ -389,8 +389,8 @@ enum SteerTransport {
 
 fn build_client_capabilities() -> serde_json::Value {
     serde_json::json!({
-        // Signal to ACP adapters that Buzz can hand users to terminal-native
-        // auth flows. Adapters decide which auth methods to expose; Buzz does
+        // Signal to ACP adapters that Pkzz can hand users to terminal-native
+        // auth flows. Adapters decide which auth methods to expose; Pkzz does
         // not hardcode vendor login commands from this capability.
         "auth": {
             "terminal": true
@@ -1571,7 +1571,7 @@ impl AcpClient {
                                     } else {
                                         // Success result. Whether it counts as
                                         // a delivered steer — and whether the
-                                        // turn Buzz awaits is still running —
+                                        // turn Pkzz awaits is still running —
                                         // depends on the transport.
                                         let outcome = match transport {
                                             // goose returns no outcome field;
@@ -1873,7 +1873,7 @@ impl AcpClient {
 
     /// Reject a `session/request_permission` request from the agent.
     ///
-    /// Buzz has no human permission prompt in this harness, so selecting
+    /// Pkzz has no human permission prompt in this harness, so selecting
     /// `allow_once` would turn any admitted prompt into an implicit approval.
     /// Find `reject_once` by kind when the adapter offers it; otherwise use the
     /// protocol's cancelled outcome, which is also fail-closed.
@@ -2016,7 +2016,7 @@ fn permission_response_cancelled(id: &serde_json::Value) -> serde_json::Value {
 
 /// Choose the fail-closed response to a `session/request_permission` request.
 ///
-/// Buzz has no human permission prompt in this harness, so selecting
+/// Pkzz has no human permission prompt in this harness, so selecting
 /// `allow_once` would turn any admitted prompt into an implicit approval.
 /// Prefer the adapter's `reject_once` option — matched by `kind`, never by a
 /// hardcoded `optionId` — and fall back to the protocol's cancelled outcome for
@@ -2498,7 +2498,7 @@ mod tests {
 
     #[test]
     fn session_prompt_request_format() {
-        let prompt_text = "[Buzz @mention]\nChannel: test\nFrom: npub1...\nMessage: hello";
+        let prompt_text = "[Pkzz @mention]\nChannel: test\nFrom: npub1...\nMessage: hello";
         let msg = serde_json::json!({
             "jsonrpc": "2.0",
             "id": 2u64,
@@ -2524,7 +2524,7 @@ mod tests {
             "sess_abc123",
             &[
                 "/goal ship it",
-                "[Buzz event: @mention]\nContent: @Eva /goal ship it",
+                "[Pkzz event: @mention]\nContent: @Eva /goal ship it",
             ],
         );
         let prompt = params["prompt"].as_array().unwrap();
@@ -2964,7 +2964,7 @@ mod tests {
         observed
     }
 
-    /// Buzz-owned Hermes processes get the configured-MCP isolation default,
+    /// Pkzz-owned Hermes processes get the configured-MCP isolation default,
     /// and an explicit persona entry still overrides it (defaults are applied
     /// before `extra_env`, so the later `Command::env` write wins).
     #[cfg(unix)]
@@ -4137,7 +4137,7 @@ mod tests {
     /// Test 8: **codex `extMethod` silent-loss regression guard.** codex-acp's
     /// ext dispatcher answers unrecognized methods with a bare `{}` — a
     /// JSON-RPC *success*, not `-32601` (`src/CodexAcpServer.ts:255-258`).
-    /// Buzz maps `SteerAck::Success` to `queue.remove_event`, so decoding
+    /// Pkzz maps `SteerAck::Success` to `queue.remove_event`, so decoding
     /// `{}` as success would delete the user's message with no error, no
     /// fallback, and no log. An absent `outcome` must therefore be a
     /// rejection, which releases the event and fires cancel+merge.
@@ -4214,7 +4214,7 @@ mod tests {
     }
 
     /// Test 6: **red/green for the no-renewal rule.** `startedNewTurn` means
-    /// the turn Buzz was steering had already ended and the adapter began a
+    /// the turn Pkzz was steering had already ended and the adapter began a
     /// fresh, detached one. It acks `Success` (the message WAS delivered, so
     /// the event must not be redelivered) but must NOT renew the hard
     /// deadline — that clock belongs to a turn which is already settled.
@@ -4441,7 +4441,7 @@ mod tests {
 
     #[test]
     fn build_codex_config_env_generated_only_single_entry_with_signal_true_merges_with_parent() {
-        // No persona: Buzz injects one CODEX_CONFIG; signal=true.
+        // No persona: Pkzz injects one CODEX_CONFIG; signal=true.
         // Parent may have its own CODEX_CONFIG — deep_merge applies, network_access forced.
         let extra = env(&[("CODEX_CONFIG", GENERATED)]);
         let parent =
@@ -4468,7 +4468,7 @@ mod tests {
 
     #[test]
     fn build_codex_config_env_persona_only_signal_false_returns_none() {
-        // Persona set CODEX_CONFIG; Buzz did not inject a generated overlay (signal=false).
+        // Persona set CODEX_CONFIG; Pkzz did not inject a generated overlay (signal=false).
         // Must return None — no merging, no sandbox widening.
         let persona = r#"{"some_feature":"on"}"#;
         let extra = env(&[("CODEX_CONFIG", persona)]);

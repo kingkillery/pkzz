@@ -1,24 +1,24 @@
 //! The macOS application menu.
 //!
-//! Buzz never called `Builder::menu()`, so Tauri installed `Menu::default()`
+//! Pkzz never called `Builder::menu()`, so Tauri installed `Menu::default()`
 //! for us (`tauri::app::Builder::build`, macOS arm). That default puts a
 //! `close_window` item in both the File and Window submenus, and muda gives
 //! that item a Cmd+W key equivalent bound to `performClose:`.
 //!
-//! Two consequences, both wrong for Buzz:
+//! Two consequences, both wrong for Pkzz:
 //!
 //! 1. `CloseRequested` on the main window is intercepted in `lib.rs` and turned
 //!    into hide-to-tray, so Cmd+W never closed a window -- it hid the whole
 //!    app. That is already redundant with Cmd+H (Hide), which stays.
 //! 2. macOS resolves a menu key equivalent before the webview receives any key
-//!    event, so Buzz Term could never bind Cmd+W to "close this terminal tab"
+//!    event, so Pkzz Term could never bind Cmd+W to "close this terminal tab"
 //!    while the accelerator was claimed here.
 //!
 //! So this module builds the standard menu minus both `close_window` items.
 //! Everything else matches `Menu::default()` deliberately: the goal is to drop
 //! one item, not to design a menu.
 //!
-//! If hide-on-Cmd+W is ever wanted back in Buzz mode, the revisit path is to
+//! If hide-on-Cmd+W is ever wanted back in Pkzz mode, the revisit path is to
 //! restore the item and disable it while the terminal owns input (a disabled
 //! item does not consume its key equivalent) -- at the cost of an owner->Rust
 //! IPC hop this approach does not need.
@@ -31,7 +31,7 @@ use tauri::menu::{
 use tauri::AppHandle;
 use tauri::{Builder, Runtime};
 
-/// Installs Buzz's menu, replacing the `Menu::default()` Tauri would otherwise
+/// Installs Pkzz's menu, replacing the `Menu::default()` Tauri would otherwise
 /// auto-install. A no-op off macOS, where that default is never created and
 /// the Cmd+W accelerator does not exist.
 pub fn install<R: Runtime>(builder: Builder<R>) -> Builder<R> {

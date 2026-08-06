@@ -17,7 +17,7 @@ const KUBERNETES_CONFIG = {
   cpu_limit: "1",
   cpu_request: "1",
   image:
-    "ghcr.io/block/buzz-sprig:sha-6530b58@sha256:17facfc7608d8ddb33bc056c9aaba1098f4ef6abe5655702fbfd7584d1f74d76",
+    "ghcr.io/kingkillery/pkzz-sprig:sha-6530b58@sha256:17facfc7608d8ddb33bc056c9aaba1098f4ef6abe5655702fbfd7584d1f74d76",
   inactivity_seconds: 7200,
   memory_limit: "1Gi",
   memory_request: "1Gi",
@@ -73,7 +73,7 @@ test("editing a kubernetes agent shows its saved run-on settings", async ({
     "docker-desktop",
   );
   await expect(runOn.getByTestId("edit-agent-run-on-image")).toContainText(
-    "ghcr.io/block/buzz-sprig",
+    "ghcr.io/kingkillery/pkzz-sprig",
   );
   await expect(
     runOn.getByTestId("edit-agent-run-on-cpu_request"),

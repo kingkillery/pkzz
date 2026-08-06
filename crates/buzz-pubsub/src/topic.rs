@@ -9,7 +9,7 @@ use uuid::Uuid;
 
 use crate::error::PubSubError;
 
-/// Redis key prefix for Buzz-scoped pub/sub topics and keys.
+/// Redis key prefix for Pkzz-scoped pub/sub topics and keys.
 pub const BUZZ_PREFIX: &str = "buzz";
 
 /// A tenant-local event routing scope.

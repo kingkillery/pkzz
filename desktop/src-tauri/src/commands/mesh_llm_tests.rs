@@ -369,7 +369,7 @@ async fn cold_client_preflight_requires_explicit_target() {
 ///
 /// Before this change, `ensure_client_node_for_model` hard-errored whenever
 /// the running runtime was in `Serve` mode ("stop sharing before using
-/// Buzz shared compute as a client"). That forbade exactly what a user should be
+/// Pkzz shared compute as a client"). That forbade exactly what a user should be
 /// able to do: host model A while pointing an agent at a different model B
 /// through the same `9337` ingress.
 ///

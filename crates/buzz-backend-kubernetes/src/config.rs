@@ -41,7 +41,7 @@ pub const DEFAULT_INACTIVITY_SECONDS: u64 = 7200;
 /// stays required, an empty value still fails closed, and the value always
 /// arrives explicitly in `provider_config`, so create-intent fingerprints are
 /// unaffected by provider upgrades.
-pub const DEFAULT_IMAGE: &str = "ghcr.io/block/buzz-sprig:sha-6530b58@sha256:17facfc7608d8ddb33bc056c9aaba1098f4ef6abe5655702fbfd7584d1f74d76";
+pub const DEFAULT_IMAGE: &str = "ghcr.io/kingkillery/pkzz-sprig:sha-6530b58@sha256:17facfc7608d8ddb33bc056c9aaba1098f4ef6abe5655702fbfd7584d1f74d76";
 
 /// Fixed nonzero UID/GID for the agent container (§Pod shape hardening).
 pub const RUN_AS_UID: i64 = 10001;
@@ -211,7 +211,7 @@ pub fn config_schema() -> serde_json::Value {
             "image": {
                 "type": "string",
                 "title": "Agent image",
-                "description": "Digest-pinned image containing the buzz-acp runtime ABI, e.g. ghcr.io/block/buzz-sprig@sha256:<digest>. Tags alone are not accepted: this pod holds the agent's private key.",
+                "description": "Digest-pinned image containing the buzz-acp runtime ABI, e.g. ghcr.io/kingkillery/pkzz-sprig@sha256:<digest>. Tags alone are not accepted: this pod holds the agent's private key.",
                 "default": DEFAULT_IMAGE
             },
             "cpu_request": {
@@ -247,7 +247,7 @@ mod tests {
     use super::*;
 
     fn digest_ref() -> String {
-        format!("ghcr.io/block/buzz-sprig@sha256:{}", "a".repeat(64))
+        format!("ghcr.io/kingkillery/pkzz-sprig@sha256:{}", "a".repeat(64))
     }
 
     fn minimal() -> serde_json::Value {
@@ -339,7 +339,7 @@ mod tests {
         cfg.as_object_mut().unwrap().remove("image");
         assert!(parse(&cfg).unwrap_err().contains("provider_config.image"));
 
-        cfg["image"] = "ghcr.io/block/buzz-sprig:latest".into();
+        cfg["image"] = "ghcr.io/kingkillery/pkzz-sprig:latest".into();
         assert!(parse(&cfg).unwrap_err().contains("digest-pinned"));
     }
 
@@ -347,7 +347,7 @@ mod tests {
     fn rejects_invalid_namespace_names() {
         for bad in [
             "",
-            "Buzz-Agents",
+            "Pkzz-Agents",
             "-leading",
             "trailing-",
             "has_underscore",
@@ -419,7 +419,7 @@ mod tests {
         let parsed = parse(&cfg).unwrap();
         assert_eq!(
             parsed.image.as_str(),
-            "ghcr.io/block/buzz-sprig@sha256:17facfc7608d8ddb33bc056c9aaba1098f4ef6abe5655702fbfd7584d1f74d76"
+            "ghcr.io/kingkillery/pkzz-sprig@sha256:17facfc7608d8ddb33bc056c9aaba1098f4ef6abe5655702fbfd7584d1f74d76"
         );
     }
 

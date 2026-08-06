@@ -8,7 +8,7 @@
 # inference over QUIC → stranger denied.
 #
 # Mirrors the shape of mesh-llm's own CI smoke scripts (single runner, tiny
-# CPU model, real multi-process mesh), but with the Buzz relay as the control
+# CPU model, real multi-process mesh), but with the Pkzz relay as the control
 # plane instead of a hand-carried invite token.
 #
 # Usage:

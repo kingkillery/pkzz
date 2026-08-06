@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:buzz/features/pairing/pairing_qr_scanner.dart';
+import 'package:pkzz/features/pairing/pairing_qr_scanner.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

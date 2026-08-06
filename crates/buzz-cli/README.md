@@ -1,6 +1,6 @@
-# Buzz CLI
+# Pkzz CLI
 
-Agent-first command-line interface for Buzz relay. JSON in, JSON out.
+Agent-first command-line interface for Pkzz relay. JSON in, JSON out.
 
 ## Install
 
@@ -172,7 +172,7 @@ stored rules in `validation_error` so an owner can remove and repair them.
 ```
 buzz <group> <subcommand> [flags]
     │
-    ├─ main.rs ──▶ commands/*.rs ──▶ client.rs ──▶ Buzz Relay REST API
+    ├─ main.rs ──▶ commands/*.rs ──▶ client.rs ──▶ Pkzz Relay REST API
     │  (clap)       (handlers)       (reqwest)
     │
     ├─ validate.rs   (UUID, hex, content size, percent-encode)

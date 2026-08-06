@@ -1,5 +1,5 @@
-import 'package:buzz/shared/theme/theme.dart';
-import 'package:buzz/shared/widgets/message_author_meta.dart';
+import 'package:pkzz/shared/theme/theme.dart';
+import 'package:pkzz/shared/widgets/message_author_meta.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

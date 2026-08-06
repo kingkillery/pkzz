@@ -2,7 +2,7 @@
 
 use crate::error::MediaError;
 
-/// Blossom kind:24242 verbs Buzz currently accepts.
+/// Blossom kind:24242 verbs Pkzz currently accepts.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BlossomVerb {
     Upload,

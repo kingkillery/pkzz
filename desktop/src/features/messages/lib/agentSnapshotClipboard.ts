@@ -40,7 +40,7 @@ function isSafeSnapshotUrl(value: string): boolean {
   }
 }
 
-/** Build Buzz-specific clipboard HTML with the raw URL as its visible link. */
+/** Build Pkzz-specific clipboard HTML with the raw URL as its visible link. */
 export function buildSnapshotClipboardHtml({
   attachment,
   displayName,
@@ -150,7 +150,7 @@ export function parseSnapshotClipboardHtml(html: string): ImetaMedia | null {
 
 export const parseAgentSnapshotClipboardHtml = parseSnapshotClipboardHtml;
 
-/** Convert a Buzz snapshot clipboard payload into one pending attachment. */
+/** Convert a Pkzz snapshot clipboard payload into one pending attachment. */
 export function handleSnapshotPaste(
   event: Pick<ClipboardEvent, "clipboardData" | "preventDefault">,
   setPendingImeta: (

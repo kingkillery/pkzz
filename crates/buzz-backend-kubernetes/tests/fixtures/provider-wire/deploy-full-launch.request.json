@@ -47,7 +47,7 @@
   },
   "provider_config": {
     "namespace": "buzz-agents-test",
-    "image": "ghcr.io/block/buzz-sprig@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "image": "ghcr.io/kingkillery/pkzz-sprig@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     "inactivity_seconds": 3600
   }
 }

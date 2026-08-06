@@ -203,7 +203,7 @@ fn leader_exited_by(pid: i32, deadline: Instant) -> bool {
 /// memory per tab. The cap exists because tab creation is one keystroke and
 /// nothing else bounds it: without a limit, a held-down shortcut exhausts the
 /// process fd table, and the first thing to fail is not the terminal but
-/// whatever *else* in Buzz next asks for a file descriptor -- the relay
+/// whatever *else* in Pkzz next asks for a file descriptor -- the relay
 /// socket, a database handle. A resource a UI can allocate in a loop needs a
 /// ceiling that fails in its own subsystem.
 ///

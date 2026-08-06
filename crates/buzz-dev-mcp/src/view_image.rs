@@ -326,7 +326,7 @@ async fn fetch_url(url: &str) -> Result<Vec<u8>, ErrorData> {
         .connect_timeout(FETCH_TIMEOUT)
         .timeout(FETCH_TIMEOUT);
     if auth.is_some() {
-        // Do not forward Buzz auth headers to a redirect target. reqwest strips
+        // Do not forward Pkzz auth headers to a redirect target. reqwest strips
         // Authorization cross-host, but `x-auth-tag` is not on reqwest's
         // sensitive-header list.
         client_builder = client_builder.redirect(reqwest::redirect::Policy::none());

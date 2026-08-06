@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 #
-# Public Buzz relay image — published as ghcr.io/block/buzz:<tag>.
+# Public Pkzz relay image — published as ghcr.io/kingkillery/pkzz:<tag>.
 #
 # Builds the `buzz-relay` binary (Rust 1.95) and the `buzz-web` static bundle
 # (pnpm + vite), then assembles them into a small debian-slim runtime with
@@ -113,7 +113,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY patches/ patches/
 COPY web/package.json web/
 COPY admin-web/package.json admin-web/
-RUN pnpm install --frozen-lockfile --filter buzz-web --filter buzz-admin-web
+RUN pnpm install --frozen-lockfile --filter pkzz-web --filter pkzz-admin-web
 COPY web/ web/
 COPY admin-web/ admin-web/
 RUN pnpm -C web build && pnpm -C admin-web build
@@ -124,11 +124,11 @@ FROM debian:${DEBIAN_VERSION}-slim AS runtime-base
 # OCI annotations: required for GHCR to auto-link the image to this repo and
 # inherit its visibility. org.opencontainers.image.source is the load-bearing
 # one — without it GHCR keeps the image private even when the repo is public.
-LABEL org.opencontainers.image.title="Buzz" \
-      org.opencontainers.image.description="WebSocket relay server for the Buzz communications platform" \
-      org.opencontainers.image.source="https://github.com/block/buzz" \
-      org.opencontainers.image.url="https://github.com/block/buzz" \
-      org.opencontainers.image.documentation="https://github.com/block/buzz#readme" \
+LABEL org.opencontainers.image.title="Pkzz" \
+      org.opencontainers.image.description="WebSocket relay server for the Pkzz communications platform" \
+      org.opencontainers.image.source="https://github.com/kingkillery/pkzz" \
+      org.opencontainers.image.url="https://github.com/kingkillery/pkzz" \
+      org.opencontainers.image.documentation="https://github.com/kingkillery/pkzz#readme" \
       org.opencontainers.image.licenses="Apache-2.0"
 
 RUN apt-get update \

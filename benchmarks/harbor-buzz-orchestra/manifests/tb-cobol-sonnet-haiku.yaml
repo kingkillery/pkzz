@@ -1,5 +1,5 @@
 # Terminal-Bench trial: 1 Sonnet 4.6 orchestrator + 2 Haiku 4.5 workers over
-# one Buzz channel. Endpoint names are exact Anthropic model IDs (the runtime
+# one Pkzz channel. Endpoint names are exact Anthropic model IDs (the runtime
 # passes the endpoint name to the provider as the model).
 # Prices: Anthropic list $/Mtok as of 2026-07 (Sonnet 3/15, Haiku 1/5).
 schema_version: "1"

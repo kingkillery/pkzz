@@ -642,7 +642,7 @@
 
 /* ── Setup / cold-boot loading screen ───────────────────────────────────
    Theme-adaptive grainient background for the "setting up your community"
-   gate. Restored from pre-#1570; the animated Buzz mark is the hero (see
+   gate. Restored from pre-#1570; the animated Pkzz mark is the hero (see
    AppLoadingGate in app/App.tsx). */
 
 @property --buzz-grainient-x-0 {
@@ -831,7 +831,7 @@
   }
 }
 
-/* Buzz bee wing-flap (ported from the Buzz website's BeeField, tuned for a
+/* Pkzz bee wing-flap (ported from the Pkzz website's BeeField, tuned for a
    single hero bee). The two wing lobes beat continuously — a fast in/out scale
    so the bee reads as actively flapping on the loading gate rather than resting
    most of the cycle (the website staggers many bees, so it could afford long

@@ -50,7 +50,7 @@ const THROTTLE_RATE = 4;
 const MARKDOWN_MESSAGE_COUNT = 60;
 
 /** One representative agent-style message: fence, table, list, mention,
- * emphasis, inline code, and a link — the mix real Buzz channels carry. */
+ * emphasis, inline code, and a link — the mix real Pkzz channels carry. */
 function markdownBody(index: number): string {
   return [
     `**Update ${index}** from the build agent — _step ${index} of ${MARKDOWN_MESSAGE_COUNT}_ :tada:`,

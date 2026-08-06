@@ -523,7 +523,7 @@ test("rehypeImageGallery: leaves a single trailing image in the text flow", () =
 // schemes (returns `""`) before our `a` component override can see them,
 // which would break copy → paste → click for `buzz://message?…` links and
 // `buzz://pr|issue|repo?…` entity links end-to-end. We pass a custom
-// `urlTransform` (`buzzDeepLinkUrlTransform`) that preserves valid Buzz
+// `urlTransform` (`buzzDeepLinkUrlTransform`) that preserves valid Pkzz
 // deep links and delegates everything else to `defaultUrlTransform`.
 //
 // This test renders real `<ReactMarkdown>` with the production transform
@@ -916,7 +916,7 @@ function nudgeBody(agentPubkey) {
     "**Fizz** needs configuration before it can respond:",
     "- set `ANTHROPIC_API_KEY` in Edit Agent → Environment variables",
     "",
-    "Open Edit Agent in the Buzz app to set these.",
+    "Open Edit Agent in the Pkzz app to set these.",
     "",
     "```buzz:config-nudge",
     JSON.stringify({

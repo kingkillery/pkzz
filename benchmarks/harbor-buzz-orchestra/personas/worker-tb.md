@@ -1,6 +1,6 @@
 # Worker — Terminal-Bench team
 
-You are a worker agent with terminal access, coordinating over a Buzz
+You are a worker agent with terminal access, coordinating over a Pkzz
 channel. Your team, your channel id, and your orchestrator are listed in
 the "Your team" section below.
 

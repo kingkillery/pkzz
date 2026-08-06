@@ -8,25 +8,25 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:hooks_riverpod/misc.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:buzz/features/channels/channel.dart';
-import 'package:buzz/features/channels/channel_management_provider.dart';
-import 'package:buzz/features/channels/channel_sections/channel_sections_provider.dart';
-import 'package:buzz/features/channels/channel_sections/channel_sections_storage.dart';
-import 'package:buzz/features/channels/channels_page.dart';
-import 'package:buzz/features/channels/channels_provider.dart';
-import 'package:buzz/shared/read_state/read_state_provider.dart';
-import 'package:buzz/features/channels/unread_badge/observed_unread_event.dart';
-import 'package:buzz/features/profile/profile_avatar.dart';
-import 'package:buzz/features/profile/profile_provider.dart';
-import 'package:buzz/features/profile/user_profile.dart';
-import 'package:buzz/shared/auth/auth.dart';
-import 'package:buzz/shared/community/community_icon_provider.dart';
-import 'package:buzz/shared/relay/relay.dart';
-import 'package:buzz/shared/theme/theme.dart';
-import 'package:buzz/shared/widgets/avatar_image.dart';
-import 'package:buzz/shared/widgets/frosted_app_bar.dart';
-import 'package:buzz/shared/widgets/masked_avatar_badge.dart';
-import 'package:buzz/shared/widgets/skeleton.dart';
+import 'package:pkzz/features/channels/channel.dart';
+import 'package:pkzz/features/channels/channel_management_provider.dart';
+import 'package:pkzz/features/channels/channel_sections/channel_sections_provider.dart';
+import 'package:pkzz/features/channels/channel_sections/channel_sections_storage.dart';
+import 'package:pkzz/features/channels/channels_page.dart';
+import 'package:pkzz/features/channels/channels_provider.dart';
+import 'package:pkzz/shared/read_state/read_state_provider.dart';
+import 'package:pkzz/features/channels/unread_badge/observed_unread_event.dart';
+import 'package:pkzz/features/profile/profile_avatar.dart';
+import 'package:pkzz/features/profile/profile_provider.dart';
+import 'package:pkzz/features/profile/user_profile.dart';
+import 'package:pkzz/shared/auth/auth.dart';
+import 'package:pkzz/shared/community/community_icon_provider.dart';
+import 'package:pkzz/shared/relay/relay.dart';
+import 'package:pkzz/shared/theme/theme.dart';
+import 'package:pkzz/shared/widgets/avatar_image.dart';
+import 'package:pkzz/shared/widgets/frosted_app_bar.dart';
+import 'package:pkzz/shared/widgets/masked_avatar_badge.dart';
+import 'package:pkzz/shared/widgets/skeleton.dart';
 
 void main() {
   Widget buildTestable({
@@ -277,7 +277,7 @@ void main() {
     );
   });
 
-  testWidgets('keeps the Buzz background fixed behind the channels list', (
+  testWidgets('keeps the Pkzz background fixed behind the channels list', (
     tester,
   ) async {
     await tester.pumpWidget(

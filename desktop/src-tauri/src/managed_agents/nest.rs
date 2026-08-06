@@ -1,7 +1,7 @@
-//! Buzz Nest — persistent agent workspace at `~/.buzz`.
+//! Pkzz Nest — persistent agent workspace at `~/.buzz`.
 //!
 //! Creates a shared knowledge directory on first launch so every
-//! Buzz-spawned agent starts with orientation (AGENTS.md) and a
+//! Pkzz-spawned agent starts with orientation (AGENTS.md) and a
 //! place to accumulate research, plans, and logs across sessions.
 //!
 //! Static template content in AGENTS.md (above the managed-section markers)
@@ -106,7 +106,7 @@ pub fn nest_dir() -> Option<PathBuf> {
     }
 }
 
-/// Creates the Buzz nest at `~/.buzz` if it doesn't already exist.
+/// Creates the Pkzz nest at `~/.buzz` if it doesn't already exist.
 ///
 /// Delegates to [`ensure_nest_at`] with the resolved nest directory.
 /// Returns an error string if the home directory cannot be resolved.
@@ -115,7 +115,7 @@ pub fn ensure_nest() -> Result<(), String> {
     ensure_nest_at(&root)
 }
 
-/// Creates a Buzz nest at the given `root` path.
+/// Creates a Pkzz nest at the given `root` path.
 ///
 /// - Creates the root directory and all subdirectories.
 /// - Writes `AGENTS.md` only if it doesn't already exist.
@@ -529,7 +529,7 @@ pub fn render_dynamic_section(
     relay_url: &str,
 ) -> String {
     let active_agents = if agents.is_empty() {
-        "## Active Agents\n\n*(No agents deployed yet. Add agents in the Buzz desktop app.)*"
+        "## Active Agents\n\n*(No agents deployed yet. Add agents in the Pkzz desktop app.)*"
             .to_string()
     } else {
         let mut table =

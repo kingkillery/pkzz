@@ -19,9 +19,9 @@ const MENU_OFF_RELAY_VIDEO_SHA = "f".repeat(64);
 const MENU_OFF_RELAY_VIDEO_URL = `https://cdn.example.com/media/${MENU_OFF_RELAY_VIDEO_SHA}.mp4`;
 const VIDEO_REVIEW_NEUTRAL_ACCENT = "neutral";
 const VIDEO_REVIEW_LIGHT_THEME = "catppuccin-latte";
-// The fresh-profile default is the Buzz theme, which pins the neutral accent
+// The fresh-profile default is the Pkzz theme, which pins the neutral accent
 // regardless of the stored accent color. Accent-driven review foreground
-// assertions must run on a non-Buzz theme for the seeded accent to apply.
+// assertions must run on a non-Pkzz theme for the seeded accent to apply.
 const VIDEO_REVIEW_ACCENT_THEME = "houston";
 const VIDEO_REVIEW_ACCENT = "#ec4899";
 const VIDEO_REVIEW_ACCENT_FOREGROUND_RGB = "rgb(240, 115, 177)";

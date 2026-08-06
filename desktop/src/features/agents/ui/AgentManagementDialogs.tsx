@@ -3,7 +3,7 @@ import { AgentCardDialogs } from "./AgentCardViewerDialog";
 import { AgentDialog } from "./AgentDialog";
 import { SecretRevealDialog } from "./SecretRevealDialog";
 
-/** Global review surfaces opened by owned agents through the Buzz harness. */
+/** Global review surfaces opened by owned agents through the Pkzz harness. */
 export function AgentManagementDialogs() {
   const management = useAgentManagement();
 

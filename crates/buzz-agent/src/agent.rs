@@ -74,7 +74,7 @@ Your assistant text and reasoning are never shown to anyone — if you did work,
 or hit a blocker that someone is waiting on, it exists only if you publish it. \
 If you already posted, or if silence is genuinely correct for this turn, ignore this and end your turn.";
 
-/// Whether `call` is a recognized attempt to publish a reply to Buzz.
+/// Whether `call` is a recognized attempt to publish a reply to Pkzz.
 ///
 /// Recognizes an *attempt*, not a successful publish: the command text is
 /// inspected, never the exit status. That is deliberate — a send that fails
@@ -90,7 +90,7 @@ fn is_buzz_reply_call(call: &ToolCall, mcp: &McpRegistry) -> bool {
     mcp.has(&call.name) && !mcp.is_hook(&call.name) && is_reply_shaped(&call.name, &call.arguments)
 }
 
-/// Whether a tool name and arguments have the shape of a Buzz publish command.
+/// Whether a tool name and arguments have the shape of a Pkzz publish command.
 ///
 /// Split from [`is_buzz_reply_call`] only so the matcher is testable without a
 /// live [`McpRegistry`]; callers must apply the registry checks first.

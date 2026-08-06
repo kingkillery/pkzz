@@ -1,11 +1,11 @@
 import 'dart:async';
 
-import 'package:buzz/features/channels/channel.dart';
-import 'package:buzz/features/channels/channel_actions_sheet.dart';
-import 'package:buzz/features/channels/channel_management_provider.dart';
-import 'package:buzz/shared/mentions/agent_identity_provider.dart';
-import 'package:buzz/shared/relay/relay.dart';
-import 'package:buzz/shared/theme/theme.dart';
+import 'package:pkzz/features/channels/channel.dart';
+import 'package:pkzz/features/channels/channel_actions_sheet.dart';
+import 'package:pkzz/features/channels/channel_management_provider.dart';
+import 'package:pkzz/shared/mentions/agent_identity_provider.dart';
+import 'package:pkzz/shared/relay/relay.dart';
+import 'package:pkzz/shared/theme/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Local docker-desktop k8s testbed for the Buzz relay mesh.
+# Local docker-desktop k8s testbed for the Pkzz relay mesh.
 #
 # Repeatable path: build image -> helm dep build -> helm install (quickstart HA,
 # 3 replicas) -> wait 3/3 Ready -> probe /_readiness on every pod. This is the

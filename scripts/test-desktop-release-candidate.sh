@@ -26,7 +26,7 @@ cat > "$tmp/.release/desktop-candidate.json" <<JSON
 {"schema":1,"version":"1.0.0","base_sha":"$prior_base","previous_tag":null,"tag":"desktop-v1.0.0","commit_count":1}
 JSON
 git -C "$tmp" add .
-git -C "$tmp" commit -qm 'chore(release): release Buzz Desktop version 1.0.0'
+git -C "$tmp" commit -qm 'chore(release): release Pkzz Desktop version 1.0.0'
 prior_candidate=$(git -C "$tmp" rev-parse HEAD)
 git -C "$tmp" -c tag.gpgSign=false tag desktop-v1.0.0
 
@@ -48,7 +48,7 @@ base=$(git -C "$tmp" rev-parse HEAD)
 mock_bin=$(mktemp -d)
 cat > "$mock_bin/gh" <<GH
 #!/usr/bin/env bash
-[[ "\$1" == api && "\$2" == "repos/block/buzz/commits/$prior_candidate/pulls" ]] || exit 90
+[[ "\$1" == api && "\$2" == "repos/kingkillery/pkzz/commits/$prior_candidate/pulls" ]] || exit 90
 cat <<JSON
 [{"merged_at":"2026-01-01T00:00:00Z","merge_commit_sha":"$prior_merge","head":{"sha":"$prior_candidate"}}]
 JSON
@@ -56,7 +56,7 @@ GH
 chmod +x "$mock_bin/gh"
 (
   cd "$tmp"
-  PATH="$mock_bin:$PATH" scripts/desktop_release.py generate 1.0.1 --base "$base" --repo block/buzz
+  PATH="$mock_bin:$PATH" scripts/desktop_release.py generate 1.0.1 --base "$base" --repo kingkillery/pkzz
   python3 - <<'PY'
 import json
 for path in ('desktop/package.json', 'desktop/src-tauri/tauri.conf.json'):
@@ -64,8 +64,8 @@ for path in ('desktop/package.json', 'desktop/src-tauri/tauri.conf.json'):
 open('desktop/src-tauri/Cargo.toml','w').write('[package]\nversion = "1.0.1"\n')
 PY
   git add .
-  git -c user.name=Wes -c user.email=wesbillman@users.noreply.github.com commit -q -s -m 'chore(release): release Buzz Desktop version 1.0.1' -m 'Co-authored-by: Test Automation <test@example.com>'
-  PATH="$mock_bin:$PATH" scripts/desktop_release.py validate --version 1.0.1 --repo block/buzz
+  git -c user.name=Wes -c user.email=wesbillman@users.noreply.github.com commit -q -s -m 'chore(release): release Pkzz Desktop version 1.0.1' -m 'Co-authored-by: Test Automation <test@example.com>'
+  PATH="$mock_bin:$PATH" scripts/desktop_release.py validate --version 1.0.1 --repo kingkillery/pkzz
   grep -Fq "$unrelated_before" CHANGELOG.md
   grep -Fq "$unrelated_after" CHANGELOG.md
   ! grep -Fq "$prior_merge" CHANGELOG.md
@@ -75,7 +75,7 @@ PY
 
   cp .release/desktop-candidate.json metadata.json
   jq '.previous_merge_sha = "0000000000000000000000000000000000000000"' metadata.json > .release/desktop-candidate.json
-  if PATH="$mock_bin:$PATH" scripts/desktop_release.py validate --version 1.0.1 --repo block/buzz >/dev/null 2>&1; then
+  if PATH="$mock_bin:$PATH" scripts/desktop_release.py validate --version 1.0.1 --repo kingkillery/pkzz >/dev/null 2>&1; then
     echo "validator accepted a forged previous release ledger" >&2; exit 1
   fi
   mv metadata.json .release/desktop-candidate.json
@@ -85,9 +85,9 @@ PY
   # anywhere else remains a collision.
   candidate=$(git rev-parse HEAD)
   git -c tag.gpgSign=false tag desktop-v1.0.1 "$candidate"
-  PATH="$mock_bin:$PATH" scripts/desktop_release.py validate --version 1.0.1 --repo block/buzz
+  PATH="$mock_bin:$PATH" scripts/desktop_release.py validate --version 1.0.1 --repo kingkillery/pkzz
   git -c tag.gpgSign=false tag -f desktop-v1.0.1 "$base" >/dev/null
-  if PATH="$mock_bin:$PATH" scripts/desktop_release.py validate --version 1.0.1 --repo block/buzz >/dev/null 2>&1; then
+  if PATH="$mock_bin:$PATH" scripts/desktop_release.py validate --version 1.0.1 --repo kingkillery/pkzz >/dev/null 2>&1; then
     echo "validator accepted an equal-version tag at the wrong SHA" >&2; exit 1
   fi
   git tag -d desktop-v1.0.1 >/dev/null
@@ -103,7 +103,7 @@ spec = importlib.util.spec_from_file_location("desktop_release", pathlib.Path("s
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 candidate = module.git("rev-parse", "HEAD")
-module.previous_release("1.0.1-beta", "block/buzz", allow_target_sha=candidate)
+module.previous_release("1.0.1-beta", "kingkillery/pkzz", allow_target_sha=candidate)
 PY
   git -c tag.gpgSign=false tag -f desktop-v1.0.1-beta "$base" >/dev/null
   if PATH="$mock_bin:$PATH" python3 - <<'PY'
@@ -114,7 +114,7 @@ spec = importlib.util.spec_from_file_location("desktop_release", pathlib.Path("s
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 candidate = module.git("rev-parse", "HEAD")
-module.previous_release("1.0.1-beta", "block/buzz", allow_target_sha=candidate)
+module.previous_release("1.0.1-beta", "kingkillery/pkzz", allow_target_sha=candidate)
 PY
   then
     echo "validator accepted a prerelease target tag at the wrong SHA" >&2; exit 1
@@ -132,7 +132,7 @@ spec = importlib.util.spec_from_file_location("desktop_release", pathlib.Path("s
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 candidate = module.git("rev-parse", "HEAD")
-module.previous_release("1.0.1-beta", "block/buzz", allow_target_sha=candidate)
+module.previous_release("1.0.1-beta", "kingkillery/pkzz", allow_target_sha=candidate)
 PY
   then
     echo "validator accepted a mismatched stable tag for a prerelease target" >&2; exit 1
@@ -142,7 +142,7 @@ PY
 
 # Equal and decreasing versions are rejected before any GitHub lookup.
 for invalid_version in 1.0.0 0.9.9; do
-  if (cd "$tmp" && PATH="/usr/bin:/bin" scripts/desktop_release.py generate "$invalid_version" --base "$base" --repo block/buzz) >/dev/null 2>&1; then
+  if (cd "$tmp" && PATH="/usr/bin:/bin" scripts/desktop_release.py generate "$invalid_version" --base "$base" --repo kingkillery/pkzz) >/dev/null 2>&1; then
     echo "generator accepted non-increasing version $invalid_version" >&2; exit 1
   fi
 done
@@ -163,11 +163,11 @@ git -C "$migration" commit -qm 'fix: migration change'
 migration_base=$(git -C "$migration" rev-parse HEAD)
 cat > "$mock_bin/gh" <<GH
 #!/usr/bin/env bash
-[[ "\$1" == api && "\$2" == "repos/block/buzz/commits/$production_tag/pulls" ]] || exit 90
+[[ "\$1" == api && "\$2" == "repos/kingkillery/pkzz/commits/$production_tag/pulls" ]] || exit 90
 printf '%s\n' '[{"merged_at":"2026-01-01T00:00:00Z","merge_commit_sha":"$production_tag","head":{"sha":"$prior_candidate"}}]'
 GH
 chmod +x "$mock_bin/gh"
-(cd "$migration" && PATH="$mock_bin:$PATH" scripts/desktop_release.py generate 1.0.1 --base "$migration_base" --repo block/buzz)
+(cd "$migration" && PATH="$mock_bin:$PATH" scripts/desktop_release.py generate 1.0.1 --base "$migration_base" --repo kingkillery/pkzz)
 jq -e --arg merge "$production_tag" '.previous_tag == "desktop-v1.0.0" and .previous_merge_sha == $merge' "$migration/.release/desktop-candidate.json" >/dev/null
 rm -rf "$migration"
 
@@ -187,7 +187,7 @@ echo root > "$initial/ROOT.md"
 git -C "$initial" add .
 git -C "$initial" commit -qm 'feat: root release content'
 root_sha=$(git -C "$initial" rev-parse HEAD)
-(cd "$initial" && scripts/desktop_release.py generate 0.1.0 --base "$root_sha" --repo block/buzz)
+(cd "$initial" && scripts/desktop_release.py generate 0.1.0 --base "$root_sha" --repo kingkillery/pkzz)
 grep -Fq "$root_sha" "$initial/CHANGELOG.md"
 rm -rf "$initial"
 

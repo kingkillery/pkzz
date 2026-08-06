@@ -1,6 +1,6 @@
-//! Canonical `buzz://` deep links for Buzz-hosted git entities.
+//! Canonical `buzz://` deep links for Pkzz-hosted git entities.
 //!
-//! Buzz Desktop renders these links as rich preview cards in chat and
+//! Pkzz Desktop renders these links as rich preview cards in chat and
 //! navigates in-app when they are clicked. The desktop parser lives in
 //! `desktop/src/shared/lib/entityLink.ts` — the two implementations must
 //! stay format-compatible (see `golden_format_matches_desktop` below and

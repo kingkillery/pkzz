@@ -1,7 +1,7 @@
 //! Native system-tray menu for the desktop app.
 //!
 //! The webview owns the live agent-turn state. It sends the small display
-//! projection here so the native menu can remain useful while Buzz is hidden.
+//! projection here so the native menu can remain useful while Pkzz is hidden.
 
 // Mouse back/forward (X1/X2 buttons and swipe) is also macOS-only native I/O;
 // group it here so both platform-layer init paths share one call site in lib.rs.
@@ -104,7 +104,7 @@ fn format_elapsed(elapsed: Duration) -> String {
     format!("{hours}h {minutes}m {seconds}s")
 }
 
-/// Builds the standalone Buzz bee as a transparent, macOS template image.
+/// Builds the standalone Pkzz bee as a transparent, macOS template image.
 ///
 /// The app icon includes a rounded square, which is useful for the Dock but
 /// looks out of place beside the monochrome menu-bar icons. Keeping this
@@ -336,7 +336,7 @@ fn build_menu<R: Runtime>(
     menu.append(&MenuItem::with_id(
         app,
         OPEN_BUZZ_ID,
-        "Open Buzz",
+        "Open Pkzz",
         true,
         None::<&str>,
     )?)?;
@@ -344,7 +344,7 @@ fn build_menu<R: Runtime>(
     menu.append(&MenuItem::with_id(
         app,
         QUIT_ID,
-        "Quit Buzz",
+        "Quit Pkzz",
         true,
         None::<&str>,
     )?)?;
@@ -472,7 +472,7 @@ fn handle_menu_event<R: Runtime>(app: &AppHandle<R>, id: &str) {
     }
 }
 
-/// Installs the persistent Buzz tray icon with the initial empty activity menu.
+/// Installs the persistent Pkzz tray icon with the initial empty activity menu.
 pub fn init<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     let preview_activities = preview_activities();
     let preview_recent_activities = preview_recent_activities();
@@ -506,7 +506,7 @@ pub fn take_tray_actions<R: Runtime>(app: AppHandle<R>) -> Result<Vec<TrayAction
     let mut queue = state
         .action_queue
         .lock()
-        .map_err(|_| "Buzz tray action queue is unavailable".to_string())?;
+        .map_err(|_| "Pkzz tray action queue is unavailable".to_string())?;
     Ok(std::mem::take(&mut queue.pending_actions))
 }
 
@@ -533,7 +533,7 @@ pub fn requeue_tray_actions<R: Runtime>(
     let mut queue = state
         .action_queue
         .lock()
-        .map_err(|_| "Buzz tray action queue is unavailable".to_string())?;
+        .map_err(|_| "Pkzz tray action queue is unavailable".to_string())?;
     requeue_actions(&mut queue, actions);
     drop(queue);
     app.emit("tray-action-available", ())
@@ -548,7 +548,7 @@ pub fn clear_tray_agent_activity<R: Runtime>(app: AppHandle<R>) -> Result<(), St
     let mut queue = state
         .action_queue
         .lock()
-        .map_err(|_| "Buzz tray action queue is unavailable".to_string())?;
+        .map_err(|_| "Pkzz tray action queue is unavailable".to_string())?;
     queue.community_generation = queue.community_generation.wrapping_add(1);
     queue
         .pending_actions
@@ -575,7 +575,7 @@ pub fn update_tray_agent_activity<R: Runtime>(
     let mut activity_items = state
         .activity_items
         .lock()
-        .map_err(|_| "Buzz tray menu state is unavailable".to_string())?;
+        .map_err(|_| "Pkzz tray menu state is unavailable".to_string())?;
 
     if activity_items.len() == activities.len().saturating_add(recent_activities.len())
         && activity_items
@@ -595,7 +595,7 @@ pub fn update_tray_agent_activity<R: Runtime>(
         }
         let tray = app
             .tray_by_id(TRAY_ID)
-            .ok_or_else(|| "Buzz tray icon is not available".to_string())?;
+            .ok_or_else(|| "Pkzz tray icon is not available".to_string())?;
         apply_activity_presentation(&tray, activities, recent_activities)?;
         return Ok(());
     }
@@ -604,7 +604,7 @@ pub fn update_tray_agent_activity<R: Runtime>(
         build_menu(&app, activities, recent_activities).map_err(|error| error.to_string())?;
     let tray = app
         .tray_by_id(TRAY_ID)
-        .ok_or_else(|| "Buzz tray icon is not available".to_string())?;
+        .ok_or_else(|| "Pkzz tray icon is not available".to_string())?;
     tray.set_menu(Some(menu))
         .map_err(|error| error.to_string())?;
     apply_activity_presentation(&tray, activities, recent_activities)?;

@@ -1,10 +1,10 @@
-# 🐝 Buzz Projects — A Nostr-Native Forge
+# 🐝 Pkzz Projects — A Nostr-Native Forge
 
-> Someone pushes a fix. Buzz creates a channel for the branch. The CI agent picks up the push, runs the tests, posts results back to the channel. A co-maintainer reviews the diff inline, approves it — a signed event, cryptographic proof. Merge. The workflow runs the integration. The channel archives into a permanent record of why that code exists.
+> Someone pushes a fix. Pkzz creates a channel for the branch. The CI agent picks up the push, runs the tests, posts results back to the channel. A co-maintainer reviews the diff inline, approves it — a signed event, cryptographic proof. Merge. The workflow runs the integration. The channel archives into a permanent record of why that code exists.
 >
 > Bug report to merged patch. One place. One search index. One identity system. The branch channel was the pull request, the CI dashboard, and the discussion thread.
 
-This document is the software-forge slice of the broader Buzz platform. [VISION.md](VISION.md) covers the platform. [VISION_SOVEREIGN.md](VISION_SOVEREIGN.md) covers the sovereign relay story — one domain, one relay, one project. This doc zooms in on what it looks like when that relay hosts code. In multi-community Buzz, the same rule is lifted one level up: a project domain or subdomain selects the community first, and repositories, workflows, approvals, Blossom artifacts, and git ref updates under that host are community-local even if an operator runs many communities on shared backend infrastructure.
+This document is the software-forge slice of the broader Pkzz platform. [VISION.md](VISION.md) covers the platform. [VISION_SOVEREIGN.md](VISION_SOVEREIGN.md) covers the sovereign relay story — one domain, one relay, one project. This doc zooms in on what it looks like when that relay hosts code. In multi-community Pkzz, the same rule is lifted one level up: a project domain or subdomain selects the community first, and repositories, workflows, approvals, Blossom artifacts, and git ref updates under that host are community-local even if an operator runs many communities on shared backend infrastructure.
 
 ---
 
@@ -14,7 +14,7 @@ A project lives on the relay. `myproject.com` in a browser shows the project hom
 
 Git transport is standard Smart HTTP — `git clone`, `git push`, nothing special. Your npub signs pushes. Same domain, same auth, same identity as everything else on the relay. The host in the clone/push URL is also the community selector: the same `owner/repo` name may exist in two communities without sharing refs, branch protections, workflow runs, approvals, or repo announcements.
 
-The portable representation is a NIP-34 repo announcement (kind:30617) — standard metadata that any NIP-34 client can discover and render. Buzz extends it with `buzz-` prefixed tags for channel binding and visibility:
+The portable representation is a NIP-34 repo announcement (kind:30617) — standard metadata that any NIP-34 client can discover and render. Pkzz extends it with `buzz-` prefixed tags for channel binding and visibility:
 
 ```json
 {
@@ -38,7 +38,7 @@ Branch protections live in the same event — `buzz-protect` tags. The relay enf
 
 Agents inherit access from their owner via [NIP-OA](docs/nips/NIP-OA.md). The relay checks: does the push carry a valid NIP-OA auth tag, and is the owner pubkey in that tag listed in `push-allowed`? If yes, the push is accepted — the agent's own pubkey doesn't need to be in the list. Add a maintainer, and all their authorized agents can push. Remove the maintainer, and all their agents lose access instantly. Agents without NIP-OA attestation are treated as their own identity and must be listed explicitly.
 
-Standard NIP-34 clients see a normal repo. gitworkshop.dev renders it. ngit-cli works with it. Buzz clients read the `buzz-` tags and wire up the channel and project UI. One event, two audiences, no custom kind for the repo itself.
+Standard NIP-34 clients see a normal repo. gitworkshop.dev renders it. ngit-cli works with it. Pkzz clients read the `buzz-` tags and wire up the channel and project UI. One event, two audiences, no custom kind for the repo itself.
 
 NIP-34 is the metadata and discovery layer. Git remains the transport. The transport is boring. The metadata is portable.
 
@@ -78,7 +78,7 @@ The cost is stated plainly: a third-party NIP-34 client sees the member repos in
 
 A feature branch is a conversation.
 
-When you create a branch, Buzz creates a channel. The branch's patches, review comments, CI results, and merge decision all live in that channel. When the branch merges, the channel archives. The conversation becomes the permanent record of why that code exists.
+When you create a branch, Pkzz creates a channel. The branch's patches, review comments, CI results, and merge decision all live in that channel. When the branch merges, the channel archives. The conversation becomes the permanent record of why that code exists.
 
 ```
 #feat-auth-fix
@@ -135,7 +135,7 @@ The approval event is signed by the maintainer's npub. The merge status referenc
 
 ## The Web of Trust
 
-Every contributor — human or agent — has a verifiable identity and a queryable contribution history across every project on the network. Within Buzz, that history is queried through a community boundary: one community can choose to surface reputation from other communities later, but profiles, DMs, memberships, and project records are not implicitly shared across hosts.
+Every contributor — human or agent — has a verifiable identity and a queryable contribution history across every project on the network. Within Pkzz, that history is queried through a community boundary: one community can choose to surface reputation from other communities later, but profiles, DMs, memberships, and project records are not implicitly shared across hosts.
 
 A new contributor submits a patch. Before you read the code:
 
@@ -184,9 +184,9 @@ Every step traced. Every trace a signed event. Change the project CI once and ev
 
 ### Issues → Forum + NIP-34
 
-Bug reports are NIP-34 kind:1621 events, rendered through Buzz's forum surface. Threaded comments use NIP-22 kind:1111. Labels, assignees, milestones are nostr tags. Design discussions and RFCs use the forum's long-form async surface.
+Bug reports are NIP-34 kind:1621 events, rendered through Pkzz's forum surface. Threaded comments use NIP-22 kind:1111. Labels, assignees, milestones are nostr tags. Design discussions and RFCs use the forum's long-form async surface.
 
-NIP-34 clients can discover and interact with issues. Buzz's forum gives them a home with threading, search, and agent triage.
+NIP-34 clients can discover and interact with issues. Pkzz's forum gives them a home with threading, search, and agent triage.
 
 ### Docs → Canvases
 
@@ -224,7 +224,7 @@ Agents are project members with npubs, contribution histories, and reputations. 
 
 Standard kinds as substrate. Custom kinds only where genuinely novel.
 
-| Layer | Standard NIP Kinds | Buzz Custom | Rationale |
+| Layer | Standard NIP Kinds | Pkzz Custom | Rationale |
 |-------|-------------------|---------------|-----------|
 | **Git state** | 30617, 30618, 1617, 1618, 1621, 1630-1633 (NIP-34) | — | Interop with ngit, gitworkshop.dev |
 | **Comments** | 1111 (NIP-22) | — | Threaded replies everywhere |
@@ -238,7 +238,7 @@ Standard kinds as substrate. Custom kinds only where genuinely novel.
 | **Multi-repo projects** | — | 30621 ([NIP-MP](docs/nips/NIP-MP.md)) | Cross-owner grouping is unexpressible in per-repo tags |
 | **Audit** | — | 48001 | Hash-chain tamper-evident log |
 
-If Buzz disappears tomorrow, your repos still work on gitworkshop.dev, your patches still work with ngit-cli, your identities still work on any nostr client. Centralized deployment, decentralized protocol.
+If Pkzz disappears tomorrow, your repos still work on gitworkshop.dev, your patches still work with ngit-cli, your identities still work on any nostr client. Centralized deployment, decentralized protocol.
 
 ---
 
@@ -262,4 +262,4 @@ The collaboration platform is built, and git hosting ships today — `git clone`
 
 ---
 
-*Buzz 🐝 — the forge where identity is the foundation.*
+*Pkzz 🐝 — the forge where identity is the foundation.*

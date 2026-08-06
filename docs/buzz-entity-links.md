@@ -1,9 +1,9 @@
-# Buzz Entity Links
+# Pkzz Entity Links
 
 Status: **partially implemented**. Done on this branch:
 
 - Slice 0 — HTTPS relay git clone URLs (`{relay-origin}/git/<pubkey>/<repo>`)
-  render as Buzz repository preview cards in chat
+  render as Pkzz repository preview cards in chat
   (`desktop/src/shared/lib/linkPreview.ts`).
 - Slice 1 — `buzz://pr|issue|repo` deep links: `entityLink.ts`
   builders/parser, preview cards with relay title enrichment, in-timeline
@@ -19,13 +19,13 @@ in slice 4.
 ## Problem
 
 When a message contains a GitHub URL, the desktop client renders a rich
-preview card ("GitHub · PR block/buzz #4020") below the message. Those cards
+preview card ("GitHub · PR kingkillery/pkzz #4020") below the message. Those cards
 are produced entirely client-side by URL parsing in
 `desktop/src/shared/lib/linkPreview.ts` and rendered by
 `desktop/src/shared/ui/link-preview-attachment.tsx`.
 
-Buzz-hosted entities have no equivalent. There is **no link format at all**
-for a Buzz repository, project, pull request, or issue:
+Pkzz-hosted entities have no equivalent. There is **no link format at all**
+for a Pkzz repository, project, pull request, or issue:
 
 - The only rich deep link today is `buzz://message?channel=…&id=…`
   (`desktop/src/features/messages/lib/messageLink.ts`), rendered as an inline
@@ -35,17 +35,17 @@ for a Buzz repository, project, pull request, or issue:
   `add-community`, `message`, and `nostr-bind` — no git entities.
 - `buzz pr open` / `buzz issues create` return raw event ids; there is no URL
   in their output and no guidance in the agent base prompt
-  (`crates/buzz-acp/src/base_prompt.md`) for referencing Buzz work items in
+  (`crates/buzz-acp/src/base_prompt.md`) for referencing Pkzz work items in
   chat. Agents can only say "PR up" with a hex id.
 - The relay-served web client only has `/repos/$repoId`; no PR/issue pages.
 
-So an agent that opens a PR on a Buzz-hosted repository cannot produce
+So an agent that opens a PR on a Pkzz-hosted repository cannot produce
 anything clickable, while the same agent opening a GitHub PR gets a card for
 free.
 
 ## Goals
 
-1. A canonical, shareable link format for Buzz repositories, projects, pull
+1. A canonical, shareable link format for Pkzz repositories, projects, pull
    requests, and issues.
 2. Rich preview cards in the desktop message timeline for those links, with
    parity to (and better data than) the GitHub cards — titles come from the
@@ -120,7 +120,7 @@ today:
 
 1. **Autolinked bare URL** (`<buzz://pr?…>` or bare in text): render an
    **attachment card** below the message in the existing `AttachmentGroup`,
-   exactly like GitHub cards. Provider label `Buzz`, type label
+   exactly like GitHub cards. Provider label `Pkzz`, type label
    `PR` / `issue` / `repo` / `project`.
 2. **Explicitly labeled markdown link** (`[fix the tooltip](buzz://pr?…)`):
    keep the author's label inline (same rule as
@@ -128,7 +128,7 @@ today:
 
 ### Card content and enrichment
 
-Unlike GitHub (title derived from URL path only), Buzz entities live on the
+Unlike GitHub (title derived from URL path only), Pkzz entities live on the
 same relay, so the card can show real data:
 
 | Entity  | Title source                              | Fallback            |
@@ -186,7 +186,7 @@ kind of toast fallback used for unresolvable message links.
 
 **OS-level**: register `repo` / `project` / `pr` / `issue` hosts in
 `desktop/src-tauri/src/deep_link.rs` and dispatch to a new listener hook
-(sibling to `useMessageDeepLinks.ts`). This makes links pasted outside Buzz
+(sibling to `useMessageDeepLinks.ts`). This makes links pasted outside Pkzz
 (e.g. in a terminal or another app) open the desktop app correctly.
 
 ## CLI (`buzz-cli`)
@@ -232,11 +232,11 @@ No persona changes needed — the base prompt applies to all managed agents.
 ## Implementation plan (suggested PR slices)
 
 0. **HTTPS clone-URL repo cards** *(done, this branch)* — recognize relay
-   `/git/<pubkey>/<repo>` URLs in `linkPreview.ts`, `Buzz` provider card
+   `/git/<pubkey>/<repo>` URLs in `linkPreview.ts`, `Pkzz` provider card
    with the `BuzzMark` logo, href normalized to the `buzz://repo` deep link
    for in-app navigation.
 1. **Link core + cards** *(done, this branch)* — `entityLink.ts`, detection
-   in `linkPreview.ts`, `Buzz` card variant in
+   in `linkPreview.ts`, `Pkzz` card variant in
    `link-preview-attachment.tsx`, in-timeline click navigation, relay title
    enrichment (with `resetLinkPreviewTitleCache()` wired into
    `resetCommunityState()`). Unit tests (`entityLink.test.mjs`, extended

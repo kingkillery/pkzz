@@ -5,7 +5,7 @@ pub const RELAY_MESH_AUTO_MODEL_ID: &str = "auto";
 #[cfg(feature = "mesh-llm")]
 pub const RELAY_MESH_PREFER_MESH_FOR_AUTO_ENV: &str = "BUZZ_AGENT_PREFER_MESH_FOR_AUTO";
 
-/// Translate the native Buzz shared compute provider into the OpenAI-compatible
+/// Translate the native Pkzz shared compute provider into the OpenAI-compatible
 /// transport understood by buzz-agent. These are derived runtime details, not
 /// user-owned agent configuration.
 #[cfg(feature = "mesh-llm")]
@@ -34,7 +34,7 @@ pub fn apply_relay_mesh_env(
         RELAY_MESH_API_KEY_PLACEHOLDER.to_string(),
     );
     env.insert("OPENAI_COMPAT_API".to_string(), "chat".to_string());
-    // Buzz owns the meaning of relay-mesh `auto`: buzz-agent dynamically uses
+    // Pkzz owns the meaning of relay-mesh `auto`: buzz-agent dynamically uses
     // mesh-llm's virtual Mixture-of-Agents model whenever the live catalog says
     // at least two distinct models are available, and otherwise keeps the
     // router's normal single-model `auto` behavior.

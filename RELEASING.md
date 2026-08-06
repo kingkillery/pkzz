@@ -1,12 +1,12 @@
-# Releasing Buzz
+# Releasing Pkzz
 
-Buzz has three independent release lanes. Desktop and relay use release PRs.
+Pkzz has three independent release lanes. Desktop and relay use release PRs.
 Mobile uses immutable release-candidate tags cut directly from remote `main`:
 
 | Lane | Entry point | Artifact |
 |------|-------------|----------|
 | Desktop | `just release-desktop <version>` | Packaged desktop app (signed/notarized macOS, unsigned Windows, and Linux) |
-| Relay | `just release-relay` | `ghcr.io/block/buzz` container image |
+| Relay | `just release-relay` | `ghcr.io/kingkillery/pkzz` container image |
 | Mobile | `scripts/mobile-release.sh candidate X.Y.Z` | Exact `mobile-vX.Y.Z-rc.N` source identity |
 
 The lanes version independently. Desktop reads its manifests, relay reads its
@@ -92,7 +92,7 @@ Every push to `main` continues to publish the rolling relay `:main` and
 ### Mobile
 
 1. **Publish a candidate.** From a clean checkout whose `origin` is the
-   canonical `block/buzz` repository, run
+   canonical `kingkillery/pkzz` repository, run
    `scripts/mobile-release.sh candidate X.Y.Z`. The script resolves and fetches
    the exact current `origin/main` commit, derives the next number from exact
    remote tags for that marketing version, and publishes an annotated
@@ -100,7 +100,7 @@ Every push to `main` continues to publish the rolling relay `:main` and
    GitHub App. It never uses the operator's checked-out commit and never moves
    an existing candidate.
 2. **Build the exact tag.** Enter the candidate tag as `mobile_ref` in the
-   private Buzz mobile Buildkite pipeline. OSS CI deliberately cannot trigger
+   private Pkzz mobile Buildkite pipeline. OSS CI deliberately cannot trigger
    that private pipeline. The tag supplies both source commit and release
    version. Flutter receives clean marketing version `X.Y.Z`; Buildkite's
    monotonically increasing build number supplies the platform build number.
@@ -147,7 +147,7 @@ Use the manual **Signed macOS Canary** workflow when you need an Apple Silicon
 build of current `main` for explicit testing without publishing a release:
 
 ```sh
-gh workflow run signed-macos-canary.yml --repo block/buzz --ref main
+gh workflow run signed-macos-canary.yml --repo kingkillery/pkzz --ref main
 ```
 
 The workflow derives a `-test.<run-number>` version, signs and notarizes the
@@ -160,7 +160,7 @@ create or move tags, and cannot update `buzz-desktop-latest` or `latest.json`.
 Download the artifact from the completed run:
 
 ```sh
-gh run download <run-id> --repo block/buzz --name <artifact-name>
+gh run download <run-id> --repo kingkillery/pkzz --name <artifact-name>
 ```
 
 The workflow intentionally accepts only `main`. Use the normal release process
@@ -173,7 +173,7 @@ for distributable builds or builds from an immutable release tag.
 `release.yml` has no manual dispatch and cannot build from `main` or another
 caller-selected ref. If a run for an existing immutable
 `desktop-v<version>` tag fails, rerun that failed workflow from GitHub Actions
-(or use `gh run rerun <run-id> --failed --repo block/buzz`). A stable rerun also
+(or use `gh run rerun <run-id> --failed --repo kingkillery/pkzz`). A stable rerun also
 repairs `buzz-desktop-latest/latest.json` if the original run published the
 versioned release but failed during that final rolling-manifest upload. Do not
 recreate, move, or push the immutable tag again.
@@ -232,14 +232,14 @@ host's Wayland/GStreamer/graphics stack and requires GLib >= 2.72
 
 ## Prerequisites
 
-- **Write access** to the `block/buzz` GitHub repository
-- An `origin` remote whose configured URL is the canonical `block/buzz`
+- **Write access** to the `kingkillery/pkzz` GitHub repository
+- An `origin` remote whose configured URL is the canonical `kingkillery/pkzz`
   repository
 - `gh` CLI authenticated with permission to push the candidate branch and open
   its pull request
 - The Default `main` ruleset configured for squash-only merging, strict required
   checks, stale-review dismissal, and the **Desktop Release Candidate** check
-- Release tag ruleset [`14378754`](https://github.com/block/buzz/rules/14378754)
+- Release tag ruleset [`14378754`](https://github.com/kingkillery/pkzz/rules/14378754)
   active for `desktop-v*` and `mobile-v*`, with creation, update, deletion, and
   non-fast-forward protections and `buzz-release-bot` as its sole always-bypass
   actor
@@ -259,7 +259,7 @@ host's Wayland/GStreamer/graphics stack and requires GLib >= 2.72
 
 Mobile candidate publication requires workflow-dispatch access and the existing
 release App because strict tag protection denies direct human creation. The App
-must be installed on `block/buzz`, have Contents write and Metadata read, and
+must be installed on `kingkillery/pkzz`, have Contents write and Metadata read, and
 retain an `always` bypass on the immutable `mobile-v*` tag rules. It does not
 require GitHub Releases permissions, repository Administration permission, or a
 mobile release-branch ruleset. The publisher validates the App token's effective

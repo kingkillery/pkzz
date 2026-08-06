@@ -50,7 +50,7 @@ pub(super) async fn run_agent_models_command(
         // Mirror runtime spawn: internal builds may bake provider/model
         // defaults. User-provided env below still wins.
         build_buzz_agent_provider_defaults(&mut cmd);
-        // User env layering — written LAST so it overrides any Buzz-set env above.
+        // User env layering — written LAST so it overrides any Pkzz-set env above.
         for (k, v) in &merged_env {
             cmd.env(k, v);
         }

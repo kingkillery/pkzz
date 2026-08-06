@@ -1,5 +1,5 @@
 /**
- * `buzz://` deep links for Buzz-hosted git entities, mirroring
+ * `buzz://` deep links for Pkzz-hosted git entities, mirroring
  * `features/messages/lib/messageLink.ts` for `buzz://message`.
  *
  * Formats:

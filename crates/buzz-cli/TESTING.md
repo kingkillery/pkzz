@@ -62,7 +62,7 @@ via direct DB access. Use this for testing admin operations (archive,
 delete-channel, add/remove-channel-member).
 
 ```bash
-DATABASE_URL="${DATABASE_URL:?set DATABASE_URL for the local Buzz database}" \
+DATABASE_URL="${DATABASE_URL:?set DATABASE_URL for the local Pkzz database}" \
 cargo run -p buzz-admin -- mint-token \
   --name "cli-test" \
   --scopes "messages:read,messages:write,channels:read,channels:write,users:read,users:write,files:read,files:write,admin:channels"

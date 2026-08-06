@@ -1,10 +1,10 @@
 # Multi-tenant Conformance Checklist
 
 This document is the source-vs-model checklist for adding first-class communities
-without changing the observed behavior of a single-community Buzz deployment.
+without changing the observed behavior of a single-community Pkzz deployment.
 
-The compatibility rule is: **today's Buzz is one implicit community selected by
-its relay URL**. Multi-tenant Buzz makes that selector explicit at the backend
+The compatibility rule is: **today's Pkzz is one implicit community selected by
+its relay URL**. Multi-tenant Pkzz makes that selector explicit at the backend
 boundary while preserving the Nostr wire format, existing REST paths, channel
 UUIDs, event shapes, media URLs, git Smart HTTP behavior, workflow behavior, and
 CLI/Desktop/MCP expectations when `N = 1`.

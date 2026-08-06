@@ -1,6 +1,6 @@
 //! Environment fence for spawned PTY children.
 //!
-//! Buzz's own process holds `BUZZ_PRIVATE_KEY` (an nsec), `BUZZ_AUTH_TAG`, and
+//! Pkzz's own process holds `BUZZ_PRIVATE_KEY` (an nsec), `BUZZ_AUTH_TAG`, and
 //! relay credentials. `portable_pty::CommandBuilder::new()` pre-seeds its env
 //! map from `std::env::vars_os()` (`cmdbuilder.rs:218` -> `get_base_env()`
 //! `:74`), so a shell spawned with the default builder inherits **all** of it:
@@ -19,7 +19,7 @@
 
 use portable_pty::CommandBuilder;
 
-/// Keys the child is allowed to inherit from Buzz's own environment.
+/// Keys the child is allowed to inherit from Pkzz's own environment.
 ///
 /// Deliberately minimal: each entry is something a shell genuinely cannot
 /// function without, or that visibly degrades the session by its absence.
@@ -36,12 +36,12 @@ const INHERIT_ALLOWLIST: &[&str] = &[
     "TMPDIR",   // per-user temp dir; absence breaks many tools on macOS
 ];
 
-/// Values Buzz sets on the child unconditionally, overriding any inherited
+/// Values Pkzz sets on the child unconditionally, overriding any inherited
 /// value. `TERM` in particular must describe *our* emulator, not whatever
 /// terminal happened to launch the desktop app.
 const OVERRIDES: &[(&str, &str)] = &[
     ("TERM", "xterm-256color"),
-    ("TERM_PROGRAM", "Buzz"),
+    ("TERM_PROGRAM", "Pkzz"),
     ("COLORTERM", "truecolor"),
 ];
 
@@ -53,7 +53,7 @@ const OVERRIDES: &[(&str, &str)] = &[
 /// rebuild.
 ///
 /// `shell` is the *resolved* shell from [`crate::shell::resolve_shell`], and
-/// it is injected rather than inherited. Buzz's own `SHELL` and the shell we
+/// it is injected rather than inherited. Pkzz's own `SHELL` and the shell we
 /// actually spawn are different values in exactly the cases the resolution
 /// fallback exists for — a Finder-launched app with no `$SHELL`, or a
 /// `$SHELL` that fails the executable-regular-file check — so inheriting it
@@ -69,7 +69,7 @@ pub fn fence_env(cmd: &mut CommandBuilder, path: &str, shell: &str) {
         }
     }
 
-    // 3. Apply Buzz's own terminal identity.
+    // 3. Apply Pkzz's own terminal identity.
     for (key, value) in OVERRIDES {
         cmd.env(key, value);
     }

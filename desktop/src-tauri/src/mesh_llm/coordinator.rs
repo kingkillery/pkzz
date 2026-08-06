@@ -1,9 +1,9 @@
 //! Runtime-owned shared-compute coordinator.
 //!
-//! Buzz publishes a client-signed, replaceable discovery note containing the
+//! Pkzz publishes a client-signed, replaceable discovery note containing the
 //! member's MeshLLM owner identity and current iroh endpoint. MeshLLM itself
 //! performs transport (direct QUIC or its encrypted iroh relays) and admission.
-//! The Buzz relay is only a generic Nostr store for membership and discovery;
+//! The Pkzz relay is only a generic Nostr store for membership and discovery;
 //! it does not coordinate connections or require mesh-specific handlers.
 
 use std::time::Duration;
@@ -14,7 +14,7 @@ use tauri::{AppHandle, Manager};
 use crate::app_state::AppState;
 
 /// Client-owned parameterized-replaceable discovery note. We use the standard
-/// NIP-51 bookmark-set kind with a reserved d-tag so existing Buzz relays accept
+/// NIP-51 bookmark-set kind with a reserved d-tag so existing Pkzz relays accept
 /// and store it through their generic user-state path. The relay needs no mesh
 /// handler or kind-registry change.
 pub const KIND_BUZZ_MESH_MEMBER_STATUS: u16 = buzz_core_pkg::kind::KIND_BOOKMARK_SET as u16;
@@ -28,7 +28,7 @@ const STATUS_PUBLISH_TIMEOUT: Duration = Duration::from_secs(10);
 const INGRESS_WATCHDOG_BASE: Duration = Duration::from_secs(15);
 const INGRESS_WATCHDOG_MAX: Duration = Duration::from_secs(120);
 /// A Share Compute node may start before another member's signed status reaches
-/// the relay. Recheck promptly so simultaneous starts converge into one Buzz
+/// the relay. Recheck promptly so simultaneous starts converge into one Pkzz
 /// mesh instead of remaining independent islands.
 const MESH_JOIN_POLL_INTERVAL: Duration = Duration::from_secs(15);
 const MESH_JOIN_RETRY_MAX: Duration = Duration::from_secs(120);
@@ -127,7 +127,7 @@ pub async fn start_coordinator(app: AppHandle) {
     }
 }
 
-/// Join an isolated runtime to the existing Buzz community mesh. The relay is
+/// Join an isolated runtime to the existing Pkzz community mesh. The relay is
 /// discovery only: the selected endpoint is member-signed and validated, then
 /// MeshLLM establishes the encrypted peer transport itself.
 async fn reconcile_buzz_mesh_join(app: &AppHandle) -> Result<(), String> {
@@ -207,10 +207,10 @@ fn target_is_visible(target: &crate::mesh_llm::MeshServeTarget, peer_ids: &[Stri
 enum RosterReconcileAction {
     /// Keep the running allowlist untouched (no-op, or a failure we ride out).
     Keep,
-    /// Restart Buzz so MeshLLM is rebuilt with a freshly resolved roster.
+    /// Restart Pkzz so MeshLLM is rebuilt with a freshly resolved roster.
     ///
     /// MeshLLM's native listeners are process-owned in practice: stopping and
-    /// starting the embedded runtime in one process can terminate Buzz or race
+    /// starting the embedded runtime in one process can terminate Pkzz or race
     /// ports 9337/3131. The process boundary is therefore part of the safety
     /// contract, not an implementation detail.
     RestartProcess,
@@ -341,7 +341,7 @@ async fn reconcile_roster(
     }
     drop(guard);
     eprintln!(
-        "buzz-mesh: membership roster changed; restarting Buzz to rebuild MeshLLM with the fresh community allowlist"
+        "buzz-mesh: membership roster changed; restarting Pkzz to rebuild MeshLLM with the fresh community allowlist"
     );
     app.request_restart();
     Ok(())

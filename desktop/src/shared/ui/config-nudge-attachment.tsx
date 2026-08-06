@@ -399,8 +399,8 @@ function RequirementRow({
     }
     case "cli_config_invalid": {
       // Config-invalid rows are purely informational — the user must edit an
-      // external file. No Agent runtimes CTA (Buzz can't repair ~/.codex/config.toml)
-      // and no Edit Agent CTA (the field isn't managed by Buzz).
+      // external file. No Agent runtimes CTA (Pkzz can't repair ~/.codex/config.toml)
+      // and no Edit Agent CTA (the field isn't managed by Pkzz).
       const cli = requirement.probe_args[0] ?? "the CLI";
       const configFile = `~/.${cli}/config.toml`;
       return (

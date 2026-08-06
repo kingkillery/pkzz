@@ -1,11 +1,11 @@
 //! Mesh owner identity for admission.
 //!
 //! Each machine gets a mesh-llm owner keypair (ed25519, distinct from the
-//! Buzz/Nostr identity). The node presents a signed ownership attestation
+//! Pkzz/Nostr identity). The node presents a signed ownership attestation
 //! binding `owner_id -> endpoint_id`, and serve nodes enforce an allowlist of
 //! member owner ids (see `DesktopMeshRuntime::start`). The keystore lives at
 //! mesh-llm's default path (`~/.mesh-llm/owner-keystore.json`) so a machine
-//! has one owner identity whether mesh runs embedded in Buzz or standalone.
+//! has one owner identity whether mesh runs embedded in Pkzz or standalone.
 
 use std::path::PathBuf;
 use std::sync::OnceLock;
@@ -23,7 +23,7 @@ pub struct OwnerIdentity {
 }
 
 impl OwnerIdentity {
-    /// Sign a Buzz-to-MeshLLM ownership binding. The member's Nostr signature
+    /// Sign a Pkzz-to-MeshLLM ownership binding. The member's Nostr signature
     /// authenticates the discovery event; this Ed25519 signature proves the
     /// advertised owner id is backed by the MeshLLM owner key itself.
     pub fn sign_member_binding(&self, member_pubkey: &str) -> anyhow::Result<String> {

@@ -296,7 +296,7 @@ fn env_derived_provider_falls_through_when_its_credential_is_missing() {
 
     // `export GOOSE_PROVIDER=anthropic` is goose's documented way to pick a
     // provider, and it keeps the API key in its own config/keyring rather than in
-    // Buzz's env — so the provider is visible here and the credential is not.
+    // Pkzz's env — so the provider is visible here and the credential is not.
     // Erroring would swap the working subprocess catalog for a hard
     // "config: ... required" on exactly the null-provider records this fallback
     // exists to serve; the gate has to decline instead.

@@ -19,7 +19,7 @@ permissions:
 jobs:
   build:
     name: Build Linux canary
-    if: github.repository == 'block/buzz'
+    if: github.repository == 'kingkillery/pkzz'
     runs-on: ubuntu-latest
     container: ubuntu:24.04@sha256:4fbb8e6a8395de5a7550b33509421a2bafbc0aab6c06ba2cef9ebffbc7092d90
     timeout-minutes: 60
@@ -147,7 +147,7 @@ jobs:
         run: echo "id=$(scripts/desktop-native-toolchain-id.sh linux)" >> "$GITHUB_OUTPUT"
 
       # Compute this after cargo update so the key describes the graph that is
-      # actually compiled. The helper normalizes only Buzz Desktop's release
+      # actually compiled. The helper normalizes only Pkzz Desktop's release
       # version, allowing a canary to warm an otherwise identical tag build.
       - name: Compute exact release cache key
         id: rust_cache_key

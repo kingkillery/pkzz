@@ -1,4 +1,4 @@
-"""Runtime contract kept separate from Buzz resource provisioning."""
+"""Runtime contract kept separate from Pkzz resource provisioning."""
 
 from __future__ import annotations
 

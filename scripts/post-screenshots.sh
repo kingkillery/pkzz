@@ -17,7 +17,7 @@ fi
 
 GH_USER=$(gh api user --jq .login)
 BRANCH="agent-screenshots/${GH_USER}"
-REPO="block/buzz"
+REPO="kingkillery/pkzz"
 
 mapfile -t PNGS < <(find "$PNG_DIR" -maxdepth 1 -name "*.png" -type f | sort)
 if [[ ${#PNGS[@]} -eq 0 ]]; then

@@ -34,7 +34,7 @@ export type InboxItem = {
   avatarUrl: string | null;
   /**
    * Stable conversation identity: the NIP-10 root for messages, or a
-   * repository-scoped root for Buzz Git work. Does NOT change when a new reply
+   * repository-scoped root for Pkzz Git work. Does NOT change when a new reply
    * advances the representative latest event. Use this for lifecycle
    * continuity: scroll gating, draft keys, local-reply storage, and selection.
    */
@@ -388,7 +388,7 @@ function getStableConversationId(
 }
 
 /**
- * Returns the stable conversation ID for any FeedItem or relay event. Buzz Git
+ * Returns the stable conversation ID for any FeedItem or relay event. Pkzz Git
  * roots include their repository coordinate; messages use the NIP-10 root,
  * parent-reply tag, then event id.
  * This is the same derivation used by `buildInboxItems` for `conversationId`.

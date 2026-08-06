@@ -1,4 +1,4 @@
-# Buzz
+# Pkzz
 
 Desktop chat shell with:
 

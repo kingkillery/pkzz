@@ -1,7 +1,7 @@
 # 1321 cutover: single-community → multi-tenant
 
 `1321_backfill_default_community.sql` is a **one-off operator script**, not a
-startup migration. It takes a pre-1321 (single-community) Buzz Postgres to the
+startup migration. It takes a pre-1321 (single-community) Pkzz Postgres to the
 1321 multi-tenant schema, assigning every existing row to one default community
 derived from the deployment host.
 

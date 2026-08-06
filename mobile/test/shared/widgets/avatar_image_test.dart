@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:buzz/shared/widgets/avatar_image.dart';
+import 'package:pkzz/shared/widgets/avatar_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';

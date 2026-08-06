@@ -127,7 +127,7 @@ pub const MAX_CUSTOM_EMOJI_REACTION_LEN: usize = MAX_CUSTOM_EMOJI_SHORTCODE_LEN 
 
 /// Validate and normalize a NIP-30 custom emoji shortcode.
 ///
-/// Shortcodes are case-insensitive in Buzz's relay-global set; lowercase
+/// Shortcodes are case-insensitive in Pkzz's relay-global set; lowercase
 /// normalization prevents `party_parrot` and `Party_Parrot` from colliding.
 pub fn normalize_custom_emoji_shortcode(shortcode: &str) -> Result<String, SdkError> {
     let trimmed = shortcode.trim().trim_matches(':');
@@ -404,7 +404,7 @@ pub struct DeleteMessageOptions<'a> {
     pub public_reason: Option<&'a str>,
 }
 
-/// Build a Buzz-native delete event (kind 9005).
+/// Build a Pkzz-native delete event (kind 9005).
 pub fn build_delete_message(
     channel_id: Uuid,
     target_event_id: nostr::EventId,
@@ -412,7 +412,7 @@ pub fn build_delete_message(
     build_delete_message_with_options(channel_id, target_event_id, DeleteMessageOptions::default())
 }
 
-/// Build a Buzz-native delete event (kind 9005) with optional moderation metadata.
+/// Build a Pkzz-native delete event (kind 9005) with optional moderation metadata.
 pub fn build_delete_message_with_options(
     channel_id: Uuid,
     target_event_id: nostr::EventId,

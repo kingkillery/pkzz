@@ -18,7 +18,7 @@
 //! so without the origin check any document that ended up in this webview would
 //! inherit silent mic/camera access for the process lifetime.
 //!
-//! Buzz's AppImage pins `GDK_BACKEND=x11` (see [`crate::webkit_rendering`]),
+//! Pkzz's AppImage pins `GDK_BACKEND=x11` (see [`crate::webkit_rendering`]),
 //! which is the backend WebKitGTK media capture is reliable on.
 
 /// The origin Tauri serves the packaged app from on Linux.

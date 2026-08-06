@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Uninstalls stale worktree-suffixed Buzz debug builds from booted iOS
+# Uninstalls stale worktree-suffixed Pkzz debug builds from booted iOS
 # simulators and connected Android devices/emulators. Production installs
 # (com.buzz.buzzMobile / xyz.block.buzz.mobile, no suffix) are never touched:
 # only identifiers with a worktree suffix appended after the production id
@@ -58,7 +58,7 @@ if command -v adb &>/dev/null; then
 fi
 
 if [[ "$removed" == "0" ]]; then
-    echo "no worktree-suffixed Buzz installs found (production apps untouched)"
+    echo "no worktree-suffixed Pkzz installs found (production apps untouched)"
 elif [[ "$dry_run" == "1" ]]; then
     echo "dry run: $removed worktree install(s) would be removed (production apps untouched)"
 else

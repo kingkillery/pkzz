@@ -352,7 +352,7 @@ test("localMode_goose_databricksHost_noFileConfig_stillRequired", () => {
 });
 
 test("localMode_goose_providerSatisfiedByFileConfig_noNormalizedFieldRequired", () => {
-  // Scenario: goose, no provider in Buzz env but file config has provider + model.
+  // Scenario: goose, no provider in Pkzz env but file config has provider + model.
   // Neither 'provider' nor 'model' should be required.
   const fileConfig = {
     provider: "anthropic",
@@ -860,7 +860,7 @@ test("providerDefaultLabel_globalSetWithWhitespace_trimsAndReturnsInherit", () =
 test("providerDefaultLabel_sharedCompute_neverLeaksInternalId", () => {
   assert.equal(
     getDefaultLlmProviderLabel("buzz-agent", "relay-mesh"),
-    "Use agent defaults (Buzz shared compute)",
+    "Use agent defaults (Pkzz shared compute)",
   );
 });
 

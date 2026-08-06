@@ -36,7 +36,7 @@ pub(crate) fn should_skip_claude_executable(path: &std::path::Path, is_windows: 
 /// `None` because Git Bash returns POSIX colon-delimited paths that poison
 /// native children. On Unix it is the failure mode: a login shell that exits
 /// non-zero or prints nothing also yields `None`, and the child is then left
-/// with only Buzz's managed Node dirs — no `curl`, `sh`, or `tar`, which
+/// with only Pkzz's managed Node dirs — no `curl`, `sh`, or `tar`, which
 /// silently breaks every `curl … | bash` install. The inherited PATH is the
 /// floor under both cases, appended last so managed dirs keep precedence.
 ///
@@ -54,7 +54,7 @@ pub(crate) fn should_use_inherited(had_shell_path: bool, has_local_context: bool
 /// Pure PATH composition kernel shared by the install shell and the runtime/probe paths.
 ///
 /// Merges already-split PATH entries in precedence order:
-///   1. `managed` — Buzz-controlled dirs (highest precedence, e.g. managed Node/npm bins)
+///   1. `managed` — Pkzz-controlled dirs (highest precedence, e.g. managed Node/npm bins)
 ///   2. `login`   — login-shell PATH entries (split before calling)
 ///   3. `inherited` — current-process PATH entries (split before calling), appended
 ///      only when `use_inherited` is `true`
@@ -81,8 +81,8 @@ pub(crate) fn compose_path_entries(
 ///
 /// Concatenates, in priority order:
 ///   1. `<home>/.local/bin` — bundled CLI symlink
-///   2. Buzz-managed npm prefix bin dir — app-private ACP adapter shims
-///   3. Buzz-managed Node.js bin dir — app-private Node/npm runtime
+///   2. Pkzz-managed npm prefix bin dir — app-private ACP adapter shims
+///   3. Pkzz-managed Node.js bin dir — app-private Node/npm runtime
 ///   4. `nvm_bin` — nvm's default Node.js bin dir (if the user uses nvm)
 ///   5. exe parent dir — DMG sidecars under `Contents/MacOS/`
 ///   6. user's login-shell `PATH` — runtimes like node/python from other managers
@@ -170,14 +170,14 @@ mod tests {
         // lose `buzz`).
         let result = build_augmented_path(
             Some(PathBuf::from("/home/agent")),
-            Some(PathBuf::from("/Applications/Buzz.app/Contents/MacOS")),
+            Some(PathBuf::from("/Applications/Pkzz.app/Contents/MacOS")),
             Some("/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin".to_string()),
             None,
         );
         let result = result.expect("path");
         assert!(result.starts_with("/home/agent/.local/bin:"), "{result}");
         assert!(
-            result.contains(":/Applications/Buzz.app/Contents/MacOS:"),
+            result.contains(":/Applications/Pkzz.app/Contents/MacOS:"),
             "{result}"
         );
         assert!(
@@ -203,7 +203,7 @@ mod tests {
     fn nvm_bin_inserted_after_local_bin_before_exe_parent() {
         let result = build_augmented_path(
             Some(PathBuf::from("/home/user")),
-            Some(PathBuf::from("/Applications/Buzz.app/Contents/MacOS")),
+            Some(PathBuf::from("/Applications/Pkzz.app/Contents/MacOS")),
             Some("/usr/bin:/bin".to_string()),
             Some(PathBuf::from("/home/user/.nvm/versions/node/v20.0.0/bin")),
         );
@@ -213,7 +213,7 @@ mod tests {
             .find("/home/user/.nvm/versions/node/v20.0.0/bin")
             .unwrap();
         let exe = result
-            .find("/Applications/Buzz.app/Contents/MacOS")
+            .find("/Applications/Pkzz.app/Contents/MacOS")
             .unwrap();
         assert!(local < nvm && nvm < exe, "{result}");
         assert!(result.ends_with(":/usr/bin:/bin"), "{result}");
@@ -254,7 +254,7 @@ mod tests {
     }
 
     /// On Unix with no login-shell PATH, `build_augmented_path` must fall back to
-    /// the inherited process PATH — otherwise the child gets only Buzz-managed
+    /// the inherited process PATH — otherwise the child gets only Pkzz-managed
     /// dirs and loses every system binary (`curl`, `sh`, `tar`).
     #[cfg(unix)]
     #[test]

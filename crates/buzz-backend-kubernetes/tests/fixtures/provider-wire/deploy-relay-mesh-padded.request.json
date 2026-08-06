@@ -7,5 +7,5 @@
     "auth_tag": "tag-1",
     "provider": "  relay-mesh  "
   },
-  "provider_config": {"namespace": "buzz-agents-test", "image": "ghcr.io/block/buzz-sprig@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+  "provider_config": {"namespace": "buzz-agents-test", "image": "ghcr.io/kingkillery/pkzz-sprig@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
 }

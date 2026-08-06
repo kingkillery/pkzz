@@ -11,12 +11,12 @@ require_canonical_repository() {
   local origin_url
 
   origin_url="$(git config --get remote.origin.url 2>/dev/null)" || \
-    fail_release_ruleset "origin is required and must point to block/buzz" || return 1
+    fail_release_ruleset "origin is required and must point to kingkillery/pkzz" || return 1
   case "$origin_url" in
-    git@github.com:block/buzz.git|ssh://git@github.com/block/buzz.git|https://github.com/block/buzz.git|https://github.com/block/buzz)
+    git@github.com:kingkillery/pkzz.git|ssh://git@github.com/kingkillery/pkzz.git|https://github.com/kingkillery/pkzz.git|https://github.com/kingkillery/pkzz)
       ;;
     *)
-      fail_release_ruleset "origin must point to canonical block/buzz, not '$origin_url'" || return 1
+      fail_release_ruleset "origin must point to canonical kingkillery/pkzz, not '$origin_url'" || return 1
       ;;
   esac
 }
@@ -25,7 +25,7 @@ require_release_tag_ruleset() {
   local ruleset_endpoint state can_bypass rule_types includes excludes
 
   command -v gh >/dev/null 2>&1 || fail_release_ruleset "gh is required" || return 1
-  ruleset_endpoint="repos/block/buzz/rulesets/$RELEASE_TAG_RULESET_ID"
+  ruleset_endpoint="repos/kingkillery/pkzz/rulesets/$RELEASE_TAG_RULESET_ID"
 
   state="$(gh api "$ruleset_endpoint" --jq .enforcement)" || \
     fail_release_ruleset "could not verify Release tag ruleset $RELEASE_TAG_RULESET_ID" || return 1

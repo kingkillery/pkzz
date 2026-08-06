@@ -130,7 +130,7 @@ On acceptance the executor returns `OK true` and commits the stored event, the e
 Each subscription `filter` is a NIP-01 filter object under these restrictions — a *restriction* of NIP-01, so the executor's existing matcher runs unchanged and all grammar work is sunk at write time:
 
 1. **Narrowing selector.** Each filter MUST contain at least one of: `#p` (self only), `#h` (1–`max_h` channels), or `authors` (1–`max_authors` pubkeys). Bare kinds-only, since-only, or empty filters MUST be rejected (`invalid: lease filter not narrowed`).
-2. **Exact values only.** Every `authors` and `#p` value MUST be exactly 64 lowercase hex characters (a full pubkey), and every `#e` value exactly 64 lowercase hex characters (a full event id); anything shorter, longer, or mixed-case is rejected (`invalid: non-exact match value`). This forecloses NIP-01 prefix matching from inside a lease. Each `#h` value MUST be a non-empty string of at most `max_string_len` bytes and MUST additionally satisfy the channel-identifier grammar the descriptor names in `h_grammar` (e.g. `"uuid-v4-lowercase"` for Buzz); an executor MUST reject values failing its advertised grammar.
+2. **Exact values only.** Every `authors` and `#p` value MUST be exactly 64 lowercase hex characters (a full pubkey), and every `#e` value exactly 64 lowercase hex characters (a full event id); anything shorter, longer, or mixed-case is rejected (`invalid: non-exact match value`). This forecloses NIP-01 prefix matching from inside a lease. Each `#h` value MUST be a non-empty string of at most `max_string_len` bytes and MUST additionally satisfy the channel-identifier grammar the descriptor names in `h_grammar` (e.g. `"uuid-v4-lowercase"` for Pkzz); an executor MUST reject values failing its advertised grammar.
 3. **Self-scoped `#p`.** Every `#p` value MUST equal the lease author (`invalid: p-tag must be self`). A lease MUST NOT register a wake on another user's mentions — that is a surveillance primitive, and it would signal the existence of events the author may not read.
 4. **Bounded, allow-listed kinds.** Each filter MUST include `kinds` (1–`max_kinds` entries), each drawn from the executor's advertised `push_kinds` (`invalid: kind not push-eligible`). Ephemeral kinds (20000–29999), presence, typing, and relay-signed snapshot kinds MUST NOT be push-eligible.
 5. **No time-travel, no ids, no limit, no search.** `since`, `until`, `ids`, `limit`, and `search` MUST be rejected, not silently ignored. The lease's liveness window is its `expiration`; `ids` waking is nonsensical for future events.
@@ -155,7 +155,7 @@ Classes are strictly ordered: `silent` < `default` < `time_sensitive` < `urgent`
 
 The executor MUST restrict `urgent` to the descriptor-advertised allow-list of approval-request kinds whose eligibility is decidable from the public event envelope (`invalid: class not permitted for kind`). Urgent DMs are explicitly out of scope for v1: gift-wrapped DM content is opaque to the executor, so no privacy-safe urgency marker exists yet; a future revision may add one.
 
-`silent` remains a matching preference only. The public Buzz APNs profile sends the one fixed reconnect alert and does not expose relay-selected notification classes to the transport boundary.
+`silent` remains a matching preference only. The public Pkzz APNs profile sends the one fixed reconnect alert and does not expose relay-selected notification classes to the transport boundary.
 
 Clients MUST NOT register any lease or subscription as a side effect of joining a channel or surface — absent explicit user opt-in the notifiable set is empty.
 
@@ -224,7 +224,7 @@ Common invariant, all transports: the application payload is a transport-owned r
 
 ### APNs
 
-The APNs application body is the exact UTF-8 byte constant `{"aps":{"alert":{"body":"Reconnect to your relay now"},"mutable-content":1}}`. It has no custom member, event identifier, unread count, or relay-supplied byte. The constant mutable-content flag lets the Buzz Notification Service Extension compute a local badge and, when separately authorized data is available, replace the generic text; the gateway does not carry that data. The gateway MUST send that exact body for every accepted APNs attempt; it MUST NOT serialize any relay request, endpoint grant, provider response, or generic JSON value into the body. `apns-topic`, environment, credentials, push type `alert`, and priority `10` come only from gateway configuration. `apns-id` is a canonical UUID and `apns-expiration` is bounded by the endpoint capability and a gateway-local ceiling.
+The APNs application body is the exact UTF-8 byte constant `{"aps":{"alert":{"body":"Reconnect to your relay now"},"mutable-content":1}}`. It has no custom member, event identifier, unread count, or relay-supplied byte. The constant mutable-content flag lets the Pkzz Notification Service Extension compute a local badge and, when separately authorized data is available, replace the generic text; the gateway does not carry that data. The gateway MUST send that exact body for every accepted APNs attempt; it MUST NOT serialize any relay request, endpoint grant, provider response, or generic JSON value into the body. `apns-topic`, environment, credentials, push type `alert`, and priority `10` come only from gateway configuration. `apns-id` is a canonical UUID and `apns-expiration` is bounded by the endpoint capability and a gateway-local ceiling.
 
 ### FCM
 
@@ -258,7 +258,7 @@ A pubkey-only client cannot create, replace, or revoke a lease. If a platform en
 
 Implementations MUST NOT interpret this section as NIP-26 delegation. A future specification may define a narrowly scoped installation authorization for unattended endpoint rotation, but such a capability is neither required nor implied here.
 
-## Public APNs Gateway Profile (Buzz, normative)
+## Public APNs Gateway Profile (Pkzz, normative)
 
 This section registers the public last-hop profile served at `https://push.buzz.xyz`. It is an optional profile of NIP-PL, but every requirement in this section is normative for implementations that use it. The gateway is stateful: it retains installation authority, encrypted APNs-token custody, relay delegations, replay reservations, and endpoint quotas. The relay remains the executor and retains lease acceptance, matching, tenant authorization, endpoint uniqueness, coalescing, durable jobs/retries, and lease-generation invalidation.
 
@@ -409,7 +409,7 @@ Responses:
 
 The gateway performs one APNs request, except that an APNs expired-provider-token response permits one credential refresh and one retry. The application body is always the exact constant registered in the APNs transport profile above; no request or grant field enters it.
 
-## Implementation Notes (Buzz, non-normative)
+## Implementation Notes (Pkzz, non-normative)
 
 Per `RESEARCH/PUSH_RELAY_INTEGRATION.md` (pinned SHA `88c089d`): the lease matcher hooks the generic post-storage dispatch seam (`buzz-relay/src/handlers/event.rs:245 dispatch_persistent_event`), not `handle_side_effects`; Redis pub/sub is community-scoped routing precedent but not the durable offline-matching source; `event_mentions` is a ready indexed primitive for self-`#p` and needs-action subscriptions but is **not** authorization — private-channel wakes re-check same-community visibility at match/send time. Known footgun: some internal producers bypass `dispatch_persistent_event`; implementation must centralize durable dispatch or add push dispatch at each internal publish path.
 

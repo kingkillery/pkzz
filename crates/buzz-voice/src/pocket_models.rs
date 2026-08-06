@@ -1,4 +1,4 @@
-//! Immutable capabilities for Buzz Desktop's April Pocket TTS bundle.
+//! Immutable capabilities for Pkzz Desktop's April Pocket TTS bundle.
 
 /// Pinned upstream export repository.
 pub const APRIL_MODEL_ID: &str = "KevinAHM/pocket-tts-onnx";
@@ -21,7 +21,7 @@ pub struct PocketModelArtifact {
     pub quantized: bool,
 }
 
-/// Capabilities of Buzz Desktop's sole Pocket model.
+/// Capabilities of Pkzz Desktop's sole Pocket model.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PocketModelInfo {
     /// Language bundle selected from the pinned export.
@@ -93,7 +93,7 @@ const INT8_ARTIFACTS: [PocketModelArtifact; 8] = [
 
 const INT8_COMPONENTS: [&str; 3] = ["flow_lm_main", "flow_lm_flow", "mimi_decoder"];
 
-/// Return immutable metadata for Buzz Desktop's April INT8 model.
+/// Return immutable metadata for Pkzz Desktop's April INT8 model.
 pub const fn april_model_info() -> PocketModelInfo {
     PocketModelInfo {
         bundle_id: APRIL_BUNDLE_ID,

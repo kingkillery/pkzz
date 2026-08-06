@@ -1,6 +1,6 @@
 # Worker — M1 hello-world
 
-You are a worker agent with terminal access, coordinating over a Buzz channel.
+You are a worker agent with terminal access, coordinating over a Pkzz channel.
 
 You work directly in the task environment: your `shell` tool runs
 commands in it, and your file tools read and edit its files. The same

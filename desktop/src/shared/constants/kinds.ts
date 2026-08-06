@@ -2,7 +2,7 @@ export const KIND_DELETION = 5;
 export const KIND_REACTION = 7;
 export const KIND_TEXT_NOTE = 1;
 export const KIND_STREAM_MESSAGE = 9;
-// Buzz-native deletion. The relay soft-deletes the target and emits a
+// Pkzz-native deletion. The relay soft-deletes the target and emits a
 // kind:40099 system message. Treated as a deletion marker alongside kind:5.
 export const KIND_NIP29_DELETE_EVENT = 9005;
 // NIP-56 report + community-moderation command kinds. Reports (1984) persist to
@@ -91,7 +91,7 @@ export const HOME_MENTION_EVENT_KINDS = [...CHANNEL_MESSAGE_EVENT_KINDS];
 export const CHANNEL_EVENT_KINDS = [
   KIND_DELETION, // 5 — NIP-09 event deletions
   KIND_REACTION, // 7 — NIP-25 reactions
-  KIND_NIP29_DELETE_EVENT, // 9005 — NIP-29 / Buzz-native deletions
+  KIND_NIP29_DELETE_EVENT, // 9005 — NIP-29 / Pkzz-native deletions
   ...CHANNEL_MESSAGE_EVENT_KINDS,
   40001, // legacy: pre-migration stream messages
   KIND_STREAM_MESSAGE_EDIT, // 40003 — message edits
@@ -115,7 +115,7 @@ export const CHANNEL_EVENT_KINDS = [
 export const CHANNEL_AUX_EVENT_KINDS = [
   KIND_DELETION, // 5 — NIP-09 event deletions
   KIND_REACTION, // 7 — NIP-25 reactions
-  KIND_NIP29_DELETE_EVENT, // 9005 — NIP-29 / Buzz-native deletions
+  KIND_NIP29_DELETE_EVENT, // 9005 — NIP-29 / Pkzz-native deletions
   KIND_STREAM_MESSAGE_EDIT, // 40003 — message edits
 ] as const;
 

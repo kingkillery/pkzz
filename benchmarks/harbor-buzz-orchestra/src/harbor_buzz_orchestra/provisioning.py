@@ -1,4 +1,4 @@
-"""Typed boundary between the Harbor adapter and Buzz trial provisioning."""
+"""Typed boundary between the Harbor adapter and Pkzz trial provisioning."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from .manifest import ExperimentManifest
 
 @dataclass(frozen=True, slots=True)
 class AgentCredential:
-    """One trial-scoped Buzz identity and attributed LLM credential."""
+    """One trial-scoped Pkzz identity and attributed LLM credential."""
 
     agent_id: str
     role: str
@@ -23,7 +23,7 @@ class AgentCredential:
 
 @dataclass(frozen=True, slots=True)
 class TrialHandle:
-    """Provisioned Buzz resources owned by one Harbor trial."""
+    """Provisioned Pkzz resources owned by one Harbor trial."""
 
     run_id: str
     trial_id: str
@@ -43,7 +43,7 @@ class TrialHandle:
 
 @runtime_checkable
 class TrialProvisioner(Protocol):
-    """Creates and tears down trial-isolated Buzz resources synchronously."""
+    """Creates and tears down trial-isolated Pkzz resources synchronously."""
 
     def create_trial(
         self,

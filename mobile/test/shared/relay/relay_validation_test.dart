@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:buzz/shared/relay/relay_validation.dart';
+import 'package:pkzz/shared/relay/relay_validation.dart';
 
 void main() {
   group('validateInviteRelayUri', () {

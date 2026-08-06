@@ -13,7 +13,7 @@ const SHOTS = "test-results/byoh-after";
 const CATALOG = [
   {
     id: "buzz-agent",
-    label: "Buzz Agent",
+    label: "Pkzz Agent",
     avatar_url: "",
     availability: "available",
     command: "buzz-agent",
@@ -21,7 +21,7 @@ const CATALOG = [
     default_args: [],
     mcp_command: "buzz-dev-mcp",
     install_hint: "",
-    install_instructions_url: "https://github.com/block/buzz",
+    install_instructions_url: "https://github.com/kingkillery/pkzz",
     can_auto_install: false,
     underlying_cli_path: null,
     node_required: false,
@@ -71,7 +71,7 @@ const CATALOG = [
     default_args: ["acp"],
     mcp_command: null,
     install_hint:
-      "Buzz talks to Cursor through the cursor-agent CLI's ACP mode.",
+      "Pkzz talks to Cursor through the cursor-agent CLI's ACP mode.",
     install_instructions_url: "https://cursor.com/downloads",
     can_auto_install: false,
     underlying_cli_path: null,
@@ -89,7 +89,7 @@ const CATALOG = [
     default_args: ["acp"],
     mcp_command: null,
     install_hint:
-      "Buzz talks to Oh My PK through its CLI's ACP mode (ompk acp).",
+      "Pkzz talks to Oh My PK through its CLI's ACP mode (ompk acp).",
     install_instructions_url: "https://github.com/kingkillery/oh-my-pk",
     can_auto_install: false,
     underlying_cli_path: null,
@@ -107,7 +107,7 @@ const CATALOG = [
     default_args: ["acp"],
     mcp_command: null,
     install_hint:
-      "Buzz talks to OpenCode through its CLI's ACP mode (opencode acp).",
+      "Pkzz talks to OpenCode through its CLI's ACP mode (opencode acp).",
     install_instructions_url: "https://opencode.ai/docs",
     can_auto_install: false,
     underlying_cli_path: null,

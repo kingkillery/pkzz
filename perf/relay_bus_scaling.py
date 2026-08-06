@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reproducible Buzz relay Redis bus scaling harness.
+"""Reproducible Pkzz relay Redis bus scaling harness.
 
 The harness isolates the relay's Redis fan-out boundary, not client rendering or
 DB ingest. It compares the pre-rewrite global-firehose shape (every pod receives
@@ -458,7 +458,7 @@ def assert_scaling(args: argparse.Namespace, rows: list[Measurement]) -> None:
 
 
 def print_rows(args: argparse.Namespace, rows: list[Measurement]) -> None:
-    print("Buzz relay Redis bus scaling harness")
+    print("Pkzz relay Redis bus scaling harness")
     print("====================================")
     print(
         "scenario: "

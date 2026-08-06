@@ -1,7 +1,7 @@
-# Harbor Buzz Orchestra
+# Harbor Pkzz Orchestra
 
 A stock-Harbor custom agent that runs a manifest-defined team through the real
-Buzz stack. Harbor sees one `BuzzOrchestraAgent`; behind that adapter, one
+Pkzz stack. Harbor sees one `BuzzOrchestraAgent`; behind that adapter, one
 orchestrator and N workers coordinate over the production relay/Postgres.
 Each agent runs *inside* the Harbor task container as the same
 `buzz-acp` → `buzz-agent` → `buzz-dev-mcp` process tree the desktop app
@@ -57,7 +57,7 @@ is not an orchestration requirement. Some TB graders install dependencies from
 public package registries at verification time — run benchmarks off networks
 that block those installs (e.g. corporate VPNs).
 
-Each trial gets fresh keys and a private Buzz channel. The provisioner archives
+Each trial gets fresh keys and a private Pkzz channel. The provisioner archives
 rather than deletes that channel, leaving the relay/Postgres event timeline
 and the per-agent acp/agent logs (downloaded into the trial's `buzz/`
 artifacts) available for analysis.
@@ -80,7 +80,7 @@ just benchmark --gui                             # watch the run live
 One pinned user identity fronts the whole benchmark environment: it owns
 every trial channel (named after the task) and posts every task prompt, and
 trial channels are kept rather than archived. `--gui` adds that user to the
-relay membership list and opens the Buzz desktop app logged in as them, so
+relay membership list and opens the Pkzz desktop app logged in as them, so
 channels fill the sidebar as the run progresses — watch, don't type; a human
 message mid-trial would taint the run. `just benchmark-down` stops the stack.
 

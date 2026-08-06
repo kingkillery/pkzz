@@ -171,7 +171,7 @@ pub fn record_req_authcheck(
 ///
 /// - If the row is **channel-scoped** (`row.channel_id == Some(ch)`):
 ///   look up `ch` in `channel_communities` (precomputed via
-///   [`buzz_db::Buzz::communities_of_channels`]). On a hit, return the
+///   [`buzz_db::Pkzz::communities_of_channels`]). On a hit, return the
 ///   looked-up label. On a miss, return `None` — the caller MUST treat
 ///   this as a coverage breach and fail closed.
 /// - If the row is **channel-less** (`row.channel_id == None`):
@@ -229,7 +229,7 @@ pub enum RowCommunityProjection {
 /// `rows` is the list of `(channel_id_option)` per row in the result
 /// set, in the order the relay will deliver them.
 /// `channel_communities` is the result of
-/// [`buzz_db::Buzz::communities_of_channels`] over the distinct
+/// [`buzz_db::Pkzz::communities_of_channels`] over the distinct
 /// channel ids in `rows`.
 pub fn project_row_communities(
     rows: &[Option<Uuid>],

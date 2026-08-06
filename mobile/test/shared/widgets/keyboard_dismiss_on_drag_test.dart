@@ -1,4 +1,4 @@
-import 'package:buzz/shared/widgets/keyboard_dismiss_on_drag.dart';
+import 'package:pkzz/shared/widgets/keyboard_dismiss_on_drag.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

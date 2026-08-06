@@ -127,7 +127,7 @@ type InboxDetailPaneProps = {
   ) => Promise<void>;
 };
 
-/** Routes Inbox selections to their canonical message or Buzz Git detail. */
+/** Routes Inbox selections to their canonical message or Pkzz Git detail. */
 export function InboxDetailPane(props: InboxDetailPaneProps) {
   if (props.item && getProjectInboxReference(props.item.item)) {
     return (

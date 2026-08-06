@@ -6,7 +6,7 @@
 //! reference is rejected, not just `:latest`.
 //!
 //! There is no parse-time fallback: `image` is required, and its absence
-//! fails closed with a named field. The published `ghcr.io/block/buzz-sprig`
+//! fails closed with a named field. The published `ghcr.io/kingkillery/pkzz-sprig`
 //! digest is offered only as a schema `default` (a UI prefill the desktop
 //! submits explicitly — see `config::DEFAULT_IMAGE`), so the create-intent
 //! fingerprint never depends on compiled-in provider state.
@@ -100,8 +100,11 @@ mod tests {
     #[test]
     fn accepts_digest_pinned_reference() {
         let d = "a".repeat(64);
-        let r = parse(&format!("ghcr.io/block/buzz-sprig@sha256:{d}")).unwrap();
-        assert_eq!(r.as_str(), format!("ghcr.io/block/buzz-sprig@sha256:{d}"));
+        let r = parse(&format!("ghcr.io/kingkillery/pkzz-sprig@sha256:{d}")).unwrap();
+        assert_eq!(
+            r.as_str(),
+            format!("ghcr.io/kingkillery/pkzz-sprig@sha256:{d}")
+        );
     }
 
     /// The normalization that keeps the fingerprint stable: two spellings of
@@ -109,8 +112,8 @@ mod tests {
     #[test]
     fn strips_tag_from_tag_plus_digest_form() {
         let d = "b".repeat(64);
-        let tagged = parse(&format!("ghcr.io/block/buzz-sprig:v1.2@sha256:{d}")).unwrap();
-        let plain = parse(&format!("ghcr.io/block/buzz-sprig@sha256:{d}")).unwrap();
+        let tagged = parse(&format!("ghcr.io/kingkillery/pkzz-sprig:v1.2@sha256:{d}")).unwrap();
+        let plain = parse(&format!("ghcr.io/kingkillery/pkzz-sprig@sha256:{d}")).unwrap();
         assert_eq!(tagged, plain);
     }
 
@@ -134,10 +137,10 @@ mod tests {
     #[test]
     fn rejects_every_tag_only_reference() {
         for bad in [
-            "ghcr.io/block/buzz-sprig:latest",
-            "ghcr.io/block/buzz-sprig:v1.2.3",
-            "ghcr.io/block/buzz-sprig:sha-abc1234",
-            "ghcr.io/block/buzz-sprig",
+            "ghcr.io/kingkillery/pkzz-sprig:latest",
+            "ghcr.io/kingkillery/pkzz-sprig:v1.2.3",
+            "ghcr.io/kingkillery/pkzz-sprig:sha-abc1234",
+            "ghcr.io/kingkillery/pkzz-sprig",
             "localhost:5000/buzz-sprig",
         ] {
             let err = parse(bad).unwrap_err();

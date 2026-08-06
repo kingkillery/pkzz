@@ -1,4 +1,4 @@
-"""Harbor custom-agent entry point for Buzz orchestration."""
+"""Harbor custom-agent entry point for Pkzz orchestration."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from .runtime import OrchestraRuntime
 
 
 class BuzzOrchestraAgent(BaseAgent):
-    """Coordinate an arbitrary manifest-defined team through a Buzz trial."""
+    """Coordinate an arbitrary manifest-defined team through a Pkzz trial."""
 
     # Set True only once the runtime writes a validated agent/trajectory.json.
     SUPPORTS_ATIF = False

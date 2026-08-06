@@ -1,7 +1,7 @@
 //! Pack manifest types and `plugin.json` parser.
 //!
 //! Every persona pack ships a `.plugin/plugin.json` that describes the pack
-//! (OPS metadata) and tells Buzz where to find personas, hooks, and MCP
+//! (OPS metadata) and tells Pkzz where to find personas, hooks, and MCP
 //! config.
 //!
 //! ```json
@@ -35,7 +35,7 @@ pub enum ManifestError {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct Engines {
-    /// Semver range the Buzz runtime must satisfy (e.g. `">=0.9.0"`).
+    /// Semver range the Pkzz runtime must satisfy (e.g. `">=0.9.0"`).
     #[serde(skip_serializing_if = "Option::is_none", alias = "buzz")]
     pub buzz: Option<String>,
 }
@@ -126,7 +126,7 @@ pub struct PackManifest {
 /// Intentionally permissive (no `deny_unknown_fields`): `plugin.json` is an
 /// OPS superset and may carry fields from other tools (e.g. `ops_category`,
 /// `marketplace_tags`). Unknown fields are silently ignored here; the
-/// validator issues advisory warnings for Buzz-unknown keys.
+/// validator issues advisory warnings for Pkzz-unknown keys.
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "snake_case")]
 struct RawManifest {

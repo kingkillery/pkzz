@@ -32,7 +32,7 @@ const titleCache = new Map<string, Promise<string | null> | string | null>();
 let cacheGeneration = 0;
 
 /**
- * Buzz entity titles come from relay events, so they are community-scoped —
+ * Pkzz entity titles come from relay events, so they are community-scoped —
  * wired into `resetCommunityState()` (see useCommunityInit.ts) to avoid
  * leaking titles across community switches.
  */
@@ -57,7 +57,7 @@ function fetchLinkPreviewTitle(href: string): Promise<string | null> {
 }
 
 /**
- * Resolve a Buzz PR/issue card title from the relay event's `subject` tag
+ * Resolve a Pkzz PR/issue card title from the relay event's `subject` tag
  * (first content line as fallback — the same precedence the projects views
  * use).
  *

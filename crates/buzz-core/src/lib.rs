@@ -1,9 +1,9 @@
 #![deny(unsafe_code)]
 #![warn(missing_docs)]
-//! `buzz-core` — zero-I/O foundation types for the Buzz relay.
+//! `buzz-core` — zero-I/O foundation types for the Pkzz relay.
 //!
 //! Provides [`StoredEvent`], filter matching, kind constants, and event
-//! verification. All other Buzz crates depend on this one.
+//! verification. All other Pkzz crates depend on this one.
 
 /// NIP-AM: Agent Turn Metric — payload type and encrypt/decrypt helpers.
 pub mod agent_turn_metric;
@@ -22,7 +22,7 @@ pub mod filter;
 pub mod git_perms;
 /// Shared invite-link contract constants.
 pub mod invite;
-/// Buzz kind number registry — custom event type constants.
+/// Pkzz kind number registry — custom event type constants.
 pub mod kind;
 /// Network utilities — SSRF-safe IP classification.
 pub mod network;

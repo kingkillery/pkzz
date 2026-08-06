@@ -4,7 +4,7 @@ import { cn } from "@/shared/lib/cn";
 export type ThemePreviewVars = Record<string, string>;
 
 /**
- * Buzz sidebar-gradient stop tokens, keyed by theme name. The actual custom
+ * Pkzz sidebar-gradient stop tokens, keyed by theme name. The actual custom
  * colors live once in `shared/styles/globals/theme.css`; the picker consumes
  * those same semantic variables instead of duplicating raw values here.
  */

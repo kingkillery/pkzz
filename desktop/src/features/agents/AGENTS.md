@@ -4,7 +4,7 @@ Scope: `desktop/src/features/agents/` (config surfaces, shared config renderer,
 and the agent config core). Read this before changing how harness / provider /
 model / effort configuration is modeled, rendered, persisted, or applied.
 
-Plan of record: `Buzz/Harness-Provider-Model.md` in Morgan's Obsidian vault
+Plan of record: `Pkzz/Harness-Provider-Model.md` in Morgan's Obsidian vault
 (PR sequence, decisions log). PRs: #2140 (rename), #2148 (flag reduction),
 #2156 (honest model states), #2158 (Agent Config Core).
 
@@ -104,9 +104,9 @@ with a TypeScript lookup table or an id comparison in a component.
    harness has empty discovery` (and the failed-discovery counterpart) in
    `onboarding-agent-defaults.spec.ts`.
 9. **The defaults modal is progressively disclosed.** An unset global config
-   starts on the Buzz Agent-first deployment fallback and carries that visible
+   starts on the Pkzz Agent-first deployment fallback and carries that visible
    harness into the next saved edit. The `progressive-defaults` disclosure
-   preset therefore begins at Provider for Buzz Agent, then reveals Model,
+   preset therefore begins at Provider for Pkzz Agent, then reveals Model,
    Effort, and Advanced only after a provider is configured. Harnesses whose
    runtime metadata has no provider field skip that gate. Reveals animate their
    height through Motion and become immediate when reduced motion is requested.

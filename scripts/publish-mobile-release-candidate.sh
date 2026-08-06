@@ -15,7 +15,7 @@ candidate_number="$2"
 target_sha="$3"
 repo="${GITHUB_REPOSITORY:-}"
 
-[[ "$repo" == "block/buzz" ]] || fail "candidate publishing is restricted to block/buzz"
+[[ "$repo" == "kingkillery/pkzz" ]] || fail "candidate publishing is restricted to kingkillery/pkzz"
 [[ "$version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || \
   fail "'$version' is not a mobile release version (expected X.Y.Z)"
 [[ "$candidate_number" =~ ^[1-9][0-9]*$ ]] || \
@@ -47,7 +47,7 @@ done <<< "$refs"
   fail "candidate sequence changed; expected rc.$candidate_number but next is rc.$next"
 
 tag="mobile-v${version}-rc.${candidate_number}"
-message="Buzz Mobile $version release candidate $candidate_number"
+message="Pkzz Mobile $version release candidate $candidate_number"
 tag_object_sha="$(
   gh api --method POST "repos/$repo/git/tags" \
     -f tag="$tag" \

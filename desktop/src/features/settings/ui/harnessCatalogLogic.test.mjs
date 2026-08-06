@@ -199,7 +199,7 @@ describe("stableRowOrder", () => {
       entry({ id: "off", label: "Aardvark", canAutoInstall: true }),
       entry({
         id: "buzz-agent",
-        label: "Buzz",
+        label: "Pkzz",
         availability: "available",
         source: "builtin",
       }),
@@ -219,7 +219,7 @@ describe("stableRowOrder", () => {
       entry({ id: "zeta", label: "Zeta", availability: "available" }),
       entry({
         id: "buzz-agent",
-        label: "Buzz",
+        label: "Pkzz",
         availability: "available",
         source: "builtin",
       }),
@@ -235,7 +235,7 @@ describe("stableRowOrder", () => {
     const before = ["buzz-agent", "deleted", "zeta"];
     const entries = [
       entry({ id: "zeta", label: "Zeta", availability: "available" }),
-      entry({ id: "buzz-agent", label: "Buzz", availability: "available" }),
+      entry({ id: "buzz-agent", label: "Pkzz", availability: "available" }),
       entry({ id: "new-one", label: "New One", availability: "available" }),
     ];
     assert.deepEqual(stableRowOrder(before, entries), [

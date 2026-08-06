@@ -45,7 +45,7 @@ pub(super) fn redaction_env_with_value(
 /// should see it. An inferred provider is only a guess read off the environment,
 /// and a wrong guess must not replace a working catalog with an error: a
 /// `GOOSE_PROVIDER=anthropic` export (goose's documented way to pick a provider,
-/// with the key in goose's own keyring rather than Buzz's env) would otherwise
+/// with the key in goose's own keyring rather than Pkzz's env) would otherwise
 /// turn the subprocess catalog into `config: ANTHROPIC_API_KEY required`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct DiscoveryProvider {

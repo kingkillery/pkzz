@@ -850,7 +850,7 @@ pub struct ThreadTags {
 ///
 /// NOTE: Only handles NIP-10 marker-based format (preferred). The deprecated
 /// positional format (no markers, `["e", id, relay_url]`) is not supported —
-/// Buzz always generates marker-based tags (see relay messages.rs:762-783).
+/// Pkzz always generates marker-based tags (see relay messages.rs:762-783).
 pub fn parse_thread_tags(event: &Event) -> ThreadTags {
     let mut root = None;
     let mut reply = None;
@@ -894,7 +894,7 @@ pub fn parse_thread_tags(event: &Event) -> ThreadTags {
 /// Extract a leading slash command from message content.
 ///
 /// ACP connectors (claude-agent-acp, codex-acp) detect slash commands by
-/// checking whether the **first** prompt content block starts with `/`. Buzz
+/// checking whether the **first** prompt content block starts with `/`. Pkzz
 /// users must @mention an agent to reach it, so the wire content is typically
 /// `"@Eva /goal ship it"`. This strips leading mention tokens — `@word`,
 /// multi-word display names from `known_names`, and NIP-27 `nostr:npub1…` /
@@ -922,7 +922,7 @@ pub fn extract_slash_command(content: &str, known_names: &[&str]) -> Option<Stri
         } else if let Some(after_at) = rest.strip_prefix('@') {
             // Known display names first (longest match wins, case-insensitive,
             // must end at whitespace or end-of-string), then a single-word
-            // token of the characters Buzz allows in plain @mentions.
+            // token of the characters Pkzz allows in plain @mentions.
             let name_len = names
                 .iter()
                 .find_map(|name| {
@@ -1396,7 +1396,7 @@ pub(crate) fn base_section(base_prompt: &str) -> String {
 /// 2. `[Agent Memory — core]` — if agent core memory is set
 /// 3. `[Context]` — scope, channel name, and contextual hints for the agent
 /// 4. `[Thread Context]` or `[Conversation Context]` — if fetched
-/// 5. `[Event]` / `[Buzz events]` — the triggering event(s)
+/// 5. `[Event]` / `[Pkzz events]` — the triggering event(s)
 ///
 /// Each section is returned as its own block rather than one joined string so
 /// the observer frame's size trimmer (`fit_observer_event_to_budget`) elides
@@ -1532,7 +1532,7 @@ pub fn format_prompt(batch: &FlushBatch, args: &FormatPromptArgs<'_>) -> Vec<Str
             )
         } else {
             format!(
-                "[Buzz event: {}]\n{}",
+                "[Pkzz event: {}]\n{}",
                 be.prompt_tag,
                 format_event_block(batch.channel_id, args.channel_info, be, args.profile_lookup)
             )
@@ -1545,7 +1545,7 @@ pub fn format_prompt(batch: &FlushBatch, args: &FormatPromptArgs<'_>) -> Vec<Str
                 batch.events.len()
             )
         } else {
-            format!("[Buzz events — {} events]", batch.events.len())
+            format!("[Pkzz events — {} events]", batch.events.len())
         };
         let mut s = header;
         for (i, be) in batch.events.iter().enumerate() {
@@ -1887,7 +1887,7 @@ mod tests {
         // Should contain [Context] section before the event.
         assert!(prompt.contains("[Context]"));
         assert!(prompt.contains("Scope: channel"));
-        assert!(prompt.contains("[Buzz event: @mention]\n"));
+        assert!(prompt.contains("[Pkzz event: @mention]\n"));
         assert!(prompt.contains(&format!("Channel: {}", ch)));
         assert!(prompt.contains(&format!("From: {}", npub)));
         assert!(prompt.contains("Content: Hello @agent"));
@@ -2207,7 +2207,7 @@ mod tests {
         let prompt = format_prompt(&batch, &FormatPromptArgs::default()).join("\n\n");
 
         assert!(prompt.contains("[Context]"));
-        assert!(prompt.contains("[Buzz events — 3 events]"));
+        assert!(prompt.contains("[Pkzz events — 3 events]"));
         assert!(prompt.contains("--- Event 1 (tag-a) ---"));
         assert!(prompt.contains("--- Event 2 (tag-b) ---"));
         assert!(prompt.contains("--- Event 3 (tag-c) ---"));

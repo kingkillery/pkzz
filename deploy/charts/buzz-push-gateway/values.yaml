@@ -1,6 +1,6 @@
 replicaCount: 2
 image:
-  repository: ghcr.io/block/buzz-push-gateway
+  repository: ghcr.io/kingkillery/pkzz-push-gateway
   # `main` is published by the push-gateway lane on every main push.
   tag: main
   digest: ""

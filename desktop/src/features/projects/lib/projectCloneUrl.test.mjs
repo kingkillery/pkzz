@@ -73,7 +73,7 @@ test("projectRepoHost recognizes a canonical repository on the relay", () => {
 
 test("projectRepoHost identifies an external repository by host", () => {
   assert.deepEqual(
-    projectRepoHost("https://github.com/block/buzz.git", ORIGIN),
+    projectRepoHost("https://github.com/kingkillery/pkzz.git", ORIGIN),
     { kind: "external", host: "github.com" },
   );
 });

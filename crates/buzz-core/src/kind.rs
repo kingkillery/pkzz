@@ -1,6 +1,6 @@
-//! Buzz V2 kind number registry.
+//! Pkzz V2 kind number registry.
 //!
-//! This module is the authoritative source for Buzz kind numbers.
+//! This module is the authoritative source for Pkzz kind numbers.
 //! All constants are `u32` — NIP-01 specifies kind as an unsigned integer,
 //! and u32 covers the full range without truncation.
 
@@ -50,7 +50,7 @@ pub const KIND_BOOKMARK_SET: u32 = 30003;
 /// `required_scope_for_kind`), and the generic NIP-33 replace path keeps only the
 /// latest per `(pubkey, d_tag)`.
 pub const KIND_EMOJI_SET: u32 = 30030;
-/// NIP-01: Channel metadata (replaceable). Not used by Buzz today.
+/// NIP-01: Channel metadata (replaceable). Not used by Pkzz today.
 pub const KIND_CHANNEL_METADATA: u32 = 41;
 /// NIP-09: Event deletion request.
 pub const KIND_DELETION: u32 = 5;
@@ -77,12 +77,12 @@ pub const KIND_READ_STATE: u32 = 30078;
 pub const KIND_AUTH: u32 = 22242;
 /// BUD-01: Blossom upload auth (used in upload.rs, not stored).
 pub const KIND_BLOSSOM_AUTH: u32 = 24242;
-/// Buzz custom one-time identity binding proof (ephemeral, not stored).
+/// Pkzz custom one-time identity binding proof (ephemeral, not stored).
 pub const KIND_NOSTR_IDENTITY_BINDING: u32 = 24243;
 /// NIP-98: HTTP auth event (used in nip98.rs, not stored).
 pub const KIND_HTTP_AUTH: u32 = 27235;
 
-// NEW: Buzz command kinds (Pure Nostr plan)
+// NEW: Pkzz command kinds (Pure Nostr plan)
 /// Agent metadata + owner reference (replaceable, agent-authored).
 pub const KIND_AGENT_PROFILE: u32 = 10100;
 
@@ -326,7 +326,7 @@ pub const KIND_TEAM_CATALOG: u32 = 30178;
 /// the relay never auto-actions on them (NIP-56).
 pub const KIND_REPORT: u32 = 1984;
 
-/// Buzz product feedback submission. Accepted at ingest, sidecarred to the
+/// Pkzz product feedback submission. Accepted at ingest, sidecarred to the
 /// deployment feedback table, and never stored or fanned out as an event.
 pub const KIND_PRODUCT_FEEDBACK: u32 = 42000;
 
@@ -350,7 +350,7 @@ pub const KIND_NIP29_JOIN_REQUEST: u32 = 9021;
 /// NIP-29: Request to leave a group.
 pub const KIND_NIP29_LEAVE_REQUEST: u32 = 9022;
 
-// Buzz community moderation commands (mod-signed, processed like 9030-series:
+// Pkzz community moderation commands (mod-signed, processed like 9030-series:
 // validated + executed directly, never stored as regular events; every
 // accepted command writes a `moderation_actions` audit row).
 /// Moderation: ban a pubkey from the community (`p` tag target, optional
@@ -391,7 +391,7 @@ pub const RELAY_ADMIN_ADD_MEMBER: u32 = 9030;
 pub const RELAY_ADMIN_REMOVE_MEMBER: u32 = 9031;
 /// NIP-43: Change the role of an existing relay member.
 pub const RELAY_ADMIN_CHANGE_ROLE: u32 = 9032;
-/// Buzz: Set the workspace profile (icon). Admin/owner-signed command.
+/// Pkzz: Set the workspace profile (icon). Admin/owner-signed command.
 pub const RELAY_ADMIN_SET_WORKSPACE_PROFILE: u32 = 9033;
 // NIP-43 relay membership announcement events (relay-signed)
 /// NIP-43: Relay membership list snapshot (relay-signed, replaceable by convention).
@@ -513,7 +513,7 @@ pub const KIND_DM_HIDE: u32 = 41012;
 pub const KIND_DM_CREATED: u32 = 41001;
 
 // Agent job protocol (43000–43999)
-// Not using NIP-90 kinds (5000–6999) — Buzz requires auth chains (depth ≤ 3, breadth ≤ 10).
+// Not using NIP-90 kinds (5000–6999) — Pkzz requires auth chains (depth ≤ 3, breadth ≤ 10).
 /// An agent job was requested.
 pub const KIND_JOB_REQUEST: u32 = 43001;
 /// An agent accepted a job request.
@@ -791,7 +791,7 @@ pub const fn is_workflow_execution_kind(kind: u32) -> bool {
 }
 
 /// Returns `true` if `kind` is a NIP-43 relay membership admin command (9030–9032)
-/// or the Buzz workspace-profile admin command (9033).
+/// or the Pkzz workspace-profile admin command (9033).
 pub const fn is_relay_admin_kind(kind: u32) -> bool {
     matches!(
         kind,
@@ -811,7 +811,7 @@ pub const fn is_identity_archive_request_kind(kind: u32) -> bool {
     matches!(kind, KIND_IA_ARCHIVE_REQUEST | KIND_IA_UNARCHIVE_REQUEST)
 }
 
-/// Returns `true` if `kind` is a Buzz command kind that requires transactional execution.
+/// Returns `true` if `kind` is a Pkzz command kind that requires transactional execution.
 pub const fn is_command_kind(kind: u32) -> bool {
     matches!(
         kind,
@@ -846,7 +846,7 @@ pub fn event_kind_u32(event: &nostr::Event) -> u32 {
 }
 
 /// Extract the kind from a nostr Event as i32 (for Postgres INT columns).
-/// Safe: all Buzz kinds fit in i32 (max 65535 < i32::MAX).
+/// Safe: all Pkzz kinds fit in i32 (max 65535 < i32::MAX).
 pub fn event_kind_i32(event: &nostr::Event) -> i32 {
     event.kind.as_u16() as i32
 }
@@ -875,7 +875,7 @@ const _: () = assert!(
         && KIND_GIT_REPO_STATE <= PARAM_REPLACEABLE_KIND_MAX
 );
 
-// Compile-time: all Buzz kind constants fit in nostr's u16-backed Kind.
+// Compile-time: all Pkzz kind constants fit in nostr's u16-backed Kind.
 const _: () = assert!(KIND_AUTH <= u16::MAX as u32);
 const _: () = assert!(KIND_CANVAS <= u16::MAX as u32);
 const _: () = assert!(KIND_HUDDLE_GUIDELINES <= u16::MAX as u32);

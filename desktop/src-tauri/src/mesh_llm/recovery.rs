@@ -191,7 +191,7 @@ pub(crate) async fn recover_stale_mesh_runtime(
             Some(runtime) => (runtime.id(), runtime.is_starting().await, runtime.mode()),
             None => {
                 state.mesh_recovery.reset_probe_streak();
-                // A cancelled SDK startup can outlive its Buzz-side task briefly
+                // A cancelled SDK startup can outlive its Pkzz-side task briefly
                 // because the embedded runtime runs on its own thread. Never start
                 // a replacement merely because the tracked handle is gone: first
                 // prove the old ingress is either still useful or has released the
@@ -289,7 +289,7 @@ pub(crate) async fn rearm_relay_mesh_for_running_agents(app: &AppHandle) -> Resu
         MeshRuntimeRecovery::RestartRequired => {
             if runtime_mode == Some(crate::mesh_llm::MeshNodeMode::Serve) {
                 eprintln!(
-                    "buzz-mesh: serving ingress failed; restarting Buzz to restore Share Compute without changing roles"
+                    "buzz-mesh: serving ingress failed; restarting Pkzz to restore Share Compute without changing roles"
                 );
                 app.request_restart();
                 return Ok(());
@@ -304,7 +304,7 @@ pub(crate) async fn rearm_relay_mesh_for_running_agents(app: &AppHandle) -> Resu
                 return Ok(());
             }
             eprintln!(
-                "buzz-mesh: supervised client startup lost its ingress before the SDK exposed a shutdown handle; restarting Buzz"
+                "buzz-mesh: supervised client startup lost its ingress before the SDK exposed a shutdown handle; restarting Pkzz"
             );
             app.request_restart();
             return Ok(());
@@ -349,7 +349,7 @@ pub(crate) async fn rearm_relay_mesh_for_running_agents(app: &AppHandle) -> Resu
             }
             Err(error) => {
                 let message = format!(
-                    "{MESH_REARM_ERROR_SENTINEL}Buzz shared compute offline — failed to re-arm local ingress for this agent: {error}"
+                    "{MESH_REARM_ERROR_SENTINEL}Pkzz shared compute offline — failed to re-arm local ingress for this agent: {error}"
                 );
                 if let Err(persist_error) = persist_mesh_last_error(app, &record.pubkey, &message) {
                     eprintln!("buzz-mesh: failed to persist recovery error: {persist_error}");

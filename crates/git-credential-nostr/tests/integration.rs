@@ -120,7 +120,7 @@ fn happy_path() {
     assert!(event["tags"].is_array(), "event missing 'tags'");
 }
 
-/// A Buzz-managed agent must carry its NIP-OA owner attestation inside the
+/// A Pkzz-managed agent must carry its NIP-OA owner attestation inside the
 /// signed NIP-98 event so the relay can admit it through the owner's membership.
 #[test]
 fn includes_nip_oa_auth_tag_in_signed_event() {

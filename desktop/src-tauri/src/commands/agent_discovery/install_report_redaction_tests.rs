@@ -18,7 +18,7 @@ fn test_log_redacts_secrets_before_writing() {
 }
 
 /// The environment's own secrets are scrubbed too, by *name* rather than shape.
-/// An install inherits Buzz's environment and installers echo it back — npm
+/// An install inherits Pkzz's environment and installers echo it back — npm
 /// prints its resolved config on an auth failure — and a token with no
 /// recognizable prefix would otherwise reach the file verbatim.
 #[test]

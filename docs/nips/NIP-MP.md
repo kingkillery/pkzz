@@ -16,15 +16,15 @@ A project is metadata only. Its signer gains no authority over any member reposi
 
 ## Motivation
 
-Buzz renders one card per `kind:30617`, so "the platform" — a relay, a desktop app, and a mobile app — appears as three unrelated repositories. Real work spans repositories; the model does not.
+Pkzz renders one card per `kind:30617`, so "the platform" — a relay, a desktop app, and a mobile app — appears as three unrelated repositories. Real work spans repositories; the model does not.
 
-[VISION_PROJECTS.md](../../VISION_PROJECTS.md) sets the bar as "standard kinds as substrate, custom kinds only where genuinely novel," and every other forge concept in Buzz clears it: repositories, patches, issues, statuses, and ref state are all standard NIP-34 kinds. Multi-repository grouping is the one semantic that cannot be:
+[VISION_PROJECTS.md](../../VISION_PROJECTS.md) sets the bar as "standard kinds as substrate, custom kinds only where genuinely novel," and every other forge concept in Pkzz clears it: repositories, patches, issues, statuses, and ref state are all standard NIP-34 kinds. Multi-repository grouping is the one semantic that cannot be:
 
 - **Per-repository tags cannot express cross-owner grouping.** If membership lived in each `kind:30617`, a project spanning Alice's and Bob's repositories would require *both* Alice and Bob to publish a tag naming the group. Alice cannot enroll Bob's repository; she cannot sign for his key. Grouping would be possible only within a single owner's repositories, and would break the moment a repository changed hands or a fork joined.
 - **Project-level metadata has no owner.** A project name, description, and linked channel describe the *group*, not any one repository. Scattered across per-repository tags they have no single writer, no replacement semantics, and no deletion story: removing a repository from the group means editing an event you may not control.
 - **Existing list kinds do not fit.** NIP-51 sets (`kind:30004` curation sets and friends) are private-or-public user bookmarks over arbitrary content, not a shared, named, addressable container for a forge collection with its own channel binding and visibility. Overloading a curation set would make every project indistinguishable from a user's reading list.
 
-One custom kind, held by one signer, with all group state in one replaceable event, resolves all three. The cost is bounded and stated plainly: `kind:30621` is Buzz-specific, so a third-party NIP-34 client sees the member repositories individually and ignores the grouping. Nothing degrades — the repositories remain standard, portable `kind:30617` events, discoverable and renderable exactly as before.
+One custom kind, held by one signer, with all group state in one replaceable event, resolves all three. The cost is bounded and stated plainly: `kind:30621` is Pkzz-specific, so a third-party NIP-34 client sees the member repositories individually and ignores the grouping. Nothing degrades — the repositories remain standard, portable `kind:30617` events, discoverable and renderable exactly as before.
 
 ## Non-Goals
 
@@ -63,7 +63,7 @@ This document uses MUST, MUST NOT, SHOULD, SHOULD NOT, MAY, and RECOMMENDED as d
 | nostrbook.dev kind registry (`https://nostrbook.dev/kinds/<n>`) | `30617`, `30618`, `30620`, `30621`, `30622` | `30617` and `30618` documented (HTTP 200). `30620`, `30621`, `30622` all HTTP 404 — no entry. |
 | This repository (`crates/buzz-core/src/kind.rs`) | full range | `30620` is `KIND_WORKFLOW_DEF`, `30622` is `KIND_DM_VISIBILITY` (NIP-DV). `30621` is the one free number between them. |
 
-Both external registries are advisory, not authoritative allocators: neither reserves numbers, and an unregistered kind may still be in use by an unpublished client. A future upstream assignment of `30621` would be a collision Buzz absorbs the same way it already does for its other custom kinds — the number is Buzz-specific, and interoperability rests on the member `kind:30617` events, which remain standard.
+Both external registries are advisory, not authoritative allocators: neither reserves numbers, and an unregistered kind may still be in use by an unpublished client. A future upstream assignment of `30621` would be a collision Pkzz absorbs the same way it already does for its other custom kinds — the number is Pkzz-specific, and interoperability rests on the member `kind:30617` events, which remain standard.
 
 ## Event Format
 
@@ -119,7 +119,7 @@ A member `a` tag coordinate MUST be exactly `30617:<owner>:<repo-d>` where:
 
 Parsing splits on the first two colons only; everything after the second colon is `<repo-d>`. A repository whose `d` tag contains a colon is therefore addressable. Splitting on every colon would make such a repository permanently unaddressable by any project.
 
-Buzz-hosted repositories cannot currently produce such a coordinate: their `d` values are validated as `[a-zA-Z0-9._-]{1,64}` (`crates/buzz-relay/src/handlers/side_effects.rs`, `crates/buzz-sdk/src/builders.rs`). The tolerance is for the repositories this NIP does not control — NIP-34 announcements from other clients, and any future relaxation of Buzz's own rule — and it matches how Buzz already parses coordinates in NIP-09 deletion handling, so a project coordinate and a deletion coordinate can never disagree about where a repository's `d` value begins.
+Pkzz-hosted repositories cannot currently produce such a coordinate: their `d` values are validated as `[a-zA-Z0-9._-]{1,64}` (`crates/buzz-relay/src/handlers/side_effects.rs`, `crates/buzz-sdk/src/builders.rs`). The tolerance is for the repositories this NIP does not control — NIP-34 announcements from other clients, and any future relaxation of Pkzz's own rule — and it matches how Pkzz already parses coordinates in NIP-09 deletion handling, so a project coordinate and a deletion coordinate can never disagree about where a repository's `d` value begins.
 
 Coordinate identity is the whole string. Two members sharing a `<repo-d>` under different owners — the NIP-34 fork case — are distinct members, not duplicates.
 
@@ -158,7 +158,7 @@ A repository may be a member of any number of projects. It renders inside each (
 
 Deleting a project (NIP-09 `kind:5` naming the project coordinate) deletes the `kind:30621` only. Member repositories are untouched — their `kind:30617` events, refs, channels, and protections all survive, and each falls back to an implicit card unless another listing-eligible project claims it.
 
-**Who may delete.** The project signer always may. On the Buzz relay, so may the signer's registered NIP-OA owner: `validate_standard_deletion_event` resolves the deletion's effective author and accepts it when that actor is the target pubkey's registered owner (`crates/buzz-relay/src/handlers/side_effects.rs`). This is a **Buzz relay extension to NIP-09**, applied uniformly to every kind rather than specially to projects — it is what lets a human clean up events published by an agent they own. Vanilla NIP-09 relays accept only the signer, so a project deleted through the owner path on Buzz will still be live on a relay that lacks the extension.
+**Who may delete.** The project signer always may. On the Pkzz relay, so may the signer's registered NIP-OA owner: `validate_standard_deletion_event` resolves the deletion's effective author and accepts it when that actor is the target pubkey's registered owner (`crates/buzz-relay/src/handlers/side_effects.rs`). This is a **Pkzz relay extension to NIP-09**, applied uniformly to every kind rather than specially to projects — it is what lets a human clean up events published by an agent they own. Vanilla NIP-09 relays accept only the signer, so a project deleted through the owner path on Pkzz will still be live on a relay that lacks the extension.
 
 Replacement admits no such widening: it is signer-only on every relay, because NIP-01 keys the coordinate on the pubkey itself rather than on a permission check.
 
@@ -181,22 +181,22 @@ A relay accepting `kind:30621` MUST validate the envelope at ingest. The rule na
 
 Rules 3 through 6 are evaluated in that order, so an oversized tag list is refused on count before any per-tag parse or set proportional to it is built.
 
-The Buzz validator enforces all eight rules. The shared fixtures in [`NIP-MP.fixtures.json`](NIP-MP.fixtures.json) are wired as its test oracle: the relay's unit test suite runs every case against `validate_project_envelope` and asserts each `expect` outcome.
+The Pkzz validator enforces all eight rules. The shared fixtures in [`NIP-MP.fixtures.json`](NIP-MP.fixtures.json) are wired as its test oracle: the relay's unit test suite runs every case against `validate_project_envelope` and asserts each `expect` outcome.
 
 **Duplicates are rejected, never normalized.** A relay cannot dedupe tags inside a signed event: rewriting the tag array changes the event id and invalidates the signature. The choices are reject, or accept and require every present and future consumer to apply a first-wins interpretation rule. Rejecting keeps every stored head canonical and spares all consumers a defensive parse.
 
 **No membership authorization.** The relay MUST NOT check whether the signer owns, maintains, or has any relationship to a member repository. Referencing another owner's repository is legal and is the point of the kind. Because membership grants nothing ([Authority](#authority)), there is nothing to authorize.
 
-**Routing.** `kind:30621` is global-only, like every other NIP-34 kind in Buzz: it is addressed by `(pubkey, kind, d)` and is never channel-scoped. A stray `h` tag MUST NOT scope it to a channel — the `buzz-channel` tag is a metadata reference, not a routing directive.
+**Routing.** `kind:30621` is global-only, like every other NIP-34 kind in Pkzz: it is addressed by `(pubkey, kind, d)` and is never channel-scoped. A stray `h` tag MUST NOT scope it to a channel — the `buzz-channel` tag is a metadata reference, not a routing directive.
 
 **Scope.** Writes require the `repos:write` scope, matching `kind:30617` and `kind:30618`. A project is repository metadata; a client authorized to announce repositories is authorized to group them.
 
 **Replacement** follows NIP-01 with no special cases: newest `created_at` wins per `(pubkey, 30621, d)`, and one pubkey can never overwrite another's coordinate.
 
-**Deletion** follows NIP-09 with two Buzz-wide behaviors that are not project-specific:
+**Deletion** follows NIP-09 with two Pkzz-wide behaviors that are not project-specific:
 
 - A `kind:5` naming the coordinate deletes it when signed by the project signer **or** by that signer's registered NIP-OA owner ([Deletion](#deletion)).
-- The deletion applies only to versions whose `created_at` is at or before the deletion's own, per NIP-09. A delayed or replayed tombstone signed before the current head MUST NOT remove it; the relay MUST compare timestamps at the coordinate (`soft_delete_by_coordinate`, `crates/buzz-db/src/event.rs`, whose inclusive `created_at <= <deletion>` bound is introduced alongside this specification in [#3171](https://github.com/block/buzz/pull/3171)).
+- The deletion applies only to versions whose `created_at` is at or before the deletion's own, per NIP-09. A delayed or replayed tombstone signed before the current head MUST NOT remove it; the relay MUST compare timestamps at the coordinate (`soft_delete_by_coordinate`, `crates/buzz-db/src/event.rs`, whose inclusive `created_at <= <deletion>` bound is introduced alongside this specification in [#3171](https://github.com/kingkillery/pkzz/pull/3171)).
 
 ## Client Behavior
 
@@ -214,7 +214,7 @@ Only listing-eligible projects claim members. This keeps visibility deterministi
 
 A project **claims** a member — suppressing that repository's implicit card, per step 3 of the fold — only when the project is listing eligible *and* its signer is authorized by the member repository itself: the signer is the repository's owner (the pubkey in the member coordinate), or is listed in a `maintainers` tag on the repository's own live `kind:30617`.
 
-Authority is therefore read from the member repository's *content*, not merely its existence: a client that has resolved only a coordinate, and not the head it names, cannot yet decide whether a project claims it. `maintainers` is the standard NIP-34 multi-value tag; Buzz's own announcement builder does not emit it today, so in practice every current claim reduces to signer-is-owner, and the `maintainers` clause is what keeps a co-maintained repository working the day that changes.
+Authority is therefore read from the member repository's *content*, not merely its existence: a client that has resolved only a coordinate, and not the head it names, cannot yet decide whether a project claims it. `maintainers` is the standard NIP-34 multi-value tag; Pkzz's own announcement builder does not emit it today, so in practice every current claim reduces to signer-is-owner, and the `maintainers` clause is what keeps a co-maintained repository working the day that changes.
 
 Without this rule, membership would carry exactly the authority [Authority](#authority) says it does not. Anyone may publish a project naming anyone's repository, so an unauthorized project that suppressed implicit cards would let a stranger pull someone else's repository out of the collection and into a container the owner never consented to — a signed assertion silently becoming control over another owner's discovery surface.
 
@@ -266,7 +266,7 @@ Step 1's "to exhaustion" describes the target result, not a single algorithm: wh
 
 A relay satisfying any proper subset of these conditions does not provide the guarantee. Absent the guarantee, a client MUST mark the collection possibly incomplete regardless of any response sizes; the modes below serve to reduce silent loss rather than eliminate it. `limit` below means the effective page limit.
 
-**Mode 1 — composite cursor (exhaustive under the relay contract).** On a relay that exposes a keyset cursor over `(created_at, event id)`, a client MUST page by it. As an example of the cursor mechanics, Buzz implements the keyset as `created_at < until OR (created_at = until AND id > before_id)` (`crates/buzz-db/src/event.rs:48-52`), resolving the sort to `(created_at DESC, id ASC)`. Buzz exposes this cursor on its authenticated HTTP bridge endpoint (`crates/buzz-relay/src/api/bridge.rs`); it is not available on the NIP-01 websocket REQ path, where `before_id` is silently discarded — `protocol.rs` deserializes each REQ filter into a standard `nostr::Filter`, whose deserializer drops unknown fields, so a client sending `before_id` on a REQ receives no error and falls back to `until`-only paging without knowing it. A NIP-01 websocket client reading `kind:30621` from Buzz is therefore in mode 2, not mode 1; mode selection requires evaluating the relay contract per transport. Within the relay contract, the uniqueness of the `(created_at, id)` pair means each page resumes exactly where the last ended with no skips or re-reads, and a short page is an unambiguous end signal. Cursor uniqueness adds tie-safety; it does not substitute for the relay contract — a relay that post-filters after limiting can return an empty page under this cursor while older matching events remain beyond the candidate window.
+**Mode 1 — composite cursor (exhaustive under the relay contract).** On a relay that exposes a keyset cursor over `(created_at, event id)`, a client MUST page by it. As an example of the cursor mechanics, Pkzz implements the keyset as `created_at < until OR (created_at = until AND id > before_id)` (`crates/buzz-db/src/event.rs:48-52`), resolving the sort to `(created_at DESC, id ASC)`. Pkzz exposes this cursor on its authenticated HTTP bridge endpoint (`crates/buzz-relay/src/api/bridge.rs`); it is not available on the NIP-01 websocket REQ path, where `before_id` is silently discarded — `protocol.rs` deserializes each REQ filter into a standard `nostr::Filter`, whose deserializer drops unknown fields, so a client sending `before_id` on a REQ receives no error and falls back to `until`-only paging without knowing it. A NIP-01 websocket client reading `kind:30621` from Pkzz is therefore in mode 2, not mode 1; mode selection requires evaluating the relay contract per transport. Within the relay contract, the uniqueness of the `(created_at, id)` pair means each page resumes exactly where the last ended with no skips or re-reads, and a short page is an unambiguous end signal. Cursor uniqueness adds tie-safety; it does not substitute for the relay contract — a relay that post-filters after limiting can return an empty page under this cursor while older matching events remain beyond the candidate window.
 
 **Mode 2 — `until` only (boundary-bucket drain; exhaustive only under the relay contract).** A vanilla NIP-01 filter offers no id tiebreak, so the only cursor is `until`. Neither naive step is safe: `until = oldest_seen_created_at - 1` skips every unread event in that second, and `until = oldest_seen_created_at` re-requests the whole bucket, which never advances once one `created_at` bucket exceeds the relay's page size. A mode-2 client MUST therefore drain the boundary second explicitly before stepping past it.
 
@@ -287,7 +287,7 @@ Enumeration is therefore exhaustive when the relay satisfies the contract above 
 
 Step 1's exhaustive enumeration is a correctness floor, not a scaling strategy: it says a client MUST NOT silently truncate its collection, because a repository absent from the list is indistinguishable from one that does not exist. It is not a mandate to hold the relay's entire repository set in memory on every load.
 
-At Buzz's current scale (hundreds of repositories per community) exhaustive enumeration is the whole story. Past that, the way out is a narrower question — a server-side collection query, a scoped or searched subset, or resolving a project's members on demand — not a fixed client-side `limit`. Any such surface MUST report its own truncation so a client can say "showing N of M" rather than quietly presenting a partial collection as complete.
+At Pkzz's current scale (hundreds of repositories per community) exhaustive enumeration is the whole story. Past that, the way out is a narrower question — a server-side collection query, a scoped or searched subset, or resolving a project's members on demand — not a fixed client-side `limit`. Any such surface MUST report its own truncation so a client can say "showing N of M" rather than quietly presenting a partial collection as complete.
 
 ### Route resolution
 
@@ -324,8 +324,8 @@ Its cases are **semantic, not signed envelopes**. A repository or project is nam
 ## Relation to Other NIPs
 
 - **NIP-34**: Supplies the member repositories. Members are `kind:30617` announcements referenced by coordinate; a NIP-34 client that does not know `kind:30621` still discovers and renders each repository normally.
-- **NIP-01**: Supplies the addressable-event class, the `a` tag grammar, addressing, replacement, and the owner-only editing model. Owner-only editing is not enforcement code in Buzz — it is what NIP-01 replacement already means.
-- **NIP-09**: Supplies container deletion, which deletes the container only. Buzz extends it in two ways that are not project-specific: an agent's registered NIP-OA owner may also delete, and a tombstone applies only at or before its own `created_at` ([Deletion](#deletion)).
+- **NIP-01**: Supplies the addressable-event class, the `a` tag grammar, addressing, replacement, and the owner-only editing model. Owner-only editing is not enforcement code in Pkzz — it is what NIP-01 replacement already means.
+- **NIP-09**: Supplies container deletion, which deletes the container only. Pkzz extends it in two ways that are not project-specific: an agent's registered NIP-OA owner may also delete, and a tombstone applies only at or before its own `created_at` ([Deletion](#deletion)).
 - **NIP-29**: Supplies the channel a project's `buzz-channel` names. The reference is metadata; project state is never channel-scoped.
 - **NIP-51**: The closest existing precedent — a signed, addressable list referencing content the author need not own. Not reused because a project is a shared named forge container with its own channel binding and visibility, not a user's private-or-public bookmark set.
 - **NIP-OA**: Consulted for container deletion only — an agent's registered owner may delete the agent's project ([Deletion](#deletion)). Push access is unaffected: agents inherit repository push access from their owner through the repository's own protections, and a project is never consulted.

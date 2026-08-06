@@ -108,7 +108,7 @@ pub struct AppState {
     pub session_config_cache: Mutex<HashMap<ManagedAgentRuntimeKey, SessionConfigCache>>,
     /// IOKit power assertion state — prevents idle sleep while agents run.
     pub prevent_sleep: Arc<Mutex<crate::prevent_sleep::PreventSleepState>>,
-    /// In-process mesh-llm node started by Buzz Desktop.
+    /// In-process mesh-llm node started by Pkzz Desktop.
     #[cfg(feature = "mesh-llm")]
     pub mesh_llm_runtime: AsyncMutex<Option<crate::mesh_llm::DesktopMeshRuntime>>,
     #[cfg(feature = "mesh-llm")]
@@ -312,7 +312,7 @@ impl AppState {
                 .load(std::sync::atomic::Ordering::Acquire)
         {
             return Err("identity is in recovery mode; event signing is disabled \
-                 until the identity is restored and Buzz is relaunched"
+                 until the identity is restored and Pkzz is relaunched"
                 .to_string());
         }
         self.keys

@@ -69,7 +69,7 @@ function resolveEntityHref(
 }
 
 /**
- * Render an inline anchor for a Buzz entity link (`buzz://pr|issue|repo` or
+ * Render an inline anchor for a Pkzz entity link (`buzz://pr|issue|repo` or
  * an HTTPS relay clone URL whose origin matches the active relay) that
  * navigates in-app instead of handing the URL to the OS. Returns null when
  * the href is not a valid entity link so the caller can fall through to its

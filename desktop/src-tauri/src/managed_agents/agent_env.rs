@@ -373,7 +373,7 @@ mod tests {
     // ── baked reserved-key filtering ──────────────────────────────────────
     //
     // The baked map is written into a spawned agent's environment LAST (see
-    // `managed_agents/runtime.rs`), after Buzz sets the access gates. If a
+    // `managed_agents/runtime.rs`), after Pkzz sets the access gates. If a
     // baked reserved key survived here, an internal build packaged with
     // `BUZZ_ACP_RESPOND_TO=anyone` would answer anyone while the UI shows
     // "Only me". `build.rs` rejects such a key at build time; these tests pin

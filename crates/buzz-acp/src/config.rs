@@ -229,7 +229,7 @@ pub struct AuthenticateArgs {
 #[derive(Debug, Parser)]
 #[command(
     name = "buzz-acp",
-    about = "ACP harness that bridges Buzz events to AI agents"
+    about = "ACP harness that bridges Pkzz events to AI agents"
 )]
 pub struct CliArgs {
     #[arg(long, env = "BUZZ_RELAY_URL", default_value = "ws://localhost:3000")]
@@ -400,7 +400,7 @@ pub struct CliArgs {
     pub no_memory: bool,
 
     /// Disable the [Base] platform-context section prepended to every prompt.
-    /// When set, agents receive only the persona [System] prompt with no Buzz orientation.
+    /// When set, agents receive only the persona [System] prompt with no Pkzz orientation.
     #[arg(long, env = "BUZZ_ACP_NO_BASE_PROMPT")]
     pub no_base_prompt: bool,
 
@@ -428,7 +428,7 @@ pub struct CliArgs {
     /// with `configId: "mode"` (e.g. `claude-agent-acp`).
     ///
     /// Defaults to `dontAsk`, which rejects operations that need interactive
-    /// approval because Buzz does not expose a human permission prompt.
+    /// approval because Pkzz does not expose a human permission prompt.
     #[arg(
         long,
         env = "BUZZ_ACP_PERMISSION_MODE",
@@ -573,7 +573,7 @@ const SESSION_TITLE_MAX_CHARS: usize = 80;
 /// space, and the result is trimmed and capped at
 /// [`SESSION_TITLE_MAX_CHARS`]. Returns `None` when nothing printable is left.
 ///
-/// Buzz is the only guard here: Codex's own `normalize_thread_name` merely
+/// Pkzz is the only guard here: Codex's own `normalize_thread_name` merely
 /// trims, so an unbounded display name would be persisted verbatim into its
 /// thread store.
 fn sanitize_session_title(raw: &str) -> Option<String> {
@@ -700,7 +700,7 @@ fn default_agent_args(command: &str) -> Option<Vec<String>> {
     }
 }
 
-/// Per-runtime environment defaults applied when Buzz owns the agent process.
+/// Per-runtime environment defaults applied when Pkzz owns the agent process.
 ///
 /// Mirrors [`default_agent_args`]: keyed on the normalized command identity,
 /// with the merge (in `AcpClient::spawn`) giving explicit persona env and
@@ -709,7 +709,7 @@ fn default_agent_args(command: &str) -> Option<Vec<String>> {
 /// Hermes: ACP hosts supply session MCP servers explicitly through
 /// `session/new`, but Hermes otherwise starts every profile-configured MCP
 /// server before it responds to `initialize` — which can exhaust the host's
-/// startup budget (see block/buzz#3355). Skip that unrelated global startup
+/// startup budget (see kingkillery/pkzz#3355). Skip that unrelated global startup
 /// by default; an operator or persona can still opt back in by setting the
 /// variable explicitly.
 pub(crate) fn default_agent_env(command: &str) -> &'static [(&'static str, &'static str)] {

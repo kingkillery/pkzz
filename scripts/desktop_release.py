@@ -228,7 +228,7 @@ def validate(args: argparse.Namespace) -> None:
         if missing:
             detail.append(f"missing required files: {', '.join(sorted(missing))}")
         raise SystemExit("candidate is not version-only (" + "; ".join(detail) + ")")
-    repo = args.repo or "block/buzz"
+    repo = args.repo or "kingkillery/pkzz"
     previous = previous_release(version, repo, allow_target_sha=candidate)
     recorded_previous = {
         "tag": data.get("previous_tag"),

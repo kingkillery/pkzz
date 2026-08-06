@@ -1,4 +1,4 @@
-//! Relay-driven mesh lifecycle smoke — the full Buzz join story, CI-shaped.
+//! Relay-driven mesh lifecycle smoke — the full Pkzz join story, CI-shaped.
 //!
 //! Unlike `mesh_serve_client_smoke` (Mdns + hand-carried invite token) and
 //! `mesh_admission_smoke` (allowlist mechanics, token passed out-of-band),
@@ -443,7 +443,7 @@ async fn role_serve() -> anyhow::Result<()> {
         .api_port(SERVE_API_PORT)
         .console_port(SERVE_CONSOLE_PORT)
         // Desktop no-leak invariants: never publish mesh presence, never
-        // auto-discover. The Buzz relay is the only discovery surface.
+        // auto-discover. The Pkzz relay is the only discovery surface.
         .publish(false)
         .auto_join(false)
         .discovery_mode(MeshDiscoveryMode::Nostr)

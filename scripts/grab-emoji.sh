@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
-# grab-emoji.sh — Register custom Slack emoji in Buzz
+# grab-emoji.sh — Register custom Slack emoji in Pkzz
 #
-# Looks up each emoji name in your Slack workspace and registers it in Buzz
-# via `buzz emoji set`, making it available as :name: in the Buzz emoji picker.
+# Looks up each emoji name in your Slack workspace and registers it in Pkzz
+# via `buzz emoji set`, making it available as :name: in the Pkzz emoji picker.
 #
 # Usage:
 #   SLACK_TOKEN=xoxp-... ./scripts/grab-emoji.sh [--name <buzz-name>] <emoji-name> [emoji-name ...]
 #
 # Options:
-#   --name <buzz-name>  Override the shortcode used in Buzz (only valid with a single emoji)
+#   --name <buzz-name>  Override the shortcode used in Pkzz (only valid with a single emoji)
 #
 # Env:
 #   SLACK_TOKEN  — Slack user token (xoxp-...) with emoji:read scope
 #
 # Output:
-#   name → registered as :name: in Buzz   on success
+#   name → registered as :name: in Pkzz   on success
 #   name → ERROR: reason                  on failure (script continues to next emoji)
 
 set -euo pipefail
@@ -64,7 +64,7 @@ if [[ -z "${SLACK_TOKEN:-}" ]]; then
 fi
 
 if ! command -v buzz &>/dev/null; then
-  echo "ERROR: 'buzz' not found in PATH. Install the Buzz CLI and retry." >&2
+  echo "ERROR: 'buzz' not found in PATH. Install the Pkzz CLI and retry." >&2
   exit 1
 fi
 
@@ -156,11 +156,11 @@ for emoji_name in "$@"; do
     continue
   }
 
-  # Register in Buzz
+  # Register in Pkzz
   set_output=$(buzz emoji set --shortcode "$buzz_shortcode" --url "$emoji_url" 2>&1) || {
     echo "${emoji_name} → ERROR: buzz emoji set failed — ${set_output}"
     continue
   }
 
-  echo "${emoji_name} → registered as :${buzz_shortcode}: in Buzz"
+  echo "${emoji_name} → registered as :${buzz_shortcode}: in Pkzz"
 done

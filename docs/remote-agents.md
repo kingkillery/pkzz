@@ -4,7 +4,7 @@
 
 ## Abstract
 
-This document specifies the protocol by which Buzz Desktop delegates the
+This document specifies the protocol by which Pkzz Desktop delegates the
 execution of a managed agent to a **remote substrate** — any compute
 environment other than the local machine — through a **backend provider
 binary**, and specifies the lifecycle contract every provider and every
@@ -29,7 +29,7 @@ configuration**, **presence-is-status**, **at-most-one-live-instance**, and
 rules.
 
 A scoping note that governs the whole document: the desktop is **one
-launcher among many**. What makes a process a live Buzz agent is a keypair,
+launcher among many**. What makes a process a live Pkzz agent is a keypair,
 a NIP-OA auth tag, and a relay URL, handed as environment to the `buzz-acp`
 harness; anything that can set that environment and exec the harness — a
 bash script, a systemd unit, a CI job, or this document's provider protocol
@@ -70,7 +70,7 @@ deliberately does **not** specify:
 
 Five principals:
 
-- **Desktop** `D` — the Buzz Desktop app. Holds the agent's identity (nsec in
+- **Desktop** `D` — the Pkzz Desktop app. Holds the agent's identity (nsec in
   the OS keyring), its configuration record, and the only UI. Trusted.
 - **Provider** `P` — an executable `buzz-backend-<id>` on `D`'s machine.
   Invoked one process per operation: JSON request on stdin, JSON response on
@@ -83,7 +83,7 @@ Five principals:
   `D` never talks to `S`.
 - **Agent** `A` — a `buzz-acp` harness process (plus the ACP agent under it)
   running on `S`, holding the nsec it was given, connected to the relay.
-- **Relay** `R` — the Buzz relay. The *only* channel that connects `D` to a
+- **Relay** `R` — the Pkzz relay. The *only* channel that connects `D` to a
   running `A`. Everything `D` knows about a live remote agent, it learns
   from `R`.
 
@@ -119,7 +119,7 @@ That path is not the definition of a remote agent, and this section states
 the actual layering, because the obligations in this document do not all
 bind at the same layer. Three contracts, nested:
 
-1. **The agent/harness contract — binds every launcher.** A live Buzz agent
+1. **The agent/harness contract — binds every launcher.** A live Pkzz agent
    is a `buzz-acp` process holding a keypair, a NIP-OA auth tag (or resolved
    owner pubkey), and a relay URL, delivered as environment. The relay
    authenticates the keypair and the auth tag — never the launcher. At this
@@ -620,7 +620,7 @@ describing a mechanism that does not work. `BUZZ_ACP_AGENT_OWNER` is a
 reserved key, so this value can only arrive as authoritative launch data,
 never through user env.
 
-**Buzz shared compute (relay-mesh) is non-deployable, and this is forced,
+**Pkzz shared compute (relay-mesh) is non-deployable, and this is forced,
 not chosen.** The mesh rewrite resolves to an OpenAI-compatible transport at
 `http://127.0.0.1:9337/v1` (`relay_mesh.rs: RELAY_MESH_API_BASE_URL`) — a
 loopback proxy on the desktop. Serializing that policy into a pod points the
@@ -662,7 +662,7 @@ no-op'd against, deleted, GC'd, or have its Secret touched; the provider
 MUST either ignore it or fail with an explicit collision error. Only
 annotation-verified objects proceed.
 
-**Auto-repair is fenced to Buzz-authored, positively identified residue
+**Auto-repair is fenced to Pkzz-authored, positively identified residue
 (normative).** The destructive rows below (delete residue, replace a
 never-started body, GC a Secret) are legitimate *only because* every object
 they touch carries positive **protocol ownership evidence** — and identity
@@ -680,7 +680,7 @@ writer can forge metadata by definition, and an actor with write access to
 the namespace can already delete the pod outright — the marker's job is
 making *accidental* schema collisions and third-party objects fail closed,
 not defeating a hostile admin. The vision's rule that a never-started body
-is substrate-operator residue survives with one qualifier: *Buzz-authored*
+is substrate-operator residue survives with one qualifier: *Pkzz-authored*
 create-state (a Secret our provider wrote, a pod carrying our verified
 annotations and marker) is the reconciler's to clear, because it is state
 the user cannot reasonably clear themselves; *substrate* wreckage —
@@ -990,7 +990,7 @@ agent-level I5 into substrate-level I5.
 
 ## The Kubernetes Binding (`buzz-backend-kubernetes`)
 
-The first conforming provider: a Rust crate in `block/buzz`, distributed as a
+The first conforming provider: a Rust crate in `kingkillery/pkzz`, distributed as a
 standalone binary. Everything above is the contract; this section is its
 realization.
 
@@ -1018,7 +1018,7 @@ run — it MUST NOT fall back to `default`.
 
 ### Image
 
-`ghcr.io/block/buzz-sprig`: Alpine base + `bash` (required by the dev-MCP
+`ghcr.io/kingkillery/pkzz-sprig`: Alpine base + `bash` (required by the dev-MCP
 shell tool) + `git` + CA certificates + the static musl `sprig` multicall
 binary with its personality links (`buzz-acp`, `buzz-agent`, `buzz-dev-mcp`,
 `rg`, `tree`, `buzz`, `git-credential-nostr`, `git-sign-nostr`) + a baked
@@ -1035,7 +1035,7 @@ field, not a fatter default. Tagging follows the relay image's matrix —
 reference MUST be pinned by digest, not tag**: the provider bakes, at
 compile time, the multi-arch manifest digest of the image built from its
 own commit and defaults `image` to
-`ghcr.io/block/buzz-sprig@sha256:<that-digest>` — a `sha-<git-sha>` *tag*
+`ghcr.io/kingkillery/pkzz-sprig@sha256:<that-digest>` — a `sha-<git-sha>` *tag*
 is traceable but still movable (registry tags are mutable pointers;
 Kubernetes distinguishes movable tags from immutable digests for exactly
 this reason), and the object holding it runs with an nsec. The provider
@@ -1738,7 +1738,7 @@ Marked `[DECISION]` inline; consolidated:
   (shared-compute agents are local-only until an in-image mesh client
   exists).
 - **G. Remote override semantics** — the spec keeps local semantics: user
-  env continues to beat Buzz behavior defaults remotely (three-tier
+  env continues to beat Pkzz behavior defaults remotely (three-tier
   precedence, §Launch data), because the alternative is a quiet behavior
   fork between local and remote spawns of the same record. Flagged because
   it is a policy statement about what power users may do to remote pods.
@@ -1756,7 +1756,7 @@ Marked `[DECISION]` inline; consolidated:
   (§Deploy State Machine) lets a config *change* replace a never-started
   pod, closing the config wedge. Ruled on the vision-consistency half:
   Start-time auto-repair of never-started bodies is legitimate, **fenced
-  to Buzz-authored, positively identified residue** (§Deploy State Machine
+  to Pkzz-authored, positively identified residue** (§Deploy State Machine
   auto-repair rule) — the vision's "never-started body is operator
   residue" line gains that qualifier rather than being waived. The
   remaining product question: does v1 owe users an explicit in-product
@@ -1767,7 +1767,7 @@ Marked `[DECISION]` inline; consolidated:
 
 ## Summary
 
-Remote agents extend Buzz's managed-agent model across a deliberately thin
+Remote agents extend Pkzz's managed-agent model across a deliberately thin
 boundary: one untrusted binary, two JSON operations, and a relay. The
 desktop's obligations end at a well-formed, fail-closed deploy payload; the
 provider's obligations are convergence and honesty about state; the agent's

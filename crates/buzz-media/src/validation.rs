@@ -185,7 +185,7 @@ pub fn validate_file_content(
             let mime = kind.mime_type().to_string();
             // Recognized media must never fall through exact-byte attachment
             // storage. Images and video use their canonical media validators;
-            // audio is rejected until Buzz has an explicit sanitizer and
+            // audio is rejected until Pkzz has an explicit sanitizer and
             // location-metadata validator for its container.
             if mime.starts_with("image/")
                 || mime.starts_with("video/")
@@ -571,14 +571,14 @@ fn validate_jpeg_metadata_free(bytes: &[u8]) -> Result<(), MediaError> {
     Err(MediaError::InvalidImage)
 }
 
-/// tEXt keywords that carry Buzz snapshot manifests (`.agent.png` /
+/// tEXt keywords that carry Pkzz snapshot manifests (`.agent.png` /
 /// `.team.png`). These are deliberate product payloads — agent/team sharing
 /// embeds a manifest in a single tEXt chunk — so they are exempt from the
 /// metadata ban. Exactly one snapshot chunk is permitted per file; every
 /// other textual/metadata chunk remains forbidden.
 const PNG_SNAPSHOT_KEYWORDS: [&[u8]; 2] = [b"buzz_agent_snapshot", b"buzz_team_snapshot"];
 
-/// Returns true when a raw tEXt chunk payload is a Buzz snapshot manifest:
+/// Returns true when a raw tEXt chunk payload is a Pkzz snapshot manifest:
 /// the payload must start with an allowlisted keyword followed by the
 /// keyword/text NUL separator.
 fn is_snapshot_text_chunk(payload: &[u8]) -> bool {
@@ -609,7 +609,7 @@ fn validate_png_metadata_free(bytes: &[u8]) -> Result<(), MediaError> {
             .filter(|&v| v <= bytes.len())
             .ok_or(MediaError::InvalidImage)?;
         if &kind == b"tEXt" {
-            // Buzz agent/team snapshot manifests ride in a single tEXt chunk
+            // Pkzz agent/team snapshot manifests ride in a single tEXt chunk
             // with an allowlisted keyword. Anything else — other keywords, or
             // a second snapshot chunk — is a forbidden metadata channel.
             let payload = &bytes[i + 8..end - 4];

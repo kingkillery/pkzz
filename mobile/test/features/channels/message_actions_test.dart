@@ -1,10 +1,10 @@
-import 'package:buzz/features/channels/message_actions.dart';
-import 'package:buzz/shared/read_state/read_state_provider.dart';
-import 'package:buzz/features/channels/thread_follows/thread_follows_provider.dart';
-import 'package:buzz/features/channels/timeline_message.dart';
-import 'package:buzz/shared/reminders/reminder_service.dart';
-import 'package:buzz/shared/relay/relay.dart';
-import 'package:buzz/shared/theme/theme.dart';
+import 'package:pkzz/features/channels/message_actions.dart';
+import 'package:pkzz/shared/read_state/read_state_provider.dart';
+import 'package:pkzz/features/channels/thread_follows/thread_follows_provider.dart';
+import 'package:pkzz/features/channels/timeline_message.dart';
+import 'package:pkzz/shared/reminders/reminder_service.dart';
+import 'package:pkzz/shared/relay/relay.dart';
+import 'package:pkzz/shared/theme/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';

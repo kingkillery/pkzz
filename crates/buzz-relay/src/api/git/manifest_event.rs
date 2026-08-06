@@ -11,7 +11,7 @@
 //!     ["HEAD", "ref: refs/heads/<branch>"],   // symbolic HEAD
 //!   ]
 //!
-//! Buzz extension: a `p` tag carrying the pusher's pubkey (or the repo
+//! Pkzz extension: a `p` tag carrying the pusher's pubkey (or the repo
 //! owner on creation events) so subscribers can filter by author of state
 //! transition. Not part of NIP-34 but consistent with the rest of buzz's
 //! event-publishing conventions.

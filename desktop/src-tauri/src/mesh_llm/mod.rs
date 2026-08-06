@@ -60,10 +60,10 @@ const MESH_IROH_RELAYS_ENV: &str = "BUZZ_MESH_IROH_RELAYS";
 /// SDK default (30s) times out long before that. Matches mesh-console.
 const MESH_STARTUP_TIMEOUT: Duration = Duration::from_secs(180);
 /// The pinned SDK defines startup readiness as the management API on `:3131`.
-/// Buzz defines client readiness by the OpenAI ingress agents consume on
+/// Pkzz defines client readiness by the OpenAI ingress agents consume on
 /// `:9337`, so it supervises client startup independently and gives the SDK a
 /// long management deadline. A live ingress is therefore not torn down merely
-/// because the optional management API is delayed; Buzz's ingress watchdog is
+/// because the optional management API is delayed; Pkzz's ingress watchdog is
 /// responsible for aborting and re-arming genuinely dead attempts.
 const MESH_CLIENT_MANAGEMENT_TIMEOUT: Duration = Duration::from_secs(365 * 24 * 60 * 60);
 /// Bound explicit and watchdog-driven shutdowns. `EmbeddedNodeHandle::stop`
@@ -88,13 +88,13 @@ pub struct MeshServeTarget {
     pub model_id: String,
     pub model_name: Option<String>,
     pub endpoint_addr: String,
-    /// Buzz member that signed the discovery note containing this target.
+    /// Pkzz member that signed the discovery note containing this target.
     /// Populated after signature/membership validation; never trusted from the
     /// note payload itself.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reporter_pubkey: Option<String>,
-    /// Per-runtime MeshLLM owner identity verified by the signed Buzz status.
-    /// Distinguishes two devices logged into the same Buzz member account.
+    /// Per-runtime MeshLLM owner identity verified by the signed Pkzz status.
+    /// Distinguishes two devices logged into the same Pkzz member account.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub owner_id: Option<String>,
     pub node_name: Option<String>,
@@ -197,7 +197,7 @@ pub struct StartMeshNodeRequest {
     pub max_vram_gb: Option<u64>,
     #[serde(default)]
     pub join_token: Option<String>,
-    /// Stable, relay-scoped mesh name injected by the Buzz backend. It is not
+    /// Stable, relay-scoped mesh name injected by the Pkzz backend. It is not
     /// accepted from the frontend and contains no relay address.
     #[serde(default, skip_deserializing)]
     pub mesh_name: Option<String>,
@@ -261,7 +261,7 @@ static MESH_RUNTIME_ID_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::At
 
 enum DesktopMeshHandle {
     /// The pinned SDK does not return its handle until `:3131/api/status` is
-    /// available. Keep that wait off the agent-save path while Buzz supervises
+    /// available. Keep that wait off the agent-save path while Pkzz supervises
     /// the real `:9337` ingress independently.
     Starting {
         task: tokio::task::JoinHandle<anyhow::Result<EmbeddedNodeHandle>>,
@@ -391,7 +391,7 @@ impl DesktopMeshRuntime {
                 }
                 // Admission: present our owner attestation, and when a member
                 // roster was resolved, admit only those owners. Membership in
-                // the Buzz relay is the source of the roster; possession of a
+                // the Pkzz relay is the source of the roster; possession of a
                 // dial pointer or relay reachability admits nobody.
                 let identity = ensure_owner_identity()?;
                 builder = builder.owner_key(identity.keystore_path.clone());
@@ -732,7 +732,7 @@ impl DesktopMeshRuntime {
             }
             DesktopMeshHandle::Starting { task, .. } => {
                 // The pinned SDK has not exposed its shutdown handle yet.
-                // Abort only the Buzz-side waiter; normal callers never replace
+                // Abort only the Pkzz-side waiter; normal callers never replace
                 // a pending runtime, and app shutdown/restart then terminates
                 // the process-owned embedded thread. Recovery requests that
                 // controlled restart instead of racing a second runtime.
@@ -845,7 +845,7 @@ pub fn models_from_status_payload(payload: Option<&serde_json::Value>) -> Vec<Me
     let mut out = Vec::new();
     if let Some(payload) = payload {
         // The SDK's raw status uses `hosted_models` plus ready entries under
-        // `runtime.models`. Buzz-authored status reports use `models`. Do not
+        // `runtime.models`. Pkzz-authored status reports use `models`. Do not
         // use `serving_models`: MeshLLM fills it with the requested model while
         // the runtime is still in standby, before inference is available.
         for key in ["models", "hosted_models"] {

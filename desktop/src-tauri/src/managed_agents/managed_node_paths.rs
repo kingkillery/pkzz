@@ -1,13 +1,13 @@
 use std::path::PathBuf;
 
 pub(crate) fn buzz_managed_npm_prefix() -> Option<PathBuf> {
-    dirs::data_dir().map(|dir| dir.join("Buzz").join("node-tools"))
+    dirs::data_dir().map(|dir| dir.join("Pkzz").join("node-tools"))
 }
 
 const BUZZ_MANAGED_NODE_VERSION: &str = "v24.18.0";
 
 pub(crate) fn buzz_managed_node_root() -> Option<PathBuf> {
-    dirs::data_dir().map(|dir| dir.join("Buzz").join("runtimes").join("node"))
+    dirs::data_dir().map(|dir| dir.join("Pkzz").join("runtimes").join("node"))
 }
 
 pub(crate) fn buzz_managed_node_bin_dir() -> Option<PathBuf> {

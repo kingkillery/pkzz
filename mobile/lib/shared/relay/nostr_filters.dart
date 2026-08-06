@@ -1,6 +1,6 @@
 import 'nostr_models.dart';
 
-/// Canonical [NostrFilter] constructors for common Buzz queries.
+/// Canonical [NostrFilter] constructors for common Pkzz queries.
 ///
 /// Centralising filter shapes keeps relay queries consistent across providers
 /// and makes kind/tag conventions easy to audit.
@@ -134,7 +134,7 @@ abstract final class NostrFilters {
 
   /// Global user search over kind:0 profiles (NIP-50 via the HTTP bridge).
   ///
-  /// `search_mode: "prefix"` is a Buzz bridge-only extension: every caller is
+  /// `search_mode: "prefix"` is a Pkzz bridge-only extension: every caller is
   /// a typeahead surface, so a partially typed name must match ("rac" →
   /// "raccoon"). Mirrors desktop's `build_user_search_filter`
   /// (desktop/src-tauri/src/commands/profile.rs). Bridge-only — send through

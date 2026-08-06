@@ -1,6 +1,6 @@
-//! Harness-side Buzz relay client.
+//! Harness-side Pkzz relay client.
 //!
-//! Connects to the Buzz relay via NIP-01 WebSocket, authenticates via NIP-42,
+//! Connects to the Pkzz relay via NIP-01 WebSocket, authenticates via NIP-42,
 //! discovers channels via REST API, and streams events back to the harness main
 //! loop. Also publishes ephemeral events (typing indicators) via the same
 //! WebSocket connection.
@@ -542,7 +542,7 @@ type WsStream = WebSocketStream<MaybeTlsStream<tokio::net::TcpStream>>;
 
 /// Harness-side relay client.
 ///
-/// Connects to the Buzz relay, authenticates via NIP-42, and streams
+/// Connects to the Pkzz relay, authenticates via NIP-42, and streams
 /// matching events for subscribed channels.
 ///
 /// A background tokio task owns the WebSocket connection and responds to

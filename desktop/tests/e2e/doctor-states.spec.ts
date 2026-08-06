@@ -33,7 +33,7 @@ const GOOSE_AVAILABLE = {
 /** buzz-agent is always available and has no auth step. */
 const BUZZ_AGENT_AVAILABLE = {
   id: "buzz-agent",
-  label: "Buzz Agent",
+  label: "Pkzz Agent",
   avatar_url: "",
   availability: "available",
   command: "buzz-agent",
@@ -41,7 +41,7 @@ const BUZZ_AGENT_AVAILABLE = {
   default_args: [],
   mcp_command: "buzz-dev-mcp",
   install_hint: "",
-  install_instructions_url: "https://github.com/block/buzz",
+  install_instructions_url: "https://github.com/kingkillery/pkzz",
   can_auto_install: false,
   underlying_cli_path: null,
   node_required: false,
@@ -83,7 +83,7 @@ const CODEX_NOT_INSTALLED = {
   binary_path: null,
   default_args: [],
   mcp_command: null,
-  install_hint: "Buzz talks to Codex through the Codex CLI.",
+  install_hint: "Pkzz talks to Codex through the Codex CLI.",
   install_instructions_url: "https://developers.openai.com/codex/cli/",
   can_auto_install: true,
   underlying_cli_path: null,
@@ -214,7 +214,7 @@ test.describe("Doctor panel state screenshots", () => {
     );
     await expect(
       page.getByTestId("doctor-runtime-guidance-codex"),
-    ).toContainText("Buzz talks to Codex through the Codex CLI.");
+    ).toContainText("Pkzz talks to Codex through the Codex CLI.");
     await expect(
       page
         .getByTestId("doctor-runtime-guidance-codex")
@@ -473,9 +473,9 @@ test.describe("Doctor panel state screenshots", () => {
               success: false,
               stdout: "",
               stderr:
-                "The installer finished, but Buzz still could not use codex (observed: NotInstalled).",
+                "The installer finished, but Pkzz still could not use codex (observed: NotInstalled).",
               exit_code: null,
-              hint: "Buzz requires the vendor CLI executable, not only its desktop app. If the CLI was installed while Buzz was open, restart Buzz and check again.",
+              hint: "Pkzz requires the vendor CLI executable, not only its desktop app. If the CLI was installed while Pkzz was open, restart Pkzz and check again.",
             },
           ],
         },
@@ -839,7 +839,7 @@ test.describe("Doctor panel state screenshots", () => {
     const dialog = page.getByRole("alertdialog");
     await expect(dialog).toContainText("Update Codex adapter?");
     await expect(dialog).toContainText(
-      "Older Buzz releases using the legacy adapter may lose community access",
+      "Older Pkzz releases using the legacy adapter may lose community access",
     );
     await expect(page.getByTestId("doctor-runtime-loading-codex")).toHaveCount(
       0,

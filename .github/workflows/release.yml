@@ -14,7 +14,7 @@ jobs:
   # create the release objects all four platform jobs upload into.
   setup:
     name: Setup
-    if: github.repository == 'block/buzz'
+    if: github.repository == 'kingkillery/pkzz'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -51,7 +51,7 @@ jobs:
 
   release:
     name: Release
-    if: github.repository == 'block/buzz'
+    if: github.repository == 'kingkillery/pkzz'
     runs-on: macos-latest
     needs: setup
     timeout-minutes: 60
@@ -87,7 +87,7 @@ jobs:
         run: cd desktop && node scripts/build-release-config.mjs
         env:
           BUZZ_UPDATER_PUBLIC_KEY: ${{ secrets.BUZZ_UPDATER_PUBLIC_KEY || secrets.SPROUT_UPDATER_PUBLIC_KEY }}
-          BUZZ_UPDATER_ENDPOINT: https://github.com/block/buzz/releases/download/buzz-desktop-latest/latest.json
+          BUZZ_UPDATER_ENDPOINT: https://github.com/kingkillery/pkzz/releases/download/buzz-desktop-latest/latest.json
 
       - name: Build sidecars
         run: |
@@ -138,7 +138,7 @@ jobs:
         run: cd desktop && pnpm tauri build --verbose --no-sign --features mesh-llm --config src-tauri/tauri.release.conf.json
         env:
           BUZZ_UPDATER_PUBLIC_KEY: ${{ secrets.BUZZ_UPDATER_PUBLIC_KEY || secrets.SPROUT_UPDATER_PUBLIC_KEY }}
-          BUZZ_UPDATER_ENDPOINT: https://github.com/block/buzz/releases/download/buzz-desktop-latest/latest.json
+          BUZZ_UPDATER_ENDPOINT: https://github.com/kingkillery/pkzz/releases/download/buzz-desktop-latest/latest.json
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           CMAKE_POLICY_VERSION_MINIMUM: "3.5"
@@ -198,23 +198,23 @@ jobs:
           EXTRACT_DIR="${RUNNER_TEMP}/signed-app-extract"
           rm -rf "$EXTRACT_DIR" && mkdir -p "$EXTRACT_DIR"
           ditto -x -k "$SIGNED_APP_ZIP" "$EXTRACT_DIR"
-          rm -rf "${APP_DIR}/Buzz.app"
-          cp -R "${EXTRACT_DIR}/Buzz.app" "${APP_DIR}/Buzz.app"
+          rm -rf "${APP_DIR}/Pkzz.app"
+          cp -R "${EXTRACT_DIR}/Pkzz.app" "${APP_DIR}/Pkzz.app"
 
           # Rebuild the updater archive from the signed .app and re-sign it with the Tauri updater key.
-          rm -f "${APP_DIR}/Buzz.app.tar.gz" "${APP_DIR}/Buzz.app.tar.gz.sig"
-          (cd "$APP_DIR" && tar -czf Buzz.app.tar.gz Buzz.app)
-          TARBALL_ABS="$(pwd)/${APP_DIR}/Buzz.app.tar.gz"
+          rm -f "${APP_DIR}/Pkzz.app.tar.gz" "${APP_DIR}/Pkzz.app.tar.gz.sig"
+          (cd "$APP_DIR" && tar -czf Pkzz.app.tar.gz Pkzz.app)
+          TARBALL_ABS="$(pwd)/${APP_DIR}/Pkzz.app.tar.gz"
           (cd desktop && pnpm tauri signer sign "$TARBALL_ABS")
 
       - name: Verify code signature
         run: |
           codesign --verify --deep --strict --verbose=2 \
-            desktop/src-tauri/target/release/bundle/macos/Buzz.app
+            desktop/src-tauri/target/release/bundle/macos/Pkzz.app
           spctl --assess --type execute --verbose=4 \
-            desktop/src-tauri/target/release/bundle/macos/Buzz.app
+            desktop/src-tauri/target/release/bundle/macos/Pkzz.app
           desktop/scripts/verify-macos-entitlements.sh \
-            desktop/src-tauri/target/release/bundle/macos/Buzz.app
+            desktop/src-tauri/target/release/bundle/macos/Pkzz.app
 
       - name: Locate build artifacts
         id: artifacts
@@ -264,7 +264,7 @@ jobs:
 
   release-macos-x64:
     name: Release macOS (Intel)
-    if: github.repository == 'block/buzz'
+    if: github.repository == 'kingkillery/pkzz'
     runs-on: macos-latest
     needs: setup
     timeout-minutes: 60
@@ -304,7 +304,7 @@ jobs:
         run: cd desktop && node scripts/build-release-config.mjs
         env:
           BUZZ_UPDATER_PUBLIC_KEY: ${{ secrets.BUZZ_UPDATER_PUBLIC_KEY || secrets.SPROUT_UPDATER_PUBLIC_KEY }}
-          BUZZ_UPDATER_ENDPOINT: https://github.com/block/buzz/releases/download/buzz-desktop-latest/latest.json
+          BUZZ_UPDATER_ENDPOINT: https://github.com/kingkillery/pkzz/releases/download/buzz-desktop-latest/latest.json
 
       - name: Build sidecars
         run: |
@@ -315,7 +315,7 @@ jobs:
         run: cd desktop && pnpm tauri build --verbose --no-sign --target "$TARGET" --config src-tauri/tauri.release.conf.json
         env:
           BUZZ_UPDATER_PUBLIC_KEY: ${{ secrets.BUZZ_UPDATER_PUBLIC_KEY || secrets.SPROUT_UPDATER_PUBLIC_KEY }}
-          BUZZ_UPDATER_ENDPOINT: https://github.com/block/buzz/releases/download/buzz-desktop-latest/latest.json
+          BUZZ_UPDATER_ENDPOINT: https://github.com/kingkillery/pkzz/releases/download/buzz-desktop-latest/latest.json
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           CMAKE_POLICY_VERSION_MINIMUM: "3.5"
@@ -371,18 +371,18 @@ jobs:
           EXTRACT_DIR="${RUNNER_TEMP}/signed-app-extract-x64"
           rm -rf "$EXTRACT_DIR" && mkdir -p "$EXTRACT_DIR"
           ditto -x -k "$SIGNED_APP_ZIP" "$EXTRACT_DIR"
-          rm -rf "${APP_DIR}/Buzz.app"
-          cp -R "${EXTRACT_DIR}/Buzz.app" "${APP_DIR}/Buzz.app"
+          rm -rf "${APP_DIR}/Pkzz.app"
+          cp -R "${EXTRACT_DIR}/Pkzz.app" "${APP_DIR}/Pkzz.app"
 
           # Rebuild the updater archive from the signed .app and re-sign with the Tauri updater key.
-          rm -f "${APP_DIR}/Buzz.app.tar.gz" "${APP_DIR}/Buzz.app.tar.gz.sig"
-          (cd "$APP_DIR" && tar -czf Buzz.app.tar.gz Buzz.app)
-          TARBALL_ABS="$(pwd)/${APP_DIR}/Buzz.app.tar.gz"
+          rm -f "${APP_DIR}/Pkzz.app.tar.gz" "${APP_DIR}/Pkzz.app.tar.gz.sig"
+          (cd "$APP_DIR" && tar -czf Pkzz.app.tar.gz Pkzz.app)
+          TARBALL_ABS="$(pwd)/${APP_DIR}/Pkzz.app.tar.gz"
           (cd desktop && pnpm tauri signer sign "$TARBALL_ABS")
 
       - name: Verify code signature
         run: |
-          APP_DIR="desktop/src-tauri/target/${TARGET}/release/bundle/macos/Buzz.app"
+          APP_DIR="desktop/src-tauri/target/${TARGET}/release/bundle/macos/Pkzz.app"
           codesign --verify --deep --strict --verbose=2 "$APP_DIR"
           spctl --assess --type execute --verbose=4 "$APP_DIR"
           desktop/scripts/verify-macos-entitlements.sh "$APP_DIR"
@@ -425,7 +425,7 @@ jobs:
 
   release-linux:
     name: Release Linux
-    if: github.repository == 'block/buzz'
+    if: github.repository == 'kingkillery/pkzz'
     runs-on: ubuntu-latest
     # Digest-pinned like the SHA-pinned actions below; Renovate keeps it fresh.
     container: ubuntu:24.04@sha256:4fbb8e6a8395de5a7550b33509421a2bafbc0aab6c06ba2cef9ebffbc7092d90
@@ -570,13 +570,13 @@ jobs:
         run: cd desktop && node scripts/build-release-config.mjs
         env:
           BUZZ_UPDATER_PUBLIC_KEY: ${{ secrets.BUZZ_UPDATER_PUBLIC_KEY || secrets.SPROUT_UPDATER_PUBLIC_KEY }}
-          BUZZ_UPDATER_ENDPOINT: https://github.com/block/buzz/releases/download/buzz-desktop-latest/latest.json
+          BUZZ_UPDATER_ENDPOINT: https://github.com/kingkillery/pkzz/releases/download/buzz-desktop-latest/latest.json
 
       - name: Build Linux Tauri app
         run: cd desktop && pnpm tauri build --verbose --ci --bundles deb,appimage --features mesh-llm --config src-tauri/tauri.release.conf.json
         env:
           BUZZ_UPDATER_PUBLIC_KEY: ${{ secrets.BUZZ_UPDATER_PUBLIC_KEY || secrets.SPROUT_UPDATER_PUBLIC_KEY }}
-          BUZZ_UPDATER_ENDPOINT: https://github.com/block/buzz/releases/download/buzz-desktop-latest/latest.json
+          BUZZ_UPDATER_ENDPOINT: https://github.com/kingkillery/pkzz/releases/download/buzz-desktop-latest/latest.json
           CMAKE_POLICY_VERSION_MINIMUM: "3.5"
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
@@ -707,7 +707,7 @@ jobs:
         run: cd desktop && node scripts/build-release-config.mjs
         env:
           BUZZ_UPDATER_PUBLIC_KEY: ${{ secrets.BUZZ_UPDATER_PUBLIC_KEY || secrets.SPROUT_UPDATER_PUBLIC_KEY }}
-          BUZZ_UPDATER_ENDPOINT: https://github.com/block/buzz/releases/download/buzz-desktop-latest/latest.json
+          BUZZ_UPDATER_ENDPOINT: https://github.com/kingkillery/pkzz/releases/download/buzz-desktop-latest/latest.json
 
       - name: Build sidecars
         shell: bash
@@ -720,7 +720,7 @@ jobs:
         run: cd desktop && pnpm tauri build --verbose --target "$TARGET" --bundles nsis --config src-tauri/tauri.release.conf.json
         env:
           BUZZ_UPDATER_PUBLIC_KEY: ${{ secrets.BUZZ_UPDATER_PUBLIC_KEY || secrets.SPROUT_UPDATER_PUBLIC_KEY }}
-          BUZZ_UPDATER_ENDPOINT: https://github.com/block/buzz/releases/download/buzz-desktop-latest/latest.json
+          BUZZ_UPDATER_ENDPOINT: https://github.com/kingkillery/pkzz/releases/download/buzz-desktop-latest/latest.json
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           CMAKE_POLICY_VERSION_MINIMUM: "3.5"
@@ -888,7 +888,7 @@ jobs:
           ARCHIVE_WIN: ${{ needs.release-windows.outputs.archive_name }}
         run: |
           set -euo pipefail
-          BASE="https://github.com/block/buzz/releases/download/desktop-v${VERSION}"
+          BASE="https://github.com/kingkillery/pkzz/releases/download/desktop-v${VERSION}"
           TRIPLES=()
 
           add_triple() {
@@ -931,7 +931,7 @@ jobs:
             gh release create "desktop-v${VERSION}" \
               --draft \
               --target "${{ needs.setup.outputs.source_sha }}" \
-              --title "Buzz Desktop v${VERSION}" \
+              --title "Pkzz Desktop v${VERSION}" \
               --notes-file "$NOTES_FILE" \
               "${PRERELEASE_FLAGS[@]}"
           fi

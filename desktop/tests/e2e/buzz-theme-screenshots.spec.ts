@@ -445,28 +445,28 @@ async function openAppearance(page: Page, mode: "system" | "light" | "dark") {
   return panel;
 }
 
-test("appearance picker — system tab (Buzz follows OS)", async ({ page }) => {
+test("appearance picker — system tab (Pkzz follows OS)", async ({ page }) => {
   await seedTheme(page, "buzz");
   await installMockBridge(page);
   const panel = await openAppearance(page, "system");
   await panel.screenshot({ path: `${SHOTS}/03-picker-system.png` });
 });
 
-test("appearance picker — light tab (Buzz)", async ({ page }) => {
+test("appearance picker — light tab (Pkzz)", async ({ page }) => {
   await seedTheme(page, "buzz");
   await installMockBridge(page);
   const panel = await openAppearance(page, "light");
   await panel.screenshot({ path: `${SHOTS}/04-picker-light.png` });
 });
 
-test("appearance picker — dark tab (Buzz Dark)", async ({ page }) => {
+test("appearance picker — dark tab (Pkzz Dark)", async ({ page }) => {
   await seedTheme(page, "buzz-dark");
   await installMockBridge(page);
   const panel = await openAppearance(page, "dark");
   await panel.screenshot({ path: `${SHOTS}/05-picker-dark.png` });
 });
 
-test("settings nav uses Buzz active pill + hover (light)", async ({ page }) => {
+test("settings nav uses Pkzz active pill + hover (light)", async ({ page }) => {
   await seedTheme(page, "buzz");
   await installMockBridge(page);
   await page.goto("/", { waitUntil: "domcontentloaded" });
@@ -479,7 +479,7 @@ test("settings nav uses Buzz active pill + hover (light)", async ({ page }) => {
   await expect(profileRow).toHaveAttribute("data-active", "true");
   await expect(profileRow).toHaveCSS("font-weight", "600");
   const selectedLabelBox = await profileLabel.boundingBox();
-  // Appearance is the active section here; its nav row should carry the Buzz
+  // Appearance is the active section here; its nav row should carry the Pkzz
   // white active pill (data-active=true), matching the Left Nav treatment.
   await page.getByTestId("settings-nav-appearance").click();
   await expect(profileRow).toHaveCSS("font-weight", "400");
@@ -497,7 +497,7 @@ test("settings nav uses Buzz active pill + hover (light)", async ({ page }) => {
   await sidebar.screenshot({ path: `${SHOTS}/06-settings-nav-light.png` });
 });
 
-test("settings nav uses Buzz active pill + hover (dark)", async ({ page }) => {
+test("settings nav uses Pkzz active pill + hover (dark)", async ({ page }) => {
   await seedTheme(page, "buzz-dark");
   await installMockBridge(page);
   await page.goto("/", { waitUntil: "domcontentloaded" });
@@ -566,36 +566,36 @@ test("settings content uses the same inset surface as the main app", async ({
   });
 });
 
-test("appearance hides accent picker under Buzz", async ({ page }) => {
+test("appearance hides accent picker under Pkzz", async ({ page }) => {
   await seedTheme(page, "buzz");
   await installMockBridge(page);
   const panel = await openAppearance(page, "light");
-  // The accent picker is hidden while a Buzz theme is active. Its neutral
+  // The accent picker is hidden while a Pkzz theme is active. Its neutral
   // swatch testid must not be present.
   await expect(page.getByTestId("accent-color-neutral")).toHaveCount(0);
   await panel.screenshot({ path: `${SHOTS}/10-appearance-no-accent.png` });
 });
 
-test("accent picker reveals/hides when toggling Buzz", async ({ page }) => {
-  // Start on a non-Buzz theme so the accent picker is present, then select the
-  // Buzz tile — the picker should animate out and unmount. Reselecting a
-  // non-Buzz tile brings it back. Asserts the presence toggle (the motion
+test("accent picker reveals/hides when toggling Pkzz", async ({ page }) => {
+  // Start on a non-Pkzz theme so the accent picker is present, then select the
+  // Pkzz tile — the picker should animate out and unmount. Reselecting a
+  // non-Pkzz tile brings it back. Asserts the presence toggle (the motion
   // wrapper) works end to end.
   await seedTheme(page, "github-light");
   await installMockBridge(page);
   await openAppearance(page, "light");
   await expect(page.getByTestId("accent-color-neutral")).toBeVisible();
 
-  // Switch to Buzz — picker should leave (allow the exit animation to settle).
+  // Switch to Pkzz — picker should leave (allow the exit animation to settle).
   await page.getByTestId("theme-option-buzz").click();
   await expect(page.getByTestId("accent-color-neutral")).toHaveCount(0);
 
-  // Back to a non-Buzz theme — picker returns.
+  // Back to a non-Pkzz theme — picker returns.
   await page.getByTestId("theme-option-github-light").click();
   await expect(page.getByTestId("accent-color-neutral")).toBeVisible();
 });
 
-test("Buzz light and dark modes apply live without a reload", async ({
+test("Pkzz light and dark modes apply live without a reload", async ({
   page,
 }) => {
   await seedTheme(page, "buzz");
@@ -619,7 +619,7 @@ test("Buzz light and dark modes apply live without a reload", async ({
   await expectAppliedBuzzTheme(page, "buzz");
 });
 
-test("Buzz follows native system theme changes without a reload", async ({
+test("Pkzz follows native system theme changes without a reload", async ({
   page,
 }) => {
   await seedTheme(page, "buzz");

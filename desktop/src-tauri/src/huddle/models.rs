@@ -128,7 +128,7 @@ const STT_MODEL_DIR_NAME: &str = "parakeet-tdt-ctc-110m-en";
 
 /// All files that must be present for the model to be considered ready.
 ///
-/// Includes the attribution sidecar written by Buzz during install. The
+/// Includes the attribution sidecar written by Pkzz during install. The
 /// upstream archive does not ship a license file, so readiness should require
 /// the local CC-BY-4.0 attribution to travel with the cached model bytes.
 const STT_EXPECTED_FILES: &[&str] = &["model.int8.onnx", "tokens.txt", STT_LICENSE_FILE_NAME];
@@ -149,7 +149,7 @@ Licensed under the Creative Commons Attribution 4.0 International License
 
 Original model: https://huggingface.co/nvidia/parakeet-tdt_ctc-110m
 Converted to ONNX with int8 quantization by the sherpa-onnx project
-(https://github.com/k2-fsa/sherpa-onnx); Buzz ships this conversion
+(https://github.com/k2-fsa/sherpa-onnx); Pkzz ships this conversion
 unmodified.
 
 Provided \"AS IS\", without warranty of any kind, express or implied. See the
@@ -806,7 +806,7 @@ impl ModelManager {
     /// Downloads files into `~/.buzz/models/pocket-tts/`:
     ///   - five ONNX sessions selected by the April INT8 bundle
     ///   - bundle metadata, SentencePiece tokenizer, and learned voice BOS
-    ///   - upstream `LICENSE` plus Buzz's `MODEL_LICENSE.txt` attribution sidecar
+    ///   - upstream `LICENSE` plus Pkzz's `MODEL_LICENSE.txt` attribution sidecar
     ///   - `reference_sample.wav` plus the embedded official VCTK presets
     ///
     /// Files are written to a temp directory first, then moved atomically.

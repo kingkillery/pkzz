@@ -1,7 +1,7 @@
 //! Runtime macOS window vibrancy (blur-behind) toggle.
 //!
 //! Vibrancy applies an `NSVisualEffectView` behind the webview so the desktop
-//! (and windows behind Buzz) blur through wherever the app's CSS is
+//! (and windows behind Pkzz) blur through wherever the app's CSS is
 //! transparent. It is a native, macOS-only effect: there is no "intensity"
 //! setting at the OS level, only a set of material presets. The frontend tunes
 //! perceived intensity by changing CSS surface opacity while this command
@@ -53,7 +53,7 @@ pub fn set_window_vibrancy(
         // `apply_vibrancy` appends a new tagged `NSVisualEffectView` each call,
         // while `clear_vibrancy` only removes one. Repeated enables (theme
         // switches, follow-system flips) would otherwise stack blur views and
-        // leave a stale one behind on the next non-Buzz theme. Clear any
+        // leave a stale one behind on the next non-Pkzz theme. Clear any
         // existing view first so exactly one material is ever installed. The
         // clear is a no-op (returns `false`) when none is present.
         let _ = clear_vibrancy(&window);

@@ -1,4 +1,4 @@
-//! Preservation of Buzz snapshot tEXt chunks through the upload sanitizer.
+//! Preservation of Pkzz snapshot tEXt chunks through the upload sanitizer.
 //!
 //! Split out of `media.rs` to keep that file under the desktop line-size
 //! limit. Agent/team sharing embeds a manifest in a PNG `tEXt` chunk
@@ -8,12 +8,12 @@
 //! relay allowlists exactly these keywords in `buzz-media::validation` — the
 //! two lists must stay in sync.
 
-/// tEXt keywords that carry Buzz snapshot manifests (`.agent.png` /
+/// tEXt keywords that carry Pkzz snapshot manifests (`.agent.png` /
 /// `.team.png`). These chunks are the product payload of agent/team sharing —
 /// they must survive the metadata strip.
 const PNG_SNAPSHOT_KEYWORDS: [&[u8]; 2] = [b"buzz_agent_snapshot", b"buzz_team_snapshot"];
 
-/// Extract the raw bytes of the first Buzz snapshot tEXt chunk (length + type
+/// Extract the raw bytes of the first Pkzz snapshot tEXt chunk (length + type
 /// + payload + CRC) from a PNG, or `None` when absent/not a PNG.
 ///
 /// Walks the chunk structure directly instead of decoding the image so a

@@ -24,7 +24,7 @@ pub struct AcpAuthMethod {
     pub method_type: Option<String>,
     #[serde(default)]
     pub args: Vec<String>,
-    /// Full terminal command advertised by the adapter. Buzz never guesses
+    /// Full terminal command advertised by the adapter. Pkzz never guesses
     /// vendor login commands; when present, this argv is the source of truth.
     #[serde(default)]
     pub command: Vec<String>,
@@ -139,11 +139,11 @@ fn run_buzz_acp_auth_command<const N: usize>(
 /// PATH for the buzz-acp auth helper child process.
 ///
 /// Uses the augmented agent PATH so `#!/usr/bin/env node` adapter shims
-/// resolve the Buzz-managed Node runtime — the same PATH normal agent
+/// resolve the Pkzz-managed Node runtime — the same PATH normal agent
 /// launches and readiness probes use.
 ///
 /// On Windows, `login_shell_path()` is intentionally `None`, so the augmented
-/// PATH contains only Buzz-managed directories and the exe parent. Buzz does
+/// PATH contains only Pkzz-managed directories and the exe parent. Pkzz does
 /// not ship a managed Node runtime on Windows, and npm `.cmd` adapters need
 /// the user's normal PATH to find `node` (and often `claude`/`codex`), so the
 /// inherited process PATH is appended there instead of being replaced.
@@ -466,7 +466,7 @@ mod tests {
         windows_terminal_args, AcpAuthMethod,
     };
 
-    /// Windows regression: the augmented PATH there holds only Buzz-managed
+    /// Windows regression: the augmented PATH there holds only Pkzz-managed
     /// dirs and the exe parent (no login-shell PATH, no managed Node), so the
     /// user's inherited PATH must be appended for npm `.cmd` adapters to find
     /// `node`/`claude`/`codex`.

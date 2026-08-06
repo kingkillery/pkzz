@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:nostr/nostr.dart' as nostr;
-import 'package:buzz/shared/auth/auth_provider.dart';
-import 'package:buzz/shared/community/community.dart';
-import 'package:buzz/shared/community/community_provider.dart';
-import 'package:buzz/shared/community/community_storage.dart';
+import 'package:pkzz/shared/auth/auth_provider.dart';
+import 'package:pkzz/shared/community/community.dart';
+import 'package:pkzz/shared/community/community_provider.dart';
+import 'package:pkzz/shared/community/community_storage.dart';
 
 import '../community/community_storage_test.dart';
 

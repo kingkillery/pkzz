@@ -549,7 +549,7 @@ mod tests {
     /// can echo a registry token.
     #[test]
     fn pull_failure_messages_are_actionable_and_redacted() {
-        let image = format!("ghcr.io/block/buzz-sprig@sha256:{}", "a".repeat(64));
+        let image = format!("ghcr.io/kingkillery/pkzz-sprig@sha256:{}", "a".repeat(64));
         for failure in [
             PullFailure::Unauthorized,
             PullFailure::ManifestUnknown,

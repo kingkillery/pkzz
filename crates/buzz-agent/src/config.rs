@@ -741,7 +741,7 @@ pub struct Config {
     /// disable `_Stop` hooks entirely (agent always honors end_turn).
     pub stop_max_rejections: u32,
     /// Remind the model to publish when a turn is about to end without any
-    /// recognized attempt to post to Buzz. Default off; opt in per agent with
+    /// recognized attempt to post to Pkzz. Default off; opt in per agent with
     /// `BUZZ_AGENT_REQUIRE_REPLY=1`.
     ///
     /// Advisory only: at most `MAX_REPLY_NAGS` reminders (see `agent.rs`),
@@ -762,7 +762,7 @@ pub struct Config {
     pub openai_api: OpenAiApi,
     /// Prefer mesh-llm's virtual `mesh` model when the configured/effective
     /// OpenAI model is `auto` and the live model catalog advertises it.
-    /// Set by Buzz's relay-mesh provider via
+    /// Set by Pkzz's relay-mesh provider via
     /// `BUZZ_AGENT_PREFER_MESH_FOR_AUTO=1`; other providers keep their
     /// existing `auto` semantics.
     pub prefer_mesh_for_auto: bool,

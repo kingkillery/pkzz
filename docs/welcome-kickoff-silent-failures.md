@@ -5,7 +5,7 @@ Context: the Welcome-channel kickoff choreography
 opener, teammates introduce themselves in-thread, and Fizz posts a closer.
 
 The file name says "silent-failures" for link stability (referenced from
-[PR #2066](https://github.com/block/buzz/pull/2066) and
+[PR #2066](https://github.com/kingkillery/pkzz/pull/2066) and
 `useWelcomeKickoffStage.ts`); the scope is all kickoff failure paths.
 
 ## The one bug behind all of it

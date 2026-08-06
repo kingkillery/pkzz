@@ -1,5 +1,5 @@
 //! Local-save archive — Tauri commands for archiving relay messages to a
-//! per-identity SQLite database in the Buzz nest.
+//! per-identity SQLite database in the Pkzz nest.
 //!
 //! # Architecture
 //!

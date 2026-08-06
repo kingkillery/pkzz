@@ -48,7 +48,7 @@ fn resolve_command_prefers_buzz_managed_npm_shim_over_path() {
     std::env::set_var("XDG_DATA_HOME", &xdg_data);
     let managed_bin = dirs::data_dir()
         .expect("data dir")
-        .join("Buzz")
+        .join("Pkzz")
         .join("node-tools")
         .join("bin");
     std::fs::create_dir_all(&managed_bin).expect("create managed bin");
@@ -85,6 +85,6 @@ fn resolve_command_prefers_buzz_managed_npm_shim_over_path() {
     assert_eq!(
         resolved.as_deref(),
         Some(managed_shim.as_path()),
-        "Buzz-managed npm shim must win over PATH/global shims"
+        "Pkzz-managed npm shim must win over PATH/global shims"
     );
 }

@@ -1,4 +1,4 @@
-//! Network utility functions for Buzz.
+//! Network utility functions for Pkzz.
 //!
 //! Provides shared helpers used across crates for SSRF protection and
 //! IP address classification.

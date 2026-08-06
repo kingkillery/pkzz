@@ -80,7 +80,7 @@ const themeCatalog = <ThemeColors>[
     added: Color(0xFF70BF56),
     deleted: Color(0xFFF26D78),
   ),
-  // Buzz and Buzz Dark are first-party: they borrow the GitHub Light / GitHub
+  // Pkzz and Pkzz Dark are first-party: they borrow the GitHub Light / GitHub
   // Dark palettes wholesale and are distinguished only by the branded gradient
   // painted across the app's top section (see buzz_theme.dart).
   ThemeColors(

@@ -1,4 +1,4 @@
-//! Embedded SQLx migrations for Buzz.
+//! Embedded SQLx migrations for Pkzz.
 //!
 //! Fresh deployments apply the checked-in SQL files under `migrations/`. The
 //! multi-tenant rewrite owns a clean consolidated `0001`; legacy single-tenant
@@ -10,7 +10,7 @@ use crate::Result;
 
 static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("../../migrations");
 
-/// Run all pending Buzz database migrations.
+/// Run all pending Pkzz database migrations.
 pub async fn run_migrations(pool: &PgPool) -> Result<()> {
     reject_legacy_nip_rs_cardinality_ambiguity(pool).await?;
     MIGRATOR.run(pool).await?;

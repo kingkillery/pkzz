@@ -10,7 +10,7 @@ use crate::shell::{is_executable_file, login_argv0, resolve_shell, FALLBACK_SHEL
 use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 use std::io::Read;
 
-/// Secrets Buzz's own process holds. Sourced from the desktop crate's
+/// Secrets Pkzz's own process holds. Sourced from the desktop crate's
 /// `RESERVED_ENV_KEYS` (`src/managed_agents/env_vars.rs:58`); duplicated
 /// rather than imported because this crate deliberately has no dependency
 /// on the Tauri crate. `reserved_keys_are_covered` keeps the two in step.
@@ -26,7 +26,7 @@ const SECRET_KEYS: &[&str] = &[
 
 const CANARY: &str = "SAMI_CANARY_MUST_NOT_LEAK";
 
-/// Uniquely-named executable seeded into Buzz's own PATH; the child must not
+/// Uniquely-named executable seeded into Pkzz's own PATH; the child must not
 /// be able to run it.
 const CANARY_BIN: &str = "buzz-hermit-canary-tool";
 
@@ -129,7 +129,7 @@ fn fence_still_delivers_the_terminal_contract() {
     seed_secrets();
     let out = fenced_child_environment();
 
-    for (key, value) in [("TERM", "xterm-256color"), ("TERM_PROGRAM", "Buzz")] {
+    for (key, value) in [("TERM", "xterm-256color"), ("TERM_PROGRAM", "Pkzz")] {
         assert!(
             out.lines().any(|line| line == format!("{key}={value}")),
             "{key} missing from child environment:\n{out}"
@@ -155,7 +155,7 @@ fn fence_excludes_keys_it_has_never_heard_of() {
     );
 }
 
-/// `PATH` is constructed, not inherited, so Buzz's Hermit build toolchain
+/// `PATH` is constructed, not inherited, so Pkzz's Hermit build toolchain
 /// never becomes the user's shell toolchain.
 ///
 /// The assertion is *reachability*, not a string comparison: we seed a
@@ -177,7 +177,7 @@ fn child_path_is_free_of_buzz_toolchain() {
             .expect("chmod canary");
     }
 
-    // Stand in for Hermit activation: Buzz's own PATH leads with a directory
+    // Stand in for Hermit activation: Pkzz's own PATH leads with a directory
     // holding a tool the user does not have.
     std::env::set_var("PATH", format!("{}:/usr/bin:/bin", dir.display()));
     assert!(
@@ -195,7 +195,7 @@ fn child_path_is_free_of_buzz_toolchain() {
         .expect("child has a PATH");
     assert!(
         !path_line.contains("buzz-terminal-path-canary"),
-        "Buzz's toolchain leaked into the child PATH: {path_line}"
+        "Pkzz's toolchain leaked into the child PATH: {path_line}"
     );
 
     // The reachability arm: run `command -v` for the canary inside the fence.
@@ -205,7 +205,7 @@ fn child_path_is_free_of_buzz_toolchain() {
     );
     assert!(
         resolved.contains("CANARY_UNREACHABLE"),
-        "a Buzz-only executable was reachable from the child shell: {resolved}"
+        "a Pkzz-only executable was reachable from the child shell: {resolved}"
     );
 }
 
@@ -303,7 +303,7 @@ fn login_argv0_is_shell_neutral() {
     }
 }
 
-/// The child must be told the shell we actually spawned, not the one Buzz
+/// The child must be told the shell we actually spawned, not the one Pkzz
 /// itself was launched under. Asserting `SHELL` is merely present would pass
 /// for an inherited value, which is wrong in exactly the fallback cases.
 #[test]

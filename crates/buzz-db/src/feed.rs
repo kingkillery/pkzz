@@ -840,7 +840,7 @@ mod tests {
             sql.contains(&KIND_GIT_PULL_REQUEST.to_string())
                 && sql.contains(&KIND_GIT_ISSUE.to_string())
                 && sql.contains(&KIND_TEXT_NOTE.to_string()),
-            "mentions feed must include Buzz Git roots and comments: {sql}"
+            "mentions feed must include Pkzz Git roots and comments: {sql}"
         );
     }
 

@@ -118,7 +118,7 @@ fn info_response_carries_the_contract_fields() {
         .as_str()
         .expect("no image default");
     assert!(
-        image_default.starts_with("ghcr.io/block/buzz-sprig:")
+        image_default.starts_with("ghcr.io/kingkillery/pkzz-sprig:")
             && image_default.contains("@sha256:"),
         "unexpected image default: {image_default}"
     );

@@ -17,7 +17,7 @@ record() {
 }
 
 case "${1:-}:${2:-}" in
-  api:repos/block/buzz/rulesets/14378754)
+  api:repos/kingkillery/pkzz/rulesets/14378754)
     case "$*" in
       *'.enforcement'*) printf '%s\n' "${GH_TAG_RULESET_STATE:-active}" ;;
       *'.current_user_can_bypass'*) printf '%s\n' "${GH_CURRENT_USER_CAN_BYPASS-always}" ;;
@@ -27,33 +27,33 @@ case "${1:-}:${2:-}" in
       *) exit 2 ;;
     esac
     ;;
-  api:repos/block/buzz/git/ref/heads/main) printf '%s\n' "$GH_TARGET_SHA" ;;
-  api:repos/block/buzz/commits/*) printf '%s\n' "$GH_TARGET_SHA" ;;
+  api:repos/kingkillery/pkzz/git/ref/heads/main) printf '%s\n' "$GH_TARGET_SHA" ;;
+  api:repos/kingkillery/pkzz/commits/*) printf '%s\n' "$GH_TARGET_SHA" ;;
   api:--paginate)
-    [[ "$3" == "repos/block/buzz/git/matching-refs/tags/mobile-v1.2.3-rc." ]]
+    [[ "$3" == "repos/kingkillery/pkzz/git/matching-refs/tags/mobile-v1.2.3-rc." ]]
     printf '%s' "${GH_EXISTING_REFS:-}"
     ;;
   api:--method)
     endpoint="$4"
     case "$endpoint" in
-      repos/block/buzz/git/tags)
+      repos/kingkillery/pkzz/git/tags)
         record "$*"
         printf '%s\n' "$GH_TAG_OBJECT_SHA"
         ;;
-      repos/block/buzz/git/refs)
+      repos/kingkillery/pkzz/git/refs)
         record "$*"
         ;;
       *) exit 2 ;;
     esac
     ;;
-  api:repos/block/buzz/git/ref/tags/mobile-v1.2.3-rc.*)
+  api:repos/kingkillery/pkzz/git/ref/tags/mobile-v1.2.3-rc.*)
     if [[ "$*" == *'.object.type'* ]]; then
       printf '%s\n' "${GH_PUBLISHED_REF_TYPE:-tag}"
     else
       printf '%s\n' "${GH_PUBLISHED_REF_SHA:-$GH_TAG_OBJECT_SHA}"
     fi
     ;;
-  api:repos/block/buzz/git/tags/*)
+  api:repos/kingkillery/pkzz/git/tags/*)
     if [[ "$*" == *'.object.type'* ]]; then
       printf '%s\n' "${GH_ANNOTATED_TARGET_TYPE:-commit}"
     else
@@ -70,13 +70,13 @@ chmod +x "$bin/gh"
 
 export PATH="$bin:$PATH"
 export GH_CALLS="$tmp/calls"
-export GITHUB_REPOSITORY=block/buzz
+export GITHUB_REPOSITORY=kingkillery/pkzz
 export GH_TARGET_SHA=1111111111111111111111111111111111111111
 export GH_TAG_OBJECT_SHA=2222222222222222222222222222222222222222
 
 "$publisher" 1.2.3 1 "$GH_TARGET_SHA"
 grep -Fq -- '-f tag=mobile-v1.2.3-rc.1' "$GH_CALLS"
-grep -Fq -- '-f message=Buzz Mobile 1.2.3 release candidate 1' "$GH_CALLS"
+grep -Fq -- '-f message=Pkzz Mobile 1.2.3 release candidate 1' "$GH_CALLS"
 grep -Fq -- "-f object=$GH_TARGET_SHA" "$GH_CALLS"
 grep -Fq -- '-f type=commit' "$GH_CALLS"
 grep -Fq -- '-f ref=refs/tags/mobile-v1.2.3-rc.1' "$GH_CALLS"

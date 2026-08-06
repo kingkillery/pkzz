@@ -1,4 +1,4 @@
-//! End-to-end integration tests for the Buzz relay.
+//! End-to-end integration tests for the Pkzz relay.
 //!
 //! These tests require a running relay instance.  By default they are marked
 //! `#[ignore]` so that `cargo test` does not fail in CI when the relay is not

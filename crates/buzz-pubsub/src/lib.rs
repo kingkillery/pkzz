@@ -96,7 +96,7 @@ impl PubSubConfig {
     }
 }
 
-/// Central pub/sub manager for a Buzz relay instance.
+/// Central pub/sub manager for a Pkzz relay instance.
 pub struct PubSubManager {
     pool: deadpool_redis::Pool,
     /// Redis URL used by the reconnect loop to re-establish pub/sub connections.

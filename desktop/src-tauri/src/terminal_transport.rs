@@ -172,7 +172,7 @@ impl FramePublisher {
     }
 
     /// Drop publication state after channel close, invoke rejection, renderer
-    /// teardown, or explicit detach. The caller owns safe Buzz focus recovery.
+    /// teardown, or explicit detach. The caller owns safe Pkzz focus recovery.
     pub(crate) fn fault(&mut self, id: SubscriptionId) -> bool {
         if self
             .subscription

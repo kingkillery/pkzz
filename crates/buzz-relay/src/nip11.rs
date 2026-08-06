@@ -125,7 +125,7 @@ impl RelayInfo {
     /// `relay_self` is the relay's own signing pubkey (hex), advertised as the
     /// NIP-11 `self` field. NIP-11 defines `self` generically as the relay's
     /// identity key; other NIPs reference it. Notably NIP-29 (group metadata
-    /// kinds 39000/39001/39002, which Buzz signs with `state.relay_keypair`
+    /// kinds 39000/39001/39002, which Pkzz signs with `state.relay_keypair`
     /// unconditionally) requires clients to verify those events against
     /// `self`. Pass `Some` whenever the relay has a stable signing key.
     ///
@@ -156,15 +156,15 @@ impl RelayInfo {
         }
 
         Self {
-            name: "Buzz Relay".to_string(),
-            description: "Buzz — private team communication relay".to_string(),
+            name: "Pkzz Relay".to_string(),
+            description: "Pkzz — private team communication relay".to_string(),
             icon: icon.filter(|s| !s.is_empty()).map(|s| s.to_string()),
             pubkey: None,
             contact: None,
             supported_nips,
             supported_extensions: Some(vec!["nip-er".to_string()]),
             push: None,
-            software: "https://github.com/block/buzz".to_string(),
+            software: "https://github.com/kingkillery/pkzz".to_string(),
             version: env!("CARGO_PKG_VERSION").to_string(),
             limitation: Some(relay_limitation(max_message_length)),
             pairing_relay_url: pairing_relay_url.map(str::to_string),
@@ -392,7 +392,7 @@ mod tests {
     #[test]
     fn build_advertises_buzz_repository_url() {
         let info = RelayInfo::build(None, None, false, DEFAULT_MAX_FRAME_BYTES, None);
-        assert_eq!(info.software, "https://github.com/block/buzz");
+        assert_eq!(info.software, "https://github.com/kingkillery/pkzz");
     }
 
     #[test]

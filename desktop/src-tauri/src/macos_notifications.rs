@@ -108,7 +108,7 @@ define_class!(
             }
 
             // Apple requires this for every response, including dismissals and
-            // malformed notifications that Buzz intentionally ignores.
+            // malformed notifications that Pkzz intentionally ignores.
             completion_handler.call(());
         }
     }
@@ -152,7 +152,7 @@ fn ensure_bundled_application() -> Result<(), String> {
         Ok(())
     } else {
         Err(
-            "macOS notifications are unavailable when Buzz is not running from an app bundle"
+            "macOS notifications are unavailable when Pkzz is not running from an app bundle"
                 .to_string(),
         )
     }
@@ -365,8 +365,8 @@ mod tests {
     #[test]
     fn requires_the_executable_to_use_the_app_bundle_layout() {
         assert!(is_application_bundle_layout(
-            Path::new("/Applications/Buzz.app"),
-            Path::new("/Applications/Buzz.app/Contents/MacOS/buzz-desktop"),
+            Path::new("/Applications/Pkzz.app"),
+            Path::new("/Applications/Pkzz.app/Contents/MacOS/buzz-desktop"),
         ));
         assert!(!is_application_bundle_layout(
             Path::new("/tmp/Fake.app"),
@@ -377,7 +377,7 @@ mod tests {
             Path::new("/Users/developer/buzz/desktop/src-tauri/target/debug/buzz-desktop"),
         ));
         assert!(!is_application_bundle_layout(
-            Path::new("/Applications/Buzz.app"),
+            Path::new("/Applications/Pkzz.app"),
             Path::new("/Applications/Other.app/Contents/MacOS/buzz-desktop"),
         ));
     }

@@ -9,8 +9,8 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart' as http_testing;
 import 'package:image_picker/image_picker.dart';
 import 'package:nostr/nostr.dart' as nostr;
-import 'package:buzz/shared/relay/media_auth.dart';
-import 'package:buzz/shared/relay/media_upload.dart';
+import 'package:pkzz/shared/relay/media_auth.dart';
+import 'package:pkzz/shared/relay/media_upload.dart';
 
 final _pngBytes = Uint8List.fromList([
   0x89,

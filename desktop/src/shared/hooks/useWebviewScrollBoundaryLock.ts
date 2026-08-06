@@ -64,7 +64,7 @@ function isConversationScroller(element: HTMLElement) {
 /**
  * Stops macOS/WKWebView rubber-band gestures from escaping into the viewport.
  *
- * Buzz is laid out as fixed-height nested panes. On macOS, a wheel/trackpad
+ * Pkzz is laid out as fixed-height nested panes. On macOS, a wheel/trackpad
  * gesture that starts over a non-scrollable pane (or over a scrollable pane at
  * its boundary) can still be handed to the WKWebView viewport, which rubber-
  * bands the entire app and reveals a blank strip beside the UI. CSS

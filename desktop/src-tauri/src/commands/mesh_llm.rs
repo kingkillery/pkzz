@@ -67,7 +67,7 @@ fn load_mesh_sharing_config(app: &AppHandle) -> Result<Option<MeshSharingConfig>
 }
 
 const RELAY_MESH_RUNTIME_NO_TARGET: &str =
-    "Buzz shared compute requires a live serving member; start serving the selected model on a member, then try again";
+    "Pkzz shared compute requires a live serving member; start serving the selected model on a member, then try again";
 
 /// Whether the Share-compute "stop sharing" path (`mesh_stop_node`) should tear
 /// down the runtime currently occupying the single slot.
@@ -125,7 +125,7 @@ fn restarting_share_status(config: &MeshSharingConfig) -> mesh_llm::MeshNodeStat
         mode: Some(mesh_llm::MeshNodeMode::Serve),
         health: mesh_llm::MeshHealth {
             status: mesh_llm::MeshHealthStatus::Degraded,
-            reason: Some("Buzz is restarting to switch this machine to sharing".to_string()),
+            reason: Some("Pkzz is restarting to switch this machine to sharing".to_string()),
         },
         api_base_url: None,
         console_url: None,
@@ -257,7 +257,7 @@ pub(crate) async fn resolve_trusted_owner_ids_or_self_only(state: &AppState) -> 
     }
 }
 
-/// Choose validated live endpoints from other runtimes in this Buzz community.
+/// Choose validated live endpoints from other runtimes in this Pkzz community.
 /// The stable relay-derived mesh name gives every runtime the same MeshLLM mesh
 /// identity; these endpoints supply transport bootstrap only.
 fn buzz_mesh_join_targets(
@@ -284,7 +284,7 @@ fn buzz_mesh_join_targets(
 }
 
 /// Resolve the validated member endpoint this runtime should join to enter the
-/// existing Buzz community mesh. `Ok(None)` means this machine is the first
+/// existing Pkzz community mesh. `Ok(None)` means this machine is the first
 /// live serving member (or is itself the shared bootstrap contact).
 pub(crate) async fn resolve_buzz_mesh_join_targets_at(
     state: &AppState,
@@ -358,7 +358,7 @@ pub(crate) async fn restore_mesh_sharing(app: &AppHandle, state: &AppState) -> C
     }
     if config.start_on_next_launch {
         // Consume a role-switch request before doing any potentially long model
-        // work. If Buzz exits during that work, the next launch stays stopped.
+        // work. If Pkzz exits during that work, the next launch stays stopped.
         config = pending_new_start_checkpoint(&config);
         save_mesh_sharing_config(app, &config)?;
     }
@@ -473,7 +473,7 @@ pub async fn mesh_start_node(
 
     if let Some(config) = sharing_config.as_ref() {
         // Persist a DISARMED checkpoint to cover the window of the potentially
-        // long `start()` below: if Buzz exits before the runtime is installed
+        // long `start()` below: if Pkzz exits before the runtime is installed
         // and tracked, the next launch stays stopped rather than trying to
         // restore a node that never came up. The enabled config is armed right
         // after install succeeds.
@@ -499,7 +499,7 @@ pub async fn mesh_start_node(
             drop(runtime);
             app.request_restart();
             return Err(format!(
-                "mesh node started but status probe failed: {error:#}; Buzz is restarting to guarantee cleanup"
+                "mesh node started but status probe failed: {error:#}; Pkzz is restarting to guarantee cleanup"
             ));
         }
     };
@@ -575,14 +575,14 @@ fn mesh_readiness_failure_message(
 ) -> String {
     match failure {
         MeshReadinessFailure::CatalogNeverSynced => format!(
-            "Buzz shared compute connected to the serving member but could not sync \
+            "Pkzz shared compute connected to the serving member but could not sync \
              the model list for \"{model_id}\" — this is a network path problem \
              between this machine and the host (the compute node is reachable for \
              pings but the model-sync stream did not establish). Try again, or have \
              the host and this machine on a more direct network. (last: {last_detail})"
         ),
         MeshReadinessFailure::RoutingNeverCompleted => format!(
-            "Buzz shared compute found \"{model_id}\" on a serving member but inference \
+            "Pkzz shared compute found \"{model_id}\" on a serving member but inference \
              requests did not complete — the host is discoverable but not currently \
              reachable for requests. Try again shortly. (last: {last_detail})"
         ),
@@ -808,7 +808,7 @@ fn pick_serve_target_for_model(
 /// wait until its inference router is actually ready. Otherwise re-resolve a
 /// current bootstrap target from the members' client-signed discovery notes,
 /// then bring up the local MeshLLM client. The endpoint contains MeshLLM's
-/// encrypted iroh relay addresses, so no Buzz relay connection coordination is
+/// encrypted iroh relay addresses, so no Pkzz relay connection coordination is
 /// required. The two failure modes get distinct, actionable copy:
 /// a relay query failure ("could not refresh targets") is not the same as a
 /// relay that answered with no live target for this model ("peer offline").
@@ -844,13 +844,13 @@ pub(crate) async fn ensure_relay_mesh_for_record(
             mesh_llm::MeshRuntimeRecovery::Evicted | mesh_llm::MeshRuntimeRecovery::Absent => {}
             mesh_llm::MeshRuntimeRecovery::Debouncing => {
                 return Err(
-                    "Buzz shared compute ingress is temporarily unresponsive; recovery is already scheduled. Try again shortly."
+                    "Pkzz shared compute ingress is temporarily unresponsive; recovery is already scheduled. Try again shortly."
                         .to_string(),
                 );
             }
             mesh_llm::MeshRuntimeRecovery::ReleasePending => {
                 return Err(
-                    "Buzz shared compute is still shutting down its previous local ingress. Try again shortly."
+                    "Pkzz shared compute is still shutting down its previous local ingress. Try again shortly."
                         .to_string(),
                 );
             }
@@ -860,7 +860,7 @@ pub(crate) async fn ensure_relay_mesh_for_record(
             mesh_llm::MeshRuntimeRecovery::RestartRequired => {
                 app.request_restart();
                 return Err(
-                    "Buzz shared compute startup lost its local ingress before shutdown control became available. Buzz is restarting to recover it."
+                    "Pkzz shared compute startup lost its local ingress before shutdown control became available. Pkzz is restarting to recover it."
                         .to_string(),
                 );
             }
@@ -882,13 +882,13 @@ pub(crate) async fn ensure_relay_mesh_for_record(
         Ok(Some(target)) => target,
         Ok(None) => {
             return Err(
-                "Buzz shared compute cannot start because no live member is serving this model. Start serving it on a member, then try again."
+                "Pkzz shared compute cannot start because no live member is serving this model. Start serving it on a member, then try again."
                     .to_string(),
             );
         }
         Err(error) => {
             return Err(format!(
-                "could not refresh Buzz shared compute serving members: {error}"
+                "could not refresh Pkzz shared compute serving members: {error}"
             ));
         }
     };

@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:buzz/shared/relay/relay.dart';
-import 'package:buzz/shared/theme/theme.dart';
+import 'package:pkzz/shared/relay/relay.dart';
+import 'package:pkzz/shared/theme/theme.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

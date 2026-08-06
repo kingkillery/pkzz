@@ -1,8 +1,8 @@
-//! April 2026 Pocket TTS engine for Buzz Desktop.
+//! April 2026 Pocket TTS engine for Pkzz Desktop.
 //!
 //! The `english_2026-04` bundle uses SentencePiece tokenization, a learned
 //! voice BOS embedding, recurrent FlowLM state, and stateful Mimi decoding.
-//! Buzz selects the upstream three-graph INT8 variant while retaining the
+//! Pkzz selects the upstream three-graph INT8 variant while retaining the
 //! full-precision Mimi encoder and text conditioner specified by that variant.
 //!
 //! ## Attribution
@@ -69,7 +69,7 @@ pub struct PocketTts {
     inner: Mutex<AprilPocketTts>,
 }
 
-/// Load Buzz Desktop's pinned April INT8 model.
+/// Load Pkzz Desktop's pinned April INT8 model.
 pub fn load_text_to_speech(model_dir: &str) -> Result<PocketTts, String> {
     let dir = PathBuf::from(model_dir);
     for artifact in april_model_info().artifacts {

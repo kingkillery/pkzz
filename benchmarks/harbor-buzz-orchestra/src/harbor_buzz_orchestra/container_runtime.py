@@ -1,9 +1,9 @@
-"""Run the production Buzz agent stack inside the Harbor task container.
+"""Run the production Pkzz agent stack inside the Harbor task container.
 
 Each provisioned identity is a full ``buzz-acp`` → ``buzz-agent`` →
 ``buzz-dev-mcp`` process tree launched *inside* the task container — the same
 binaries and the same MCP toolset (shell, file tools, the ``buzz`` CLI on
-PATH) that the desktop app gives a Buzz agent. The harness stays outside:
+PATH) that the desktop app gives a Pkzz agent. The harness stays outside:
 it provisions, uploads the pinned binaries, posts the task as the trial
 user, and observes the channel until the orchestrator publishes DONE.
 """
@@ -25,7 +25,7 @@ from .provisioning import AgentCredential, TrialHandle
 from .runtime import RuntimeResult
 
 DEFAULT_MAX_AGENT_ROUNDS = 32
-# Container-side layout for the uploaded Buzz stack.
+# Container-side layout for the uploaded Pkzz stack.
 REMOTE_ROOT = "/opt/buzz"
 REMOTE_BIN = f"{REMOTE_ROOT}/bin"
 REMOTE_PROMPTS = f"{REMOTE_ROOT}/prompts"
@@ -41,7 +41,7 @@ LIVENESS_EVERY = 10
 
 
 class RuntimeLaunchError(RuntimeError):
-    """Raised when a Buzz agent process cannot be launched or exits early."""
+    """Raised when a Pkzz agent process cannot be launched or exits early."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -62,7 +62,7 @@ class _Agent:
 
 
 class BuzzContainerRuntime:
-    """Launch one production Buzz agent stack per identity in the container."""
+    """Launch one production Pkzz agent stack per identity in the container."""
 
     def __init__(
         self,
@@ -115,7 +115,7 @@ class BuzzContainerRuntime:
         orchestrator = next(c for c in trial.credentials if c.role == "orchestrator")
         workers = [c for c in trial.credentials if c.agent_id != orchestrator.agent_id]
         if not workers:
-            raise RuntimeLaunchError("Buzz orchestration requires at least one worker")
+            raise RuntimeLaunchError("Pkzz orchestration requires at least one worker")
         trial_dir = self.logs_dir / "buzz"
         trial_dir.mkdir(parents=True, exist_ok=True)
 
@@ -155,7 +155,7 @@ class BuzzContainerRuntime:
             await self._wait_for_agents_ready(
                 environment, agents, trial.channel_id, infra
             )
-            # The task arrives exactly as it would in production Buzz: a
+            # The task arrives exactly as it would in production Pkzz: a
             # user prompt @mentioning the orchestrator. The harness never
             # speaks as any agent.
             await self._send(
@@ -495,7 +495,7 @@ class BuzzContainerRuntime:
         except Exception:  # noqa: S110, BLE001 — best effort; env may be torn down
             pass
 
-    # -- Buzz CLI as the trial user / provisioning identities -------------------
+    # -- Pkzz CLI as the trial user / provisioning identities -------------------
 
     @staticmethod
     async def _verify_m1_output(
@@ -623,7 +623,7 @@ class BuzzContainerRuntime:
     ) -> Path:
         """Append the trial's team roster to the pinned persona.
 
-        The analogue of a production Buzz workspace's team context: each agent
+        The analogue of a production Pkzz workspace's team context: each agent
         knows its own identity, its channel, the user it reports to, and its
         teammates' names, pubkeys, and roles from its system prompt — it never
         has to discover them over the relay.
@@ -634,7 +634,7 @@ class BuzzContainerRuntime:
             "## Your team",
             "",
             f"You are `{credential.agent_id}` (pubkey `{credential.nostr_pubkey}`).",
-            f"The team coordinates in Buzz channel `{trial.channel_id}`.",
+            f"The team coordinates in Pkzz channel `{trial.channel_id}`.",
             (
                 f"Tasks come from the user `{trial.user.agent_id}` "
                 f"(pubkey `{trial.user.nostr_pubkey}`); address your final report "

@@ -83,7 +83,7 @@ pub fn resolve_templates_path(override_path: Option<&str>) -> Result<PathBuf, Cl
 fn load_templates(path: &Path) -> Result<Vec<ChannelTemplateRecord>, CliError> {
     if !path.exists() {
         return Err(CliError::NotFound(format!(
-            "no channel templates store found at {} (create a template in Buzz Desktop first, \
+            "no channel templates store found at {} (create a template in Pkzz Desktop first, \
              or pass --templates-file)",
             path.display()
         )));
@@ -148,9 +148,9 @@ mod tests {
 
     #[test]
     fn find_template_matches_case_insensitive() {
-        let f = write_store(r#"[{"id":"t1","name":"Buzz Team","createdAt":"x","updatedAt":"x"}]"#);
+        let f = write_store(r#"[{"id":"t1","name":"Pkzz Team","createdAt":"x","updatedAt":"x"}]"#);
         let t = find_template(f.path(), "buzz team").expect("found");
-        assert_eq!(t.name, "Buzz Team");
+        assert_eq!(t.name, "Pkzz Team");
         assert_eq!(t.channel_type, "stream");
         assert_eq!(t.visibility, "open");
     }
@@ -158,12 +158,12 @@ mod tests {
     #[test]
     fn find_template_not_found_lists_available_names() {
         let f = write_store(
-            r#"[{"id":"t1","name":"Buzz Team","createdAt":"x","updatedAt":"x"},
+            r#"[{"id":"t1","name":"Pkzz Team","createdAt":"x","updatedAt":"x"},
                 {"id":"t2","name":"Standup","createdAt":"x","updatedAt":"x"}]"#,
         );
         let err = find_template(f.path(), "nope").unwrap_err();
         let msg = err.to_string();
-        assert!(msg.contains("Buzz Team"));
+        assert!(msg.contains("Pkzz Team"));
         assert!(msg.contains("Standup"));
     }
 
@@ -177,13 +177,13 @@ mod tests {
     fn load_templates_parses_full_roster() {
         let f = write_store(
             r##"[{
-                "id":"t1","name":"Buzz Team","channel_type":"forum","visibility":"private",
+                "id":"t1","name":"Pkzz Team","channel_type":"forum","visibility":"private",
                 "canvas_template":"# {channel.name}",
                 "agents":{"personas":[{"personaId":"builtin:fizz"}],"teams":[{"teamId":"team-1"}]},
                 "created_at":"x","updated_at":"x"
             }]"##,
         );
-        let t = find_template(f.path(), "Buzz Team").expect("found");
+        let t = find_template(f.path(), "Pkzz Team").expect("found");
         assert_eq!(t.channel_type, "forum");
         assert_eq!(t.visibility, "private");
         assert_eq!(t.canvas_template.as_deref(), Some("# {channel.name}"));

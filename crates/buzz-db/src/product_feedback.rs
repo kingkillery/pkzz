@@ -1,4 +1,4 @@
-//! Persistence for deployment-level Buzz product feedback.
+//! Persistence for deployment-level Pkzz product feedback.
 //!
 //! Feedback retains its source [`CommunityId`] as provenance, but is not a
 //! community moderation concern and is never inserted into the events table.

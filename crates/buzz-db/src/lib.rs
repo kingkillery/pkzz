@@ -1,6 +1,6 @@
 #![deny(unsafe_code)]
 #![warn(missing_docs)]
-//! buzz-db — Postgres event store for Buzz.
+//! buzz-db — Postgres event store for Pkzz.
 //!
 //! ## Design invariants
 //! - AUTH events (kind 22242) are never stored — they carry bearer tokens.
@@ -33,7 +33,7 @@ pub mod migration;
 pub mod moderation;
 /// Monthly table partition management.
 pub mod partition;
-/// Buzz product-feedback sidecar persistence.
+/// Pkzz product-feedback sidecar persistence.
 pub mod product_feedback;
 /// Community-scoped push lease and durable wake-outbox persistence.
 pub mod push;
@@ -4782,7 +4782,7 @@ impl Db {
     /// The entire check → retire old payload → insert runs in a single transaction
     /// with an advisory lock to prevent concurrent-insert races. NIP-RS read-state
     /// coordinates hard-delete the superseded payload and preserve a compact
-    /// ordering watermark. Buzz mesh status coordinates also hard-delete their
+    /// ordering watermark. Pkzz mesh status coordinates also hard-delete their
     /// superseded heartbeat payload because only the live head has product
     /// value; other NIP-33 kinds retain soft-deleted history.
     ///

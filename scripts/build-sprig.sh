@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build Sprig — one deploy-anywhere multicall binary for the Buzz ACP
+# Build Sprig — one deploy-anywhere multicall binary for the Pkzz ACP
 # harness, agent, and developer MCP. The archive exposes these command names:
 #
 #   sprig            implementation binary
@@ -133,14 +133,14 @@ JSON
 cat > "${STAGING}/README.md" <<'README'
 # Sprig
 
-Sprig is the all-in-one Buzz agent binary for deploy-anywhere environments.
+Sprig is the all-in-one Pkzz agent binary for deploy-anywhere environments.
 It exposes the ACP harness, ACP agent, and developer MCP command names as symlinks
 to one multicall binary so shared Rust runtime/TLS code is stored only once.
 
 Commands:
 
 - `sprig` — prints usage/version. Invoke a personality by one of the links below.
-- `buzz-acp` — ACP harness that bridges Buzz channel events to an
+- `buzz-acp` — ACP harness that bridges Pkzz channel events to an
   ACP-compliant agent over stdio.
 - `buzz-agent` — ACP-compliant agent (spawns MCP servers, calls LLMs).
 - `buzz-dev-mcp` — Developer MCP server (shell, str_replace, todo) and

@@ -1,4 +1,4 @@
-//! Media storage, validation, and thumbnail generation for Buzz.
+//! Media storage, validation, and thumbnail generation for Pkzz.
 //!
 //! Library crate — no Axum dependency for handlers. Axum handlers live in `buzz-relay`.
 

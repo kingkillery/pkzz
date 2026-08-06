@@ -1,4 +1,4 @@
-//! Rust-owned PTY sessions and the typed Tauri transport for Buzz Substrate.
+//! Rust-owned PTY sessions and the typed Tauri transport for Pkzz Substrate.
 
 use std::io::{Read, Write};
 use std::sync::atomic::{AtomicBool, Ordering};

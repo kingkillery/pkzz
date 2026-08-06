@@ -1,7 +1,7 @@
 //! WebKit rendering workarounds for Linux, applied before WebKit initializes.
 //!
 //! WebKitGTK's dmabuf renderer aborts the web process during startup on some
-//! GPU/driver/compositor combinations, so Buzz comes up with no window at all
+//! GPU/driver/compositor combinations, so Pkzz comes up with no window at all
 //! and the user has no way to fix it (#2338, upstream tauri#9394). Setting
 //! `WEBKIT_DISABLE_DMABUF_RENDERER=1` avoids the abort by falling back to the
 //! shared-memory buffer path.
@@ -74,7 +74,7 @@ enum Plan {
 ///
 /// Must be called from `main()` before `crate::run()`: WebKit memoizes these
 /// variables at process start, and `std::env::set_var` is only sound while the
-/// process is still single threaded, which it is nowhere else in Buzz.
+/// process is still single threaded, which it is nowhere else in Pkzz.
 ///
 /// `Err` carries a user-facing diagnostic; the caller reports it and exits.
 pub fn apply() -> Result<(), String> {

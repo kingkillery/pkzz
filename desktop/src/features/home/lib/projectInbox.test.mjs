@@ -37,14 +37,14 @@ function feedItem(overrides = {}) {
 const repository = {
   id: "buzz",
   dtag: "buzz",
-  name: "Buzz",
+  name: "Pkzz",
   owner: OWNER,
   repoAddress: REPO_ADDRESS,
 };
 
 const project = {
   id: "buzz-project",
-  name: "Buzz",
+  name: "Pkzz",
   owner: OWNER,
   repositories: [repository],
 };

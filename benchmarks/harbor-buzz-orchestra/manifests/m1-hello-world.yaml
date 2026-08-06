@@ -1,4 +1,4 @@
-# M1 gate manifest: 1 orchestrator + 1 worker over one Buzz channel solving
+# M1 gate manifest: 1 orchestrator + 1 worker over one Pkzz channel solving
 # Harbor's examples/tasks/hello-world via vanilla `harbor run`.
 #
 # Endpoints are LOCAL PLACEHOLDERS for the M1 wiring proof; the pilot/2.1

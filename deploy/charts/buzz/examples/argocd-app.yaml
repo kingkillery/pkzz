@@ -1,4 +1,4 @@
-# ArgoCD Application — GitOps-safe Buzz install.
+# ArgoCD Application — GitOps-safe Pkzz install.
 #
 # Prerequisite: a Secret named `buzz-secrets` in namespace `buzz` containing
 # (any subset of) the keys consumed by `secrets.existingSecret`. See
@@ -19,9 +19,9 @@ spec:
     # Argo CD >= 3.1 native OCI sources: repoURL must be the FULL chart
     # artifact path — with the `repoURL: …/charts` + `chart: buzz` split
     # form, the `chart` field is ignored for oci:// URLs and the fetch
-    # fails with a 403 (`repository:block/buzz/charts:pull` denied). The
+    # fails with a 403 (`repository:kingkillery/pkzz/charts:pull` denied). The
     # spec validator still requires `path`; use "." for OCI sources.
-    repoURL: oci://ghcr.io/block/buzz/charts/buzz
+    repoURL: oci://ghcr.io/kingkillery/pkzz/charts/buzz
     path: .
     targetRevision: 0.1.7
     helm:

@@ -1,10 +1,10 @@
-import 'package:buzz/features/channels/channel.dart';
-import 'package:buzz/features/channels/channels_provider.dart';
-import 'package:buzz/features/channels/deep_link_dispatcher.dart';
-import 'package:buzz/features/invites/invite_join_provider.dart';
-import 'package:buzz/shared/auth/auth.dart';
-import 'package:buzz/shared/deeplink/deep_link.dart';
-import 'package:buzz/shared/deeplink/pending_deep_link_provider.dart';
+import 'package:pkzz/features/channels/channel.dart';
+import 'package:pkzz/features/channels/channels_provider.dart';
+import 'package:pkzz/features/channels/deep_link_dispatcher.dart';
+import 'package:pkzz/features/invites/invite_join_provider.dart';
+import 'package:pkzz/shared/auth/auth.dart';
+import 'package:pkzz/shared/deeplink/deep_link.dart';
+import 'package:pkzz/shared/deeplink/pending_deep_link_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -119,7 +119,7 @@ void main() {
 
     expect(storage.loadCalls, 1);
     expect(pending.consumeCalls, 1);
-    expect(find.text('Join this Buzz community?'), findsOneWidget);
+    expect(find.text('Join this Pkzz community?'), findsOneWidget);
   });
 
   testWidgets(
@@ -154,7 +154,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Join this Buzz community?'), findsOneWidget);
+      expect(find.text('Join this Pkzz community?'), findsOneWidget);
       expect(inviteContainer.read(pendingDeepLinkProvider), isNull);
 
       final messageContainer = ProviderContainer(

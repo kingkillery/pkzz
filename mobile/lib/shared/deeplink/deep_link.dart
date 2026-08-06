@@ -216,6 +216,6 @@ InviteDeepLink? parseInviteDeepLink(Uri uri) {
   return null;
 }
 
-/// Parse any supported Buzz deep link.
+/// Parse any supported Pkzz deep link.
 BuzzDeepLink? parseBuzzDeepLink(Uri uri) =>
     parseInviteDeepLink(uri) ?? parseMessageDeepLink(uri);

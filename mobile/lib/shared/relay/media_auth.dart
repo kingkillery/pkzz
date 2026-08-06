@@ -17,7 +17,7 @@ const _mediaGetAuthRefreshMarginSeconds = 60;
 ///
 /// Returns an empty map for non-relay URLs or when no signing key is available,
 /// so callers can safely use this on arbitrary profile/custom-emoji URLs without
-/// leaking Buzz credentials to third-party hosts.
+/// leaking Pkzz credentials to third-party hosts.
 ///
 /// The signed header is memoized until [_mediaGetAuthRefreshMarginSeconds]
 /// before expiry: repeated calls return the byte-identical map instead of

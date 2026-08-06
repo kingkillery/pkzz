@@ -1,4 +1,4 @@
-//! `@name` and NIP-27 `nostr:npub1…` mention resolution helpers for Buzz chat messages.
+//! `@name` and NIP-27 `nostr:npub1…` mention resolution helpers for Pkzz chat messages.
 //!
 //! These helpers are **pure** — no network calls, no async. Callers query
 //! channel membership (kind 39002) and profile (kind 0) events themselves,
@@ -33,7 +33,7 @@ use nostr::{FromBech32, PublicKey};
 
 /// Maximum number of mention p-tags allowed on a single message.
 ///
-/// Matches the cap enforced by Buzz message builders and the legacy MCP
+/// Matches the cap enforced by Pkzz message builders and the legacy MCP
 /// inline implementation.
 pub const MENTION_CAP: usize = 50;
 

@@ -1,6 +1,6 @@
 #![deny(unsafe_code)]
 #![warn(missing_docs)]
-//! `buzz-workflow` — Workflow engine for Buzz.
+//! `buzz-workflow` — Workflow engine for Pkzz.
 //!
 //! Channel-scoped automations with sequential execution, variable substitution,
 //! conditional logic, and execution traces.

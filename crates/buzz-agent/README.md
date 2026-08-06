@@ -163,17 +163,17 @@ Everything is environment variables. No flags, no config files. (We are a subpro
 | `BUZZ_AGENT_MAX_LINE_BYTES` | `4194304` | 4 MiB. Hard cap on inbound JSON-RPC frames. |
 | `BUZZ_AGENT_MAX_HISTORY_BYTES` | `1048576` | 1 MiB. Old turns are evicted past this. |
 | `BUZZ_AGENT_MAX_TOOL_RESULT_TEXT_BYTES` | `51200` | 50 KiB. Per-result cap on tool-output text; oversize is middle-elided (head + tail kept) with an inline marker. Images are exempt. |
-| `BUZZ_AGENT_REQUIRE_REPLY` | `0` (`1` on mesh) | `1` enables the [reply guard](#reply-guard) — remind the model to publish when a turn is about to end with nothing posted to Buzz. Desktop defaults it to `1` for Buzz shared-compute agents. |
+| `BUZZ_AGENT_REQUIRE_REPLY` | `0` (`1` on mesh) | `1` enables the [reply guard](#reply-guard) — remind the model to publish when a turn is about to end with nothing posted to Pkzz. Desktop defaults it to `1` for Pkzz shared-compute agents. |
 
 
 ## Reply Guard
 
-Off by default, except on Buzz shared-compute (mesh) agents, where Buzz Desktop
+Off by default, except on Pkzz shared-compute (mesh) agents, where Pkzz Desktop
 sets `BUZZ_AGENT_REQUIRE_REPLY=1` automatically. With it enabled, a turn that is
-about to end without any recognized attempt to post to Buzz gets a reminder that
+about to end without any recognized attempt to post to Pkzz gets a reminder that
 its assistant text is invisible to humans, and is rerolled.
 
-This exists because a Buzz agent's reasoning and tool output are not shown to
+This exists because a Pkzz agent's reasoning and tool output are not shown to
 anyone. A turn that does real work and never posts is a silent failure — the
 requester waits on a result that was produced and thrown away.
 

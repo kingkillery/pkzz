@@ -1,6 +1,6 @@
 //! Git permission types — ref patterns, protection rules, and policy evaluation inputs.
 //!
-//! This module defines the core data types for the Buzz git permission system.
+//! This module defines the core data types for the Pkzz git permission system.
 //! The permission model: channel role = repo role; `buzz-protect` tags on
 //! kind:30617 add constraints that apply to everyone (including the owner).
 //!

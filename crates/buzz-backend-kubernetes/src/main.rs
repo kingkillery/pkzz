@@ -1,4 +1,4 @@
-//! Kubernetes backend provider for Buzz remote agents
+//! Kubernetes backend provider for Pkzz remote agents
 //! (spec `docs/remote-agents.md`).
 //!
 //! One process per operation: read exactly one JSON request from stdin, write

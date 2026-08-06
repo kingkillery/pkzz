@@ -49,7 +49,7 @@ load_env() {
     set +o allexport
   fi
 
-  # Smooth the local rename path for developers with a pre-Buzz .env copied
+  # Smooth the local rename path for developers with a pre-Pkzz .env copied
   # from .env.example. Only rewrite the old default values; custom values stay
   # untouched.
   if [[ "${DATABASE_URL:-}" == "postgres://sprout:sprout_dev@localhost:5432/sprout" ]]; then
@@ -182,7 +182,7 @@ success "Git hooks installed"
 
 echo ""
 echo -e "${GREEN}=======================================================${NC}"
-echo -e "${GREEN}  Buzz dev environment is ready!${NC}"
+echo -e "${GREEN}  Pkzz dev environment is ready!${NC}"
 echo -e "${GREEN}=======================================================${NC}"
 echo ""
 echo -e "  ${BLUE}Postgres${NC}    ${DATABASE_URL}"

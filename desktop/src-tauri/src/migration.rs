@@ -1,4 +1,4 @@
-//! Worktree data sync and on-launch reconciliation for the Buzz desktop app.
+//! Worktree data sync and on-launch reconciliation for the Pkzz desktop app.
 //!
 //! **Worktree sync** (`sync_shared_agent_data`): Per-launch symlink creation
 //! from the current worktree data directory to the canonical dev data
@@ -8,7 +8,7 @@
 //! immediately visible to all others.
 //!
 //! **Command reconciliation** (`reconcile_legacy_command_names`): Per-launch
-//! fix-up of persisted built-in command names from the Sprout→Buzz rename.
+//! fix-up of persisted built-in command names from the Sprout→Pkzz rename.
 //!
 //! **Provider reconciliation** (`reconcile_provider_mcp_commands`): Per-launch
 //! fix-up of `mcp_command` values in `managed-agents.json` against the
@@ -194,7 +194,7 @@ fn run_boot_migrations_inner(app: &tauri::AppHandle, reset_completed: bool) {
 }
 
 /// Copy one-time app state from the legacy app identifier directory to
-/// the current Buzz identifier directory. The Tauri identifier controls the app
+/// the current Pkzz identifier directory. The Tauri identifier controls the app
 /// data path, so without this copy a product rename would look like a fresh
 /// install and users would lose their persisted identity and agent settings.
 pub fn migrate_legacy_app_data_dir(app: &tauri::AppHandle) {
@@ -1185,7 +1185,7 @@ fn reconcile_legacy_team_persona_runtime_files(dir: &Path) {
     }
 }
 
-/// Reconcile exact built-in command values persisted before the Sprout→Buzz
+/// Reconcile exact built-in command values persisted before the Sprout→Pkzz
 /// rename. Custom commands and explicit paths are left untouched.
 pub fn reconcile_legacy_command_names(app: &tauri::AppHandle) {
     let Ok(current_dir) = app.path().app_data_dir() else {

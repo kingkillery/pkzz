@@ -1,4 +1,4 @@
-import 'package:buzz/shared/deeplink/deep_link.dart';
+import 'package:pkzz/shared/deeplink/deep_link.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
