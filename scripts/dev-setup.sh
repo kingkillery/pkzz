@@ -12,6 +12,21 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
+# Hermit shims are POSIX-only (they fail with Win32 error 193 on Windows).
+# Prefer the pinned shims on POSIX; fall back to native tools on Windows.
+case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*)
+        JUST="just"
+        CARGO="cargo"
+        LEFTHOOK="$(command -v lefthook || true)"
+        ;;
+    *)
+        JUST="${REPO_ROOT}/bin/just"
+        CARGO="${REPO_ROOT}/bin/cargo"
+        LEFTHOOK="${REPO_ROOT}/bin/lefthook"
+        ;;
+esac
+
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -111,7 +126,7 @@ fail_if_local_redis_blocks_compose
 # ---- Start services ---------------------------------------------------------
 
 log "Starting services and waiting for health..."
-"${REPO_ROOT}/bin/just" _ensure-services
+"${JUST}" _ensure-services
 
 # ---- Run migrations ---------------------------------------------------------
 
@@ -128,7 +143,7 @@ until postgres_accepting_connections; do
   sleep 2
 done
 
-"${REPO_ROOT}/bin/cargo" run -p buzz-admin -- migrate
+"${CARGO}" run -p buzz-admin -- migrate
 "${REPO_ROOT}/scripts/seed-local-community.sh"
 success "Database migrations complete"
 
@@ -143,7 +158,7 @@ if [[ -d "${DESKTOP_DIR}" ]]; then
     success "Desktop dependencies installed"
   else
     warn "pnpm not found — skipping desktop dependency install."
-    warn "Run '. ./bin/activate-hermit' to get pnpm, then 'just desktop-install'."
+    warn "Run '. ./bin/activate-hermit' (POSIX) or 'corepack enable pnpm' (Windows), then 'just desktop-install'."
   fi
 else
   warn "Desktop directory not found at ${DESKTOP_DIR} — skipping."
@@ -160,7 +175,7 @@ if [[ -d "${WEB_DIR}" ]]; then
     success "Web dependencies installed"
   else
     warn "pnpm not found — skipping web dependency install."
-    warn "Run '. ./bin/activate-hermit' to get pnpm, then 'just desktop-install'."
+    warn "Run '. ./bin/activate-hermit' (POSIX) or 'corepack enable pnpm' (Windows), then 'just desktop-install'."
   fi
 else
   warn "Web directory not found at ${WEB_DIR} — skipping."
@@ -175,8 +190,12 @@ log "Installing git hooks..."
 # linked-worktree dispatch (same failure mode as the old worktree-relative .hooks).
 HOOKS_DIR="$(git -C "${REPO_ROOT}" rev-parse --path-format=absolute --git-common-dir)/hooks"
 git -C "${REPO_ROOT}" config --local core.hooksPath "$HOOKS_DIR"
-lefthook install --force
-success "Git hooks installed"
+if [[ -n "${LEFTHOOK}" && -e "${LEFTHOOK}" ]]; then
+    "${LEFTHOOK}" install --force
+    success "Git hooks installed"
+else
+    warn "lefthook not found — skipping git hook install. Install it, then run 'just hooks'."
+fi
 
 # ---- Print connection info --------------------------------------------------
 

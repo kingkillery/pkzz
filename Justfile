@@ -26,7 +26,11 @@ default:
 bootstrap:
     #!/usr/bin/env bash
     set -euo pipefail
-    export PATH="{{justfile_directory()}}/bin:$PATH"
+    # Hermit shims are POSIX-only; on Windows keep the native toolchain on PATH.
+    case "$(uname -s)" in
+        MINGW*|MSYS*|CYGWIN*) ;;
+        *) export PATH="{{justfile_directory()}}/bin:$PATH" ;;
+    esac
     # Hermit's bin/ symlinks auto-download pinned tool versions on first use.
     # Running each tool once triggers the download if not already cached.
     echo "Ensuring toolchain via Hermit..."
@@ -56,7 +60,11 @@ hooks:
     # Use the Hermit-pinned lefthook (bin/lefthook self-downloads on first use):
     # works with no pre-installed lefthook and guarantees the pinned version
     # rather than whatever happens to be on PATH.
-    export PATH="{{justfile_directory()}}/bin:$PATH"
+    # Hermit shims are POSIX-only; on Windows keep the native toolchain on PATH.
+    case "$(uname -s)" in
+        MINGW*|MSYS*|CYGWIN*) ;;
+        *) export PATH="{{justfile_directory()}}/bin:$PATH" ;;
+    esac
     # --path-format=absolute guarantees an absolute path from every invocation context:
     # without it, --git-common-dir returns ".git" from the main checkout and a
     # relative hooksPath would break linked-worktree dispatch just like .hooks did.
@@ -156,11 +164,18 @@ _ensure-sidecar-stubs:
     TARGET=$(rustc -vV | sed -n 's|host: ||p')
     mkdir -p desktop/src-tauri/binaries
     SIDECARS=(buzz-acp buzz-agent buzz-dev-mcp git-credential-nostr buzz)
-    if [[ "$TARGET" != *windows* ]]; then
+    # MSVC emits <name>.exe and Tauri's externalBin validation expects
+    # binaries/<name>-<triple>.exe on Windows; the Kubernetes provider sidecar
+    # is not bundled there (tauri.windows.conf.json omits it). Keep in sync
+    # with scripts/bundle-sidecars.sh.
+    if [[ "$TARGET" == *windows* ]]; then
+        EXE=".exe"
+    else
+        EXE=""
         SIDECARS+=(buzz-backend-kubernetes)
     fi
     for bin in "${SIDECARS[@]}"; do
-        touch "desktop/src-tauri/binaries/${bin}-${TARGET}"
+        touch "desktop/src-tauri/binaries/${bin}-${TARGET}${EXE}"
     done
 
 # Ensure Docker dev services (Postgres, Redis, etc.) are running and healthy
@@ -250,14 +265,17 @@ desktop-release-build target="aarch64-apple-darwin":
     set -euo pipefail
     TARGET={{target}}
     mkdir -p desktop/src-tauri/binaries
-    touch "desktop/src-tauri/binaries/buzz-acp-$TARGET"
-    touch "desktop/src-tauri/binaries/buzz-agent-$TARGET"
-    if [[ "$TARGET" != *windows* ]]; then
+    if [[ "$TARGET" == *windows* ]]; then
+        EXE=".exe"
+    else
+        EXE=""
         touch "desktop/src-tauri/binaries/buzz-backend-kubernetes-$TARGET"
     fi
-    touch "desktop/src-tauri/binaries/buzz-dev-mcp-$TARGET"
-    touch "desktop/src-tauri/binaries/git-credential-nostr-$TARGET"
-    touch "desktop/src-tauri/binaries/buzz-$TARGET"
+    touch "desktop/src-tauri/binaries/buzz-acp-${TARGET}${EXE}"
+    touch "desktop/src-tauri/binaries/buzz-agent-${TARGET}${EXE}"
+    touch "desktop/src-tauri/binaries/buzz-dev-mcp-${TARGET}${EXE}"
+    touch "desktop/src-tauri/binaries/git-credential-nostr-${TARGET}${EXE}"
+    touch "desktop/src-tauri/binaries/buzz-${TARGET}${EXE}"
     pnpm install
     cd {{desktop_dir}} && pnpm tauri build --features mesh-llm --target {{target}}
 
@@ -395,14 +413,22 @@ desktop-screenshot *ARGS:
 relay: bootstrap _ensure-migrations
     #!/usr/bin/env bash
     set -euo pipefail
-    export PATH="{{justfile_directory()}}/bin:$PATH"
+    # Hermit shims are POSIX-only; on Windows keep the native toolchain on PATH.
+    case "$(uname -s)" in
+        MINGW*|MSYS*|CYGWIN*) ;;
+        *) export PATH="{{justfile_directory()}}/bin:$PATH" ;;
+    esac
     cargo run -p buzz-relay
 
 # Start the relay with the built web UI served from it
 relay-web: bootstrap _ensure-migrations
     #!/usr/bin/env bash
     set -euo pipefail
-    export PATH="{{justfile_directory()}}/bin:$PATH"
+    # Hermit shims are POSIX-only; on Windows keep the native toolchain on PATH.
+    case "$(uname -s)" in
+        MINGW*|MSYS*|CYGWIN*) ;;
+        *) export PATH="{{justfile_directory()}}/bin:$PATH" ;;
+    esac
     [[ -d node_modules ]] || pnpm install
     pnpm -C web build
     BUZZ_WEB_DIR=./web/dist cargo run -p buzz-relay
@@ -411,7 +437,11 @@ relay-web: bootstrap _ensure-migrations
 admin: bootstrap _ensure-migrations
     #!/usr/bin/env bash
     set -euo pipefail
-    export PATH="{{justfile_directory()}}/bin:$PATH"
+    # Hermit shims are POSIX-only; on Windows keep the native toolchain on PATH.
+    case "$(uname -s)" in
+        MINGW*|MSYS*|CYGWIN*) ;;
+        *) export PATH="{{justfile_directory()}}/bin:$PATH" ;;
+    esac
     [[ -d node_modules ]] || pnpm install
     pnpm -C admin-web build
     export BUZZ_ADMIN_HOST="${BUZZ_ADMIN_HOST:-admin.localhost:3000}"
@@ -440,7 +470,11 @@ relay-release: _ensure-migrations
 dev *ARGS: bootstrap _ensure-sidecar-stubs _ensure-migrations
     #!/usr/bin/env bash
     set -euo pipefail
-    export PATH="{{justfile_directory()}}/bin:$PATH"
+    # Hermit shims are POSIX-only; on Windows keep the native toolchain on PATH.
+    case "$(uname -s)" in
+        MINGW*|MSYS*|CYGWIN*) ;;
+        *) export PATH="{{justfile_directory()}}/bin:$PATH" ;;
+    esac
     bind_addr="${BUZZ_BIND_ADDR:-0.0.0.0:3000}"
     relay_port="${bind_addr##*:}"; [[ -n "$relay_port" ]] || relay_port=3000
     health_port="${BUZZ_HEALTH_PORT:-8080}"
@@ -502,13 +536,31 @@ dev *ARGS: bootstrap _ensure-sidecar-stubs _ensure-migrations
 desktop-standalone *ARGS: _ensure-sidecar-stubs
     #!/usr/bin/env bash
     set -euo pipefail
-    export PATH="{{justfile_directory()}}/bin:$PATH"
-    cargo build -p buzz-acp -p buzz-agent -p buzz-backend-kubernetes -p buzz-dev-mcp -p buzz-cli -p git-credential-nostr
+    # Hermit shims are POSIX-only; on Windows keep the native toolchain on PATH.
+    case "$(uname -s)" in
+        MINGW*|MSYS*|CYGWIN*) ;;
+        *) export PATH="{{justfile_directory()}}/bin:$PATH" ;;
+    esac
     TARGET=$(rustc -vV | sed -n 's|host: ||p')
+    # Mirror scripts/bundle-sidecars.sh: Windows bundles no Kubernetes provider
+    # sidecar (tauri.windows.conf.json omits it from externalBin) and MSVC
+    # emits <name>.exe, so both ends of the copy need the suffix there.
+    SIDECARS=(buzz-acp buzz-agent buzz-dev-mcp git-credential-nostr buzz)
+    BUILD_ARGS=(-p buzz-acp -p buzz-agent -p buzz-dev-mcp -p buzz-cli -p git-credential-nostr)
+    if [[ "$TARGET" == *windows* ]]; then
+        EXE=".exe"
+    else
+        EXE=""
+        SIDECARS+=(buzz-backend-kubernetes)
+        BUILD_ARGS+=(-p buzz-backend-kubernetes)
+    fi
+    cargo build "${BUILD_ARGS[@]}"
     TARGET_DIR=$(cargo metadata --format-version 1 --no-deps | node -p "JSON.parse(require('fs').readFileSync(0, 'utf8')).target_directory")
-    for bin in buzz-acp buzz-agent buzz-backend-kubernetes buzz-dev-mcp git-credential-nostr buzz; do
-        cp "${TARGET_DIR}/debug/${bin}" "desktop/src-tauri/binaries/${bin}-${TARGET}"
-        chmod +x "desktop/src-tauri/binaries/${bin}-${TARGET}"
+    for bin in "${SIDECARS[@]}"; do
+        cp "${TARGET_DIR}/debug/${bin}${EXE}" "desktop/src-tauri/binaries/${bin}-${TARGET}${EXE}"
+        if [[ -z "$EXE" ]]; then
+            chmod +x "desktop/src-tauri/binaries/${bin}-${TARGET}"
+        fi
     done
     cd {{desktop_dir}}
     [[ -d node_modules ]] || pnpm install
@@ -530,7 +582,11 @@ desktop-standalone *ARGS: _ensure-sidecar-stubs
 staging *ARGS: bootstrap _ensure-sidecar-stubs
     #!/usr/bin/env bash
     set -euo pipefail
-    export PATH="{{justfile_directory()}}/bin:$PATH"
+    # Hermit shims are POSIX-only; on Windows keep the native toolchain on PATH.
+    case "$(uname -s)" in
+        MINGW*|MSYS*|CYGWIN*) ;;
+        *) export PATH="{{justfile_directory()}}/bin:$PATH" ;;
+    esac
     pnpm install  # unconditional: staging must always start with a clean dep tree
     cargo build --release -p buzz-acp -p buzz-agent -p buzz-backend-kubernetes -p buzz-dev-mcp -p buzz-cli -p git-credential-nostr
     FEATURES=()
@@ -545,12 +601,17 @@ staging *ARGS: bootstrap _ensure-sidecar-stubs
     TARGET=$(rustc -vV | sed -n 's|host: ||p')
     TARGET_DIR=$(cargo metadata --format-version 1 --no-deps | node -p "JSON.parse(require('fs').readFileSync(0, 'utf8')).target_directory")
     STAGING_SIDECARS=(buzz)
-    if [[ "$TARGET" != *windows* ]]; then
+    if [[ "$TARGET" == *windows* ]]; then
+        EXE=".exe"
+    else
+        EXE=""
         STAGING_SIDECARS+=(buzz-backend-kubernetes)
     fi
     for bin in "${STAGING_SIDECARS[@]}"; do
-        cp "${TARGET_DIR}/release/${bin}" "desktop/src-tauri/binaries/${bin}-${TARGET}"
-        chmod +x "desktop/src-tauri/binaries/${bin}-${TARGET}"
+        cp "${TARGET_DIR}/release/${bin}${EXE}" "desktop/src-tauri/binaries/${bin}-${TARGET}${EXE}"
+        if [[ -z "$EXE" ]]; then
+            chmod +x "desktop/src-tauri/binaries/${bin}-${TARGET}"
+        fi
     done
     cd {{desktop_dir}}
     export BUZZ_RELAY_URL="wss://sprout-oss.stage.blox.sqprod.co"
@@ -566,7 +627,11 @@ staging *ARGS: bootstrap _ensure-sidecar-stubs
 production *ARGS: bootstrap _ensure-sidecar-stubs
     #!/usr/bin/env bash
     set -euo pipefail
-    export PATH="{{justfile_directory()}}/bin:$PATH"
+    # Hermit shims are POSIX-only; on Windows keep the native toolchain on PATH.
+    case "$(uname -s)" in
+        MINGW*|MSYS*|CYGWIN*) ;;
+        *) export PATH="{{justfile_directory()}}/bin:$PATH" ;;
+    esac
     pnpm install  # unconditional: production must always start with a clean dep tree
     cargo build --release -p buzz-acp -p buzz-agent -p buzz-backend-kubernetes -p buzz-dev-mcp -p buzz-cli -p git-credential-nostr
     FEATURES=()
@@ -581,12 +646,17 @@ production *ARGS: bootstrap _ensure-sidecar-stubs
     TARGET=$(rustc -vV | sed -n 's|host: ||p')
     TARGET_DIR=$(cargo metadata --format-version 1 --no-deps | node -p "JSON.parse(require('fs').readFileSync(0, 'utf8')).target_directory")
     PRODUCTION_SIDECARS=(buzz)
-    if [[ "$TARGET" != *windows* ]]; then
+    if [[ "$TARGET" == *windows* ]]; then
+        EXE=".exe"
+    else
+        EXE=""
         PRODUCTION_SIDECARS+=(buzz-backend-kubernetes)
     fi
     for bin in "${PRODUCTION_SIDECARS[@]}"; do
-        cp "${TARGET_DIR}/release/${bin}" "desktop/src-tauri/binaries/${bin}-${TARGET}"
-        chmod +x "desktop/src-tauri/binaries/${bin}-${TARGET}"
+        cp "${TARGET_DIR}/release/${bin}${EXE}" "desktop/src-tauri/binaries/${bin}-${TARGET}${EXE}"
+        if [[ -z "$EXE" ]]; then
+            chmod +x "desktop/src-tauri/binaries/${bin}-${TARGET}"
+        fi
     done
     cd {{desktop_dir}}
     export BUZZ_RELAY_URL="wss://buzz.block.builderlab.xyz"
@@ -951,7 +1021,11 @@ _release-pr lane version:
 goose relay="ws://localhost:3000" agents="1" heartbeat="0" prompt="" key="$BUZZ_PRIVATE_KEY":
     #!/usr/bin/env bash
     set -euo pipefail
-    export PATH="{{justfile_directory()}}/bin:$PATH"
+    # Hermit shims are POSIX-only; on Windows keep the native toolchain on PATH.
+    case "$(uname -s)" in
+        MINGW*|MSYS*|CYGWIN*) ;;
+        *) export PATH="{{justfile_directory()}}/bin:$PATH" ;;
+    esac
     source ./scripts/_goose-env.sh "{{relay}}" "{{key}}" "{{agents}}" "{{heartbeat}}" "{{prompt}}"
     exec env "${env_args[@]}" ./target/release/buzz-acp
 
@@ -959,7 +1033,11 @@ goose relay="ws://localhost:3000" agents="1" heartbeat="0" prompt="" key="$BUZZ_
 goose-bg relay="ws://localhost:3000" agents="1" heartbeat="0" prompt="" key="$BUZZ_PRIVATE_KEY":
     #!/usr/bin/env bash
     set -euo pipefail
-    export PATH="{{justfile_directory()}}/bin:$PATH"
+    # Hermit shims are POSIX-only; on Windows keep the native toolchain on PATH.
+    case "$(uname -s)" in
+        MINGW*|MSYS*|CYGWIN*) ;;
+        *) export PATH="{{justfile_directory()}}/bin:$PATH" ;;
+    esac
     source ./scripts/_goose-env.sh "{{relay}}" "{{key}}" "{{agents}}" "{{heartbeat}}" "{{prompt}}"
     screen -dmS goose-agent-{{agents}} bash -c "$(printf '%q ' env "${env_args[@]}") ./target/release/buzz-acp"
     echo "Agent running in screen session 'goose-agent-{{agents}}'. Attach with: screen -r goose-agent-{{agents}}"
@@ -970,7 +1048,11 @@ goose-bg relay="ws://localhost:3000" agents="1" heartbeat="0" prompt="" key="$BU
 benchmark *ARGS:
     #!/usr/bin/env bash
     set -euo pipefail
-    export PATH="{{justfile_directory()}}/bin:$PATH"
+    # Hermit shims are POSIX-only; on Windows keep the native toolchain on PATH.
+    case "$(uname -s)" in
+        MINGW*|MSYS*|CYGWIN*) ;;
+        *) export PATH="{{justfile_directory()}}/bin:$PATH" ;;
+    esac
     uv run --project benchmarks/harbor-buzz-orchestra/testbed \
         benchmarks/harbor-buzz-orchestra/scripts/benchmark.py {{ARGS}}
 
