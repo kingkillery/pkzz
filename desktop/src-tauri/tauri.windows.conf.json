@@ -1,4 +1,11 @@
 {
+  "build": {
+    "beforeDevCommand": {
+      "script": "pnpm exec vite",
+      "cwd": "..",
+      "wait": false
+    }
+  },
   "bundle": {
     "externalBin": [
       "binaries/buzz-acp",
