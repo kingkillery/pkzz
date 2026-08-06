@@ -9,6 +9,7 @@
 //! that module further over the file-size ratchet.
 
 use std::path::PathBuf;
+use std::sync::OnceLock;
 
 use super::normalize_agent_args;
 use crate::managed_agents::{
@@ -105,26 +106,39 @@ pub(crate) fn preset_catalog_entry(
         model_env_var: None,
         provider_env_var: None,
         thinking_env_var: None,
+        max_tokens_env_var: None,
+        context_limit_env_var: None,
+        max_rounds_env_var: None,
         install_hint: def.install_hint.to_string(),
         install_instructions_url: def.install_instructions_url.to_string(),
         can_auto_install: false,
-        // Kept false even for adapter presets: presets carry one flat
-        // install_hint (the adapter's), so the requiresExternalCli
-        // "CLI is missing" wording would pair the wrong noun with it.
-        // The builtin path, with per-availability hints, is the only
-        // consumer of the true case.
+        // Presets carry one flat install hint, so builtin external-CLI copy
+        // would name the wrong missing component for adapter presets.
         requires_external_cli: false,
         underlying_cli_path,
         node_required: false,
         auth_status: AuthStatus::NotApplicable,
         login_hint,
         source: HarnessSource::Preset,
-        // Preset entries have static, non-editable env; definition_env is empty.
         definition_env: Default::default(),
+        // Derived from the static preset command (`def.command`). This ensures
+        // unavailable entries (command: null in JSON, None here) still carry
+        // the cap — the harness cap is command-keyed, not availability-gated.
+        max_parallelism: crate::managed_agents::harness_max_parallelism(def.command),
     }
 }
 
 pub(crate) const PRESET_HARNESSES: &[PresetHarness] = &[
+    PresetHarness {
+        id: "devin",
+        label: "Devin",
+        command: "devin",
+        args: &["acp"],
+        install_instructions_url: "https://docs.devin.ai/cli",
+        install_hint: "Buzz talks to Devin through the official Devin CLI's ACP mode (devin acp).",
+        underlying_cli: None,
+        login_hint: None,
+    },
     PresetHarness {
         id: "cursor",
         label: "Cursor",
@@ -155,6 +169,16 @@ pub(crate) const PRESET_HARNESSES: &[PresetHarness] = &[
             "Sign in from a terminal with `ompk auth-broker login anthropic` \
              (also `cursor`, `openai-codex`), or run `ompk` and use `/login`.",
         ),
+    },
+    PresetHarness {
+        id: "omp",
+        label: "Oh My Pi",
+        command: "omp",
+        args: &["acp"],
+        install_instructions_url: "https://omp.sh/",
+        install_hint: "Buzz talks to Oh My Pi through its CLI's ACP mode (omp acp).",
+        underlying_cli: None,
+        login_hint: None,
     },
     PresetHarness {
         id: "grok",
@@ -225,38 +249,295 @@ pub(crate) const PRESET_HARNESSES: &[PresetHarness] = &[
     },
 ];
 
-/// Return the static preset harness definitions as `HarnessDefinition` values.
-///
-/// Used by `warm_harness_registry_from_dir` to seed the loaded-harness registry
-/// at startup before the frontend triggers a full discovery run.
+/// Return preset definitions for the spawn/readiness registry.
 pub(crate) fn preset_harness_definitions(
 ) -> Vec<crate::managed_agents::custom_harnesses::HarnessDefinition> {
     PRESET_HARNESSES
         .iter()
         .map(
-            |p| crate::managed_agents::custom_harnesses::HarnessDefinition {
-                id: p.id.to_string(),
-                label: p.label.to_string(),
-                command: p.command.to_string(),
-                args: p.args.iter().map(|s| s.to_string()).collect(),
-                env: std::collections::BTreeMap::new(),
-                install_instructions_url: p.install_instructions_url.to_string(),
-                install_hint: p.install_hint.to_string(),
+            |preset| crate::managed_agents::custom_harnesses::HarnessDefinition {
+                id: preset.id.to_string(),
+                label: preset.label.to_string(),
+                command: preset.command.to_string(),
+                args: preset.args.iter().map(|arg| arg.to_string()).collect(),
+                env: Default::default(),
+                install_instructions_url: preset.install_instructions_url.to_string(),
+                install_hint: preset.install_hint.to_string(),
             },
         )
         .collect()
 }
 
-/// Return the static slice of preset harness IDs.
-///
-/// Used by `check_id_collision` in `custom_harnesses` to derive the reserved-ID
-/// set from the single source of truth (`PRESET_HARNESSES`) rather than a
-/// hand-maintained copy.  Adding a preset automatically reserves its ID.
+/// Return preset IDs from the catalog's single source of truth.
 pub(crate) fn preset_harness_ids() -> &'static [&'static str] {
-    // `PRESET_HARNESSES` is `'static`; we project its `id` fields.
-    // Computed once via OnceLock to avoid repeated allocations on hot paths.
-    use std::sync::OnceLock;
     static IDS: OnceLock<Vec<&'static str>> = OnceLock::new();
-    IDS.get_or_init(|| PRESET_HARNESSES.iter().map(|p| p.id).collect())
+    IDS.get_or_init(|| PRESET_HARNESSES.iter().map(|preset| preset.id).collect())
         .as_slice()
+}
+
+/// Return the primary command for a preset harness by id, or `None` if the id
+/// is not a known preset.
+///
+/// Returns a `&'static str` so callers can use it without allocation.
+pub(super) fn preset_command_for_id(id: &str) -> Option<&'static str> {
+    PRESET_HARNESSES
+        .iter()
+        .find(|p| p.id == id)
+        .map(|p| p.command)
+}
+
+/// Return the primary harness command for a given runtime id, or `None`.
+///
+/// Checks static builtins, then the static preset list (always available,
+/// no registry warm-up required — covers openclaw, devin, cursor, etc.),
+/// then the loaded preset/custom registry.
+pub(crate) fn command_for_runtime_id(id: &str) -> Option<String> {
+    super::known_acp_runtime_exact(id)
+        .and_then(|r| r.commands.first().copied())
+        .map(str::to_string)
+        .or_else(|| preset_command_for_id(id).map(str::to_string))
+        .or_else(|| {
+            crate::managed_agents::custom_harnesses::lookup_loaded_harness_by_id(id)
+                .map(|d| d.command.clone())
+        })
+}
+
+/// Resolve a harness to its canonical command accepting either a runtime id or
+/// a command string (including path prefixes and aliases).
+///
+/// This is the pin-classification resolver for `apply_persona_snapshot`: the
+/// create-time override in `record.agent_command_override` can hold any of the
+/// forms a user or the harness selector might have stored — bare command
+/// ("goose"), alias ("claude-code-acp"), path ("/usr/local/bin/goose"), or the
+/// runtime id directly ("claude"). All three tiers are searched:
+///
+/// 1. **Builtins** — `known_acp_runtime(input)` matches by id, command, or
+///    alias in `KNOWN_ACP_RUNTIMES`; returns its first primary command.
+/// 2. **Static presets** — searched by id or by normalised command.
+/// 3. **Loaded registry** — searched by id or by normalised command.
+///
+/// Returns `None` for inputs that do not resolve to any known harness; those
+/// pins are treated as custom/unknown and always kept.
+pub(crate) fn canonical_harness_command(input: &str) -> Option<String> {
+    let normalized = super::normalize_command_identity(input);
+
+    // Tier 1: builtins — matched by id, command, or alias.
+    if let Some(rt) = super::known_acp_runtime(&normalized) {
+        if let Some(cmd) = rt.commands.first() {
+            return Some(cmd.to_string());
+        }
+    }
+
+    // Tier 2: static presets — matched by id or by normalized command.
+    if let Some(p) = PRESET_HARNESSES
+        .iter()
+        .find(|p| p.id == normalized || super::normalize_command_identity(p.command) == normalized)
+    {
+        return Some(p.command.to_string());
+    }
+
+    // Tier 3: loaded registry — matched by id or by normalized command.
+    let reg = crate::managed_agents::custom_harnesses::loaded_harness_registry()
+        .read()
+        .unwrap_or_else(|e| e.into_inner());
+    reg.iter()
+        .find(|d| d.id == normalized || super::normalize_command_identity(&d.command) == normalized)
+        .map(|d| d.command.clone())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use crate::managed_agents::{AcpAvailabilityStatus, AuthStatus, HarnessSource};
+
+    use super::{preset_catalog_entry, PresetHarness, PRESET_HARNESSES};
+
+    /// Amp-shaped preset: an ACP adapter wrapping a separately installed CLI.
+    const ADAPTER_PRESET: PresetHarness = PresetHarness {
+        id: "amp-test",
+        label: "Amp Test",
+        command: "amp-acp",
+        args: &[],
+        install_instructions_url: "https://example.com/install",
+        install_hint: "Install the amp-acp npm adapter.",
+        underlying_cli: Some("amp"),
+        login_hint: None,
+    };
+
+    #[test]
+    fn devin_preset_uses_official_native_acp_invocation() {
+        let preset = PRESET_HARNESSES
+            .iter()
+            .find(|preset| preset.id == "devin")
+            .expect("Devin preset should be present");
+
+        assert_eq!(preset.label, "Devin");
+        assert_eq!(preset.command, "devin");
+        assert_eq!(preset.args, &["acp"]);
+        assert_eq!(preset.underlying_cli, None);
+        assert_eq!(preset.install_instructions_url, "https://docs.devin.ai/cli");
+
+        let entry = preset_catalog_entry(preset, |command| {
+            (command == "devin").then(|| PathBuf::from("/usr/local/bin/devin"))
+        });
+        assert_eq!(entry.availability, AcpAvailabilityStatus::Available);
+        assert_eq!(entry.command.as_deref(), Some("devin"));
+        assert_eq!(entry.default_args, vec!["acp"]);
+        assert_eq!(entry.binary_path.as_deref(), Some("/usr/local/bin/devin"));
+        assert_eq!(entry.auth_status, AuthStatus::NotApplicable);
+        assert_eq!(entry.source, HarnessSource::Preset);
+
+        let missing_entry = preset_catalog_entry(preset, |_| None);
+        assert_eq!(
+            missing_entry.availability,
+            AcpAvailabilityStatus::NotInstalled
+        );
+        assert!(missing_entry.command.is_none());
+        assert_eq!(missing_entry.default_args, vec!["acp"]);
+    }
+
+    #[test]
+    fn devin_preset_is_exposed_in_the_runtime_catalog() {
+        use crate::managed_agents::custom_harnesses::registry_test_lock;
+
+        // Discovery touches process-global command-resolution and the loaded
+        // harness registry. Serialize with the other discovery tests.
+        let _path_guard = crate::managed_agents::lock_path_mutex();
+        let _registry_guard = registry_test_lock();
+
+        let entry = super::super::discover_acp_runtimes_from(None)
+            .into_iter()
+            .find(|entry| entry.id == "devin")
+            .expect("Devin preset should appear in the runtime catalog");
+
+        assert_eq!(entry.label, "Devin");
+        assert_eq!(entry.default_args, vec!["acp"]);
+        assert_eq!(entry.install_instructions_url, "https://docs.devin.ai/cli");
+        assert_eq!(entry.source, HarnessSource::Preset);
+    }
+
+    #[test]
+    fn adapter_missing_when_underlying_cli_present() {
+        let entry = preset_catalog_entry(&ADAPTER_PRESET, |command| {
+            (command == "amp").then(|| PathBuf::from("/usr/local/bin/amp"))
+        });
+        assert_eq!(entry.availability, AcpAvailabilityStatus::AdapterMissing);
+        assert!(entry.command.is_none());
+        assert!(entry.binary_path.is_none());
+        assert_eq!(
+            entry.underlying_cli_path.as_deref(),
+            Some("/usr/local/bin/amp")
+        );
+        assert!(!entry.requires_external_cli);
+        assert_eq!(entry.install_hint, "Install the amp-acp npm adapter.");
+    }
+
+    #[test]
+    fn not_installed_when_adapter_and_cli_are_missing() {
+        let entry = preset_catalog_entry(&ADAPTER_PRESET, |_| None);
+        assert_eq!(entry.availability, AcpAvailabilityStatus::NotInstalled);
+        assert!(entry.underlying_cli_path.is_none());
+        assert!(!entry.requires_external_cli);
+    }
+
+    #[test]
+    fn available_when_adapter_and_cli_are_present() {
+        let entry = preset_catalog_entry(&ADAPTER_PRESET, |command| match command {
+            "amp-acp" => Some(PathBuf::from("/usr/local/bin/amp-acp")),
+            "amp" => Some(PathBuf::from("/usr/local/bin/amp")),
+            _ => None,
+        });
+        assert_eq!(entry.availability, AcpAvailabilityStatus::Available);
+        assert_eq!(entry.command.as_deref(), Some("amp-acp"));
+        assert_eq!(entry.binary_path.as_deref(), Some("/usr/local/bin/amp-acp"));
+        assert_eq!(
+            entry.underlying_cli_path.as_deref(),
+            Some("/usr/local/bin/amp")
+        );
+    }
+
+    #[test]
+    fn adapter_presence_is_enough_for_availability() {
+        let entry = preset_catalog_entry(&ADAPTER_PRESET, |command| {
+            (command == "amp-acp").then(|| PathBuf::from("/usr/local/bin/amp-acp"))
+        });
+        assert_eq!(entry.availability, AcpAvailabilityStatus::Available);
+        assert_eq!(entry.command.as_deref(), Some("amp-acp"));
+        assert_eq!(entry.binary_path.as_deref(), Some("/usr/local/bin/amp-acp"));
+        assert!(entry.underlying_cli_path.is_none());
+    }
+
+    #[test]
+    fn preset_without_underlying_cli_stays_simple() {
+        let preset = PresetHarness {
+            underlying_cli: None,
+            ..ADAPTER_PRESET
+        };
+        let entry = preset_catalog_entry(&preset, |_| None);
+        assert_eq!(entry.availability, AcpAvailabilityStatus::NotInstalled);
+        assert!(!entry.requires_external_cli);
+        assert!(entry.underlying_cli_path.is_none());
+    }
+
+    // ── Catalog max_parallelism: command-keyed execution policy ──────────────
+
+    /// Unavailable OpenClaw (command not on PATH → command: null in JSON):
+    /// max_parallelism must still be Some(5) — derived from the static `def.command`,
+    /// not the probed `entry.command`.
+    #[test]
+    fn openclaw_preset_unavailable_carries_max_parallelism() {
+        let openclaw = PRESET_HARNESSES
+            .iter()
+            .find(|p| p.id == "openclaw")
+            .expect("openclaw preset must be present");
+
+        // Simulate "not installed" — resolver always returns None.
+        let entry = preset_catalog_entry(openclaw, |_| None);
+        assert_eq!(entry.availability, AcpAvailabilityStatus::NotInstalled);
+        assert!(
+            entry.command.is_none(),
+            "unavailable entry must have command: null"
+        );
+        assert_eq!(
+            entry.max_parallelism,
+            Some(crate::managed_agents::parallelism::OPENCLAW_MAX_PARALLELISM),
+            "unavailable OpenClaw must still carry max_parallelism {}",
+            crate::managed_agents::parallelism::OPENCLAW_MAX_PARALLELISM
+        );
+    }
+
+    /// Available OpenClaw: max_parallelism present regardless of install status.
+    #[test]
+    fn openclaw_preset_available_carries_max_parallelism() {
+        let openclaw = PRESET_HARNESSES
+            .iter()
+            .find(|p| p.id == "openclaw")
+            .expect("openclaw preset must be present");
+
+        let entry = preset_catalog_entry(openclaw, |cmd| {
+            (cmd == openclaw.id || cmd == "openclaw")
+                .then(|| std::path::PathBuf::from("/usr/local/bin/openclaw"))
+        });
+        assert_eq!(
+            entry.max_parallelism,
+            Some(crate::managed_agents::parallelism::OPENCLAW_MAX_PARALLELISM),
+            "available OpenClaw must carry max_parallelism {}",
+            crate::managed_agents::parallelism::OPENCLAW_MAX_PARALLELISM
+        );
+    }
+
+    /// Uncapped preset (devin): max_parallelism must be None.
+    #[test]
+    fn uncapped_preset_has_no_max_parallelism() {
+        let devin = PRESET_HARNESSES
+            .iter()
+            .find(|p| p.id == "devin")
+            .expect("devin preset must be present");
+        let entry = preset_catalog_entry(devin, |_| None);
+        assert_eq!(
+            entry.max_parallelism, None,
+            "uncapped preset (devin) must have max_parallelism: None"
+        );
+    }
 }
