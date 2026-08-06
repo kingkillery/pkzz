@@ -254,6 +254,18 @@ test("drag resize batches visual updates and commits state only on release", asy
   assert.equal(window.localStorage.getItem("buzz-terminal-dock-height"), "380");
 });
 
+test("a hidden dock supplies an inline zero height", async () => {
+  const subject = fixture({ mode: "docked", visible: true });
+  await ready(subject.view);
+  const substrate = subject.view.container.querySelector(
+    ".buzz-terminal-substrate",
+  );
+  assert.notEqual(substrate.style.height, "0px");
+
+  subject.rerender({ mode: "docked", visible: false });
+  assert.equal(substrate.style.height, "0px");
+});
+
 test("drag resize repaints the canvas without reporting PTY geometry until release", async () => {
   let canvasHeight = 280;
   const viewportSizes = [];

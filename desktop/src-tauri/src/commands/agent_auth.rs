@@ -440,6 +440,7 @@ fn launch_visible_terminal(_argv: &[String]) -> Result<(), String> {
     Err("opening a terminal is not supported on this platform".to_string())
 }
 
+#[cfg(any(target_os = "macos", target_os = "linux", test))]
 fn shell_join(argv: &[String]) -> String {
     argv.iter()
         .map(|arg| shell_escape(arg))
@@ -447,6 +448,7 @@ fn shell_join(argv: &[String]) -> String {
         .join(" ")
 }
 
+#[cfg(any(target_os = "macos", target_os = "linux", test))]
 fn shell_escape(arg: &str) -> String {
     if !arg.is_empty()
         && arg
@@ -460,10 +462,11 @@ fn shell_escape(arg: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(unix)]
+    use super::run_buzz_acp_auth_command_with_paths;
     use super::{
-        adapter_terminal_argv, append_inherited_path, is_claude_subscription_login,
-        run_buzz_acp_auth_command_with_paths, shell_escape, shell_join, uses_terminal_auth,
-        windows_terminal_args, AcpAuthMethod,
+        adapter_terminal_argv, append_inherited_path, is_claude_subscription_login, shell_escape,
+        shell_join, uses_terminal_auth, windows_terminal_args, AcpAuthMethod,
     };
 
     /// Windows regression: the augmented PATH there holds only Pkzz-managed

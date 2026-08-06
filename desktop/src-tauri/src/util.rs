@@ -56,20 +56,12 @@ pub(crate) fn create_symlink(
     std::os::unix::fs::symlink(target, link)
 }
 
-/// No-op on non-Unix platforms.
-#[cfg(not(unix))]
-pub(crate) fn create_symlink(
-    _target: &std::path::Path,
-    _link: &std::path::Path,
-) -> std::io::Result<()> {
-    Ok(())
-}
-
 /// Returns `true` when `link` is a symlink whose stored target equals `target`.
 ///
 /// Compares the raw stored link value — no canonicalization — so relative
 /// targets (e.g. `../../.agents/skills/buzz-cli`) compare correctly against
 /// the literal string used to create them.
+#[cfg(unix)]
 pub(crate) fn symlink_points_to(link: &std::path::Path, target: &std::path::Path) -> bool {
     link.is_symlink()
         && std::fs::read_link(link)
@@ -83,6 +75,7 @@ pub(crate) fn symlink_points_to(link: &std::path::Path, target: &std::path::Path
 /// path already exists (rare — same-millisecond collision or leftover backup),
 /// appends `-2`, `-3`, … up to 100. Returns `None` when all 100 candidates
 /// are occupied, indicating a backup failure.
+#[cfg(unix)]
 pub(crate) fn backup_path(dst: &std::path::Path) -> Option<std::path::PathBuf> {
     let name = dst.file_name()?.to_str()?;
     let stamp = Utc::now().format("%Y%m%d-%H%M%S%.3f");

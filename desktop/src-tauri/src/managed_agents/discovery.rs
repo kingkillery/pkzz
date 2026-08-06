@@ -213,7 +213,7 @@ const KNOWN_ACP_RUNTIMES: &[KnownAcpRuntime] = &[
         auth_probe_args: None,
     },
 ];
-
+#[cfg(unix)]
 /// Skill discovery directories declared by known runtimes.
 pub(crate) fn known_skill_dirs() -> impl Iterator<Item = &'static str> {
     KNOWN_ACP_RUNTIMES.iter().filter_map(|p| p.skill_dir)
@@ -826,7 +826,7 @@ fn fetch_login_shell_path_inner() -> Option<String> {
     // Windows PATH instead.
     #[cfg(windows)]
     {
-        return None;
+        None
     }
 
     #[cfg(not(windows))]
@@ -1270,7 +1270,7 @@ pub(crate) fn codex_adapter_availability(path: &Path) -> AcpAvailabilityStatus {
 /// Returns `true` when the codex-acp binary at `path` is below
 /// [`MIN_CODEX_ACP_VERSION`] or cannot be probed using `augmented_path`. Thin wrapper
 /// around [`codex_adapter_is_outdated_with_path`].
-#[cfg(test)]
+#[cfg(all(test, unix))]
 pub(crate) fn codex_adapter_is_outdated(path: &Path) -> bool {
     codex_adapter_is_outdated_with_path(
         path,

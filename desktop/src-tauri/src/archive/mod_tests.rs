@@ -7,7 +7,6 @@ use super::pipeline::BucketWithResult;
 use super::*;
 use nostr::{EventBuilder, JsonUtil, Keys, Kind, Tag};
 use rusqlite::Connection;
-use uuid::Uuid;
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -821,6 +820,7 @@ mod real_relay {
     use super::*;
     use crate::app_state::build_app_state;
     use std::path::Path;
+    use uuid::Uuid;
 
     fn relay_ws_url_from_env() -> String {
         std::env::var("RELAY_URL").unwrap_or_else(|_| "ws://localhost:3000".to_string())

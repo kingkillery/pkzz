@@ -98,7 +98,9 @@ pub(crate) fn classify_probe_output(stderr_bytes: &[u8], exit_success: bool) -> 
 
 #[cfg(test)]
 mod tests {
-    use super::{ProbeOutcome, CONFIG_PARSE_SIGNALS};
+    #[cfg(unix)]
+    use super::ProbeOutcome;
+    use super::CONFIG_PARSE_SIGNALS;
 
     #[cfg(unix)]
     #[test]

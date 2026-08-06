@@ -37,7 +37,10 @@ test("a saved kubernetes config renders labeled scalar rows", () => {
   assert.equal(byKey.cpu_request.value, "1");
   assert.equal(byKey.inactivity_seconds.label, "Inactivity seconds");
   assert.equal(byKey.inactivity_seconds.value, "7200");
-  assert.equal(byKey.image.value, "ghcr.io/kingkillery/pkzz-sprig@sha256:17facfc7");
+  assert.equal(
+    byKey.image.value,
+    "ghcr.io/kingkillery/pkzz-sprig@sha256:17facfc7",
+  );
   assert.ok(summary.rows.every((r) => r.redacted === false));
 });
 
