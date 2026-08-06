@@ -1864,7 +1864,7 @@ test("buildTranscript five-section system prompt card is standalone with all sec
   );
   // Must have Pkzz event and Thread context sections, NOT Base/System/Team Instructions/Core Memory/Channel Canvas.
   assert.ok(
-    contextSectionTitles.some((t) => t.toLowerCase().includes("buzz")),
+    contextSectionTitles.some((t) => t.toLowerCase().includes("pkzz")),
     "prompt context must contain a Pkzz event section",
   );
   assert.ok(

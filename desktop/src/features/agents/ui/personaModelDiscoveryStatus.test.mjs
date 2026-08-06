@@ -37,6 +37,16 @@ test("Pkzz shared compute names the empty state and next action", () => {
   assert.match(status?.message ?? "", /Settings > Compute/);
 });
 
+test("Pkzz shared compute accepts legacy Buzz empty-state text", () => {
+  const status = formatModelDiscoveryErrorStatus(
+    new Error("no Buzz shared compute serving members are available"),
+    "relay-mesh",
+  );
+
+  assert.equal(status?.tone, "warning");
+  assert.match(status?.message ?? "", /No members are sharing compute/);
+});
+
 test("Pkzz shared compute distinguishes relay lookup failures", () => {
   const status = formatModelDiscoveryErrorStatus(
     new Error("Pkzz shared compute model discovery failed: relay offline"),

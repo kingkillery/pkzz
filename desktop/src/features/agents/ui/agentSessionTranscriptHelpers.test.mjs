@@ -67,6 +67,21 @@ test("parsePromptText extracts event id, content, hex pubkey, and a title-cased 
   );
 });
 
+test("parsePromptText accepts legacy Buzz event framing", () => {
+  const text = [
+    "[Buzz event: @mention]",
+    `Event ID: ${HEX_UPPER}`,
+    `From: Wes (hex: ${HEX})`,
+    "Content: preserved archived telemetry",
+  ].join("\n");
+
+  const result = parsePromptText(text);
+  assert.equal(result.userText, "preserved archived telemetry");
+  assert.equal(result.userPubkey, HEX);
+  assert.equal(result.userEventId, HEX);
+  assert.equal(result.userTitle, "@Mention");
+});
+
 test("parsePromptText preserves multiline event content in the user bubble text", () => {
   const text = [
     "[Pkzz event: @mention]",
