@@ -214,11 +214,12 @@ export function MachineOnboardingFlow({
               effect="mask-reveal-up"
               transitionKey="machine-identity"
             >
-              <img
-                alt="Pkzz"
-                className="w-full max-w-[600px]"
-                src="/landing/buzz-wordmark.png"
-              />
+              <h1
+                className="font-sans text-8xl font-black leading-none tracking-tighter text-foreground"
+                data-testid="machine-onboarding-wordmark"
+              >
+                Pkzz
+              </h1>
               <p className="mt-2 max-w-[560px] text-center text-2xl font-normal leading-none text-foreground">
                 Your people, your agents, your projects —<br />
                 all in one place.
