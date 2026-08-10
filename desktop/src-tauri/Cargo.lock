@@ -1021,11 +1021,12 @@ dependencies = [
  "async-trait",
  "axum",
  "base64 0.22.1",
+ "dirs",
  "getrandom 0.4.3",
  "hex",
  "nix 0.31.3",
  "reqwest 0.13.4",
- "rmcp",
+ "rmcp 3.1.2",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -5318,7 +5319,7 @@ dependencies = [
  "rand 0.10.2",
  "regex-lite",
  "reqwest 0.12.28",
- "rmcp",
+ "rmcp 1.8.0",
  "rpassword",
  "rustls",
  "schemars 1.2.1",
@@ -5406,7 +5407,7 @@ dependencies = [
  "prost 0.14.4",
  "prost-build 0.14.4",
  "protoc-bin-vendored",
- "rmcp",
+ "rmcp 1.8.0",
  "schemars 1.2.1",
  "serde",
  "serde_json",
@@ -8579,6 +8580,25 @@ dependencies = [
  "tower-service",
  "tracing",
  "uuid",
+]
+
+[[package]]
+name = "rmcp"
+version = "3.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c8dddc5b1924b9a59fba420166160ca2c4663a4e01803e52eda33070f56d63c8"
+dependencies = [
+ "chrono",
+ "futures",
+ "pin-project-lite",
+ "process-wrap",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "tracing",
 ]
 
 [[package]]
