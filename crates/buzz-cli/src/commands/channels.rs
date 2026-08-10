@@ -214,11 +214,17 @@ impl ChannelSummary {
 
 fn name_matches(name: &str, needle_lower: &str, exact: bool) -> bool {
     let hay = name.to_ascii_lowercase();
-    if exact {
-        hay == needle_lower
-    } else {
-        hay.contains(needle_lower)
-    }
+    // The OSS fork renamed buzz -> pkzz; keep legacy "buzz" needles matching
+    // renamed entities via an alias variant of the pre-lowercased needle.
+    let alias = needle_lower.replace("buzz", "pkzz");
+    let needles = [needle_lower.to_string(), alias];
+    needles.iter().any(|needle| {
+        if exact {
+            hay == *needle
+        } else {
+            hay.contains(needle.as_str())
+        }
+    })
 }
 
 pub async fn cmd_get_channel(client: &BuzzClient, channel_id: &str) -> Result<(), CliError> {

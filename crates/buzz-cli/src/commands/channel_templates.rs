@@ -99,10 +99,12 @@ fn load_templates(path: &Path) -> Result<Vec<ChannelTemplateRecord>, CliError> {
 pub fn find_template(path: &Path, name: &str) -> Result<ChannelTemplateRecord, CliError> {
     let templates = load_templates(path)?;
     let needle = name.to_ascii_lowercase();
-    if let Some(t) = templates
-        .into_iter()
-        .find(|t| t.name.to_ascii_lowercase() == needle)
-    {
+    // The OSS fork renamed buzz -> pkzz; keep legacy "buzz" lookups matching.
+    let alias = needle.replace("buzz", "pkzz");
+    if let Some(t) = templates.into_iter().find(|t| {
+        let candidate = t.name.to_ascii_lowercase();
+        candidate == needle || candidate == alias
+    }) {
         return Ok(t);
     }
     Err(CliError::NotFound(format!(
