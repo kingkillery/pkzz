@@ -133,6 +133,23 @@ impl ServerHandler for DevMcp {
             ))
             .with_instructions(self.state.bootstrap_instructions.clone())
     }
+
+    fn supported_protocol_versions(
+        &self,
+    ) -> std::borrow::Cow<'static, [rmcp::model::ProtocolVersion]> {
+        // This server implements handshake-based MCP through 2025-11-25.
+        // rmcp's default list also includes 2026-07-28, the stateless
+        // revision (no initialize handshake, mandatory server/discover),
+        // whose semantics this server does not implement; advertising it
+        // would mislead clients during version negotiation.
+        const SUPPORTED: &[rmcp::model::ProtocolVersion] = &[
+            rmcp::model::ProtocolVersion::V_2024_11_05,
+            rmcp::model::ProtocolVersion::V_2025_03_26,
+            rmcp::model::ProtocolVersion::V_2025_06_18,
+            rmcp::model::ProtocolVersion::V_2025_11_25,
+        ];
+        std::borrow::Cow::Borrowed(SUPPORTED)
+    }
 }
 
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {

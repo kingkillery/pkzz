@@ -454,10 +454,15 @@ fn cache_path_for(cfg: &PkceOAuthConfig) -> Result<PathBuf, AgentError> {
     let dir = match &cfg.cache_dir_override {
         Some(p) => p.join(&cfg.cache_namespace),
         None => {
+            // $HOME is the Unix convention but is unset on native Windows;
+            // fall back to the platform home directory (USERPROFILE et al.).
             let home = std::env::var("HOME")
-                .map_err(|_| AgentError::Llm("oauth cache: $HOME not set".into()))?;
-            PathBuf::from(home)
-                .join(".config")
+                .ok()
+                .filter(|value| !value.is_empty())
+                .map(PathBuf::from)
+                .or_else(dirs::home_dir)
+                .ok_or_else(|| AgentError::Llm("oauth cache: no home directory found".into()))?;
+            home.join(".config")
                 .join("buzz-agent")
                 .join("oauth")
                 .join(&cfg.cache_namespace)
@@ -703,6 +708,26 @@ mod tests {
             "namespace must be a path component: {p:?}"
         );
         assert!(p.extension().and_then(|s| s.to_str()) == Some("json"));
+    }
+
+    #[test]
+    fn cache_path_without_override_resolves_via_home_or_platform_fallback() {
+        // No override: resolves via $HOME (Unix) or the platform home
+        // directory (Windows, where $HOME is typically unset).
+        let cfg = PkceOAuthConfig {
+            discovery_url: "https://example.com/.well-known".into(),
+            client_id: "abc".into(),
+            scopes: vec!["a".into()],
+            cache_namespace: "demo".into(),
+            cache_dir_override: None,
+        };
+        let p = cache_path_for(&cfg).expect("a home directory must resolve");
+        let normalized = p.to_string_lossy().replace('\\', "/");
+        assert!(
+            normalized.contains("buzz-agent/oauth/demo/"),
+            "got {normalized}"
+        );
+        assert_eq!(p.extension().and_then(|s| s.to_str()), Some("json"));
     }
 
     #[test]

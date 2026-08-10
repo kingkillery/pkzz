@@ -58,6 +58,7 @@ sqlx = { version = "0.9", features = [
 # Redis
 redis        = { version = "1.0", features = ["tokio-comp", "connection-manager", "tokio-rustls-comp"] }
 deadpool-redis = { version = "0.23", features = ["rt_tokio_1"] }
+dirs            = "6"
 
 # Kubernetes (buzz-backend-kubernetes provider). No `ring` feature here: the
 # process-level CryptoProvider is installed explicitly at startup, matching
@@ -127,7 +128,7 @@ url = "2"
 proptest = "1"
 
 # MCP SDK (used by buzz-dev-mcp and buzz-agent)
-rmcp = { version = "1.1.0", features = ["server", "transport-io", "macros"] }
+rmcp = { version = "3.1.2", features = ["server", "transport-io", "macros"] }
 schemars = { version = "1", default-features = false }
 
 # Internal crates
