@@ -5,6 +5,7 @@
 </p>
 
 <p align="center">
+  <a href="INSTALL.md">Install</a> ·
   <a href="VISION.md">Vision</a> ·
   <a href="VISION_SOVEREIGN.md">Sovereign</a> ·
   <a href="VISION_PROJECTS.md">Forge</a> ·
