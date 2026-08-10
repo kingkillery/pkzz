@@ -48,6 +48,18 @@ function formatHarnessLabel(runtime: AcpRuntimeCatalogEntry | undefined) {
   return runtime.id === "buzz-agent" ? "Pkzz" : runtime.label;
 }
 
+/**
+ * Reference-stable no-op check for the onboarding draft loop guard. The
+ * config is a plain JSON-shaped value; stringify comparison is sufficient
+ * (false "different" only costs one extra render, never a missed update).
+ */
+export function sameGlobalAgentConfig(
+  a: GlobalAgentConfig,
+  b: GlobalAgentConfig,
+): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
 function AgentDefaultsSection({
   draft,
   isPending,
@@ -175,6 +187,21 @@ function AgentDefaultsSection({
 
   const updateDraft = React.useCallback(
     (next: GlobalAgentConfig, overrides: Partial<DefaultConfigDraft> = {}) => {
+      // No-op guard: a child setConfig + parent onDraftChange + parent
+      // setState cascade can sustain an update ping-pong ("Maximum update
+      // depth exceeded" seen in onboarding). Break it at the choke point —
+      // when the config is unchanged and the override carries no state
+      // transition, skip both setState calls entirely.
+      const overrideKeys = Object.keys(
+        overrides,
+      ) as (keyof DefaultConfigDraft)[];
+      const carriesTransition = overrideKeys.some((key) => key !== "isDirty");
+      if (
+        carriesTransition === false &&
+        sameGlobalAgentConfig(configRef.current, next)
+      ) {
+        return;
+      }
       isDirtyRef.current = overrides.isDirty ?? true;
       configRef.current = next;
       setConfig(next);
