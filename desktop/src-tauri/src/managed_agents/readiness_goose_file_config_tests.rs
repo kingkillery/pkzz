@@ -15,6 +15,8 @@ fn empty_env() -> EffectiveAgentEnv {
     EffectiveAgentEnv {
         env: BTreeMap::new(),
         config_file_path: Some("~/.config/goose/config.yaml"),
+        runtime_id: None,
+        effective_args: Vec::new(),
         effective_command: "goose".to_string(),
     }
 }
@@ -26,6 +28,8 @@ fn env_with(pairs: &[(&str, &str)]) -> EffectiveAgentEnv {
             .map(|(k, v)| (k.to_string(), v.to_string()))
             .collect(),
         config_file_path: Some("~/.config/goose/config.yaml"),
+        runtime_id: None,
+        effective_args: Vec::new(),
         effective_command: "goose".to_string(),
     }
 }

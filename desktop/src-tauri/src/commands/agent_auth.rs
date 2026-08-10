@@ -10,9 +10,7 @@ use serde_json::Value;
 
 use serde::{Deserialize, Serialize};
 
-use crate::managed_agents::{
-    default_agent_workdir, known_acp_runtime_exact, normalize_agent_args, resolve_command,
-};
+use crate::managed_agents::{default_agent_workdir, known_acp_runtime_exact, resolve_command};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -93,6 +91,7 @@ fn connect_acp_runtime_blocking(
         } else {
             launch_terminal_auth(&request.runtime_id, method)?;
         }
+        crate::managed_agents::invalidate_runtime_readiness();
         return Ok(ConnectAcpRuntimeResult { launched: true });
     }
 
@@ -104,6 +103,7 @@ fn connect_acp_runtime_blocking(
         return Err(command_error("buzz-acp authenticate", &output));
     }
 
+    crate::managed_agents::invalidate_runtime_readiness();
     Ok(ConnectAcpRuntimeResult { launched: true })
 }
 
@@ -126,11 +126,17 @@ fn run_buzz_acp_auth_command<const N: usize>(
         .or_else(|| resolve_command("buzz-acp"))
         .ok_or_else(|| "buzz-acp helper not found".to_string())?;
 
+    let agent_args = runtime
+        .default_args
+        .iter()
+        .map(|arg| (*arg).to_string())
+        .collect::<Vec<_>>();
     let augmented_path = auth_command_path();
     run_buzz_acp_auth_command_with_paths(
         &acp_path,
         adapter_command.0,
         &adapter_command.1,
+        &agent_args,
         args,
         augmented_path.as_deref(),
     )
@@ -175,12 +181,12 @@ fn append_inherited_path(augmented: Option<String>, inherited: Option<String>) -
 
 fn run_buzz_acp_auth_command_with_paths<const N: usize>(
     acp_path: &Path,
-    adapter_name: &str,
+    _adapter_name: &str,
     adapter_path: &Path,
+    agent_args: &[String],
     args: [&str; N],
     augmented_path: Option<&str>,
 ) -> Result<std::process::Output, String> {
-    let agent_args = normalize_agent_args(adapter_name, Vec::new());
     let mut command = Command::new(acp_path);
     command
         .args(args)
@@ -254,8 +260,9 @@ fn launch_terminal_auth(runtime_id: &str, method: &AcpAuthMethod) -> Result<(), 
         .iter()
         .find_map(|command| resolve_command(command).map(|path| (*command, path)))
         .ok_or_else(|| format!("{} ACP adapter is not installed", runtime.label))?;
-    let fallback_command = adapter_command.1.display().to_string();
-    let argv = adapter_terminal_argv(runtime.label, method, &fallback_command)?;
+    let mut fallback_argv = vec![adapter_command.1.display().to_string()];
+    fallback_argv.extend(runtime.default_args.iter().map(|arg| (*arg).to_string()));
+    let argv = adapter_terminal_argv_with_fallback(runtime.label, method, &fallback_argv)?;
     launch_visible_terminal(&argv)
 }
 
@@ -264,29 +271,46 @@ fn adapter_terminal_argv(
     method: &AcpAuthMethod,
     fallback_command: &str,
 ) -> Result<Vec<String>, String> {
-    let meta_command = terminal_auth_meta_command(method)?;
-    let (command, args): (&str, &[String]) =
-        match meta_command.as_deref().and_then(|argv| argv.split_first()) {
-            Some((command, args)) => (command.as_str(), args),
-            None => match method.command.split_first() {
-                Some((command, args)) => (command.as_str(), args),
-                None => (fallback_command, method.args.as_slice()),
-            },
-        };
+    let fallback = if !fallback_command.trim().is_empty() {
+        vec![fallback_command.to_string()]
+    } else {
+        Vec::new()
+    };
+    adapter_terminal_argv_with_fallback(runtime_label, method, &fallback)
+}
 
+fn adapter_terminal_argv_with_fallback(
+    runtime_label: &str,
+    method: &AcpAuthMethod,
+    fallback_argv: &[String],
+) -> Result<Vec<String>, String> {
+    let meta_command = terminal_auth_meta_command(method)?;
+    let mut argv = if let Some(argv) = meta_command.as_ref() {
+        argv.clone()
+    } else if !method.command.is_empty() {
+        method.command.clone()
+    } else {
+        let mut argv = fallback_argv.to_vec();
+        argv.extend(method.args.iter().cloned());
+        argv
+    };
+
+    let command = argv.first_mut().ok_or_else(|| {
+        format!(
+            "{} did not provide a terminal login command for {}",
+            runtime_label, method.name
+        )
+    })?;
     if command.trim().is_empty() {
         return Err(format!(
             "{} did not provide a terminal login command for {}",
             runtime_label, method.name
         ));
     }
-
-    let command_path = resolve_command(command)
+    *command = resolve_command(command)
         .map(|path| path.display().to_string())
-        .unwrap_or_else(|| command.to_string());
-    let mut argv = vec![command_path];
-    argv.extend(args.iter().cloned());
-    if method.id == "claude-login" && terminal_auth_meta_command(method)?.is_some() {
+        .unwrap_or_else(|| command.clone());
+    if method.id == "claude-login" && meta_command.is_some() {
         argv.extend(["auth".to_string(), "login".to_string()]);
     }
     Ok(argv)
@@ -543,6 +567,7 @@ mod tests {
             &acp_path,
             "claude-agent-acp",
             &adapter_path,
+            &[],
             ["auth-methods", "--json"],
             Some(&augmented_path),
         )

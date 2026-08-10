@@ -17,7 +17,7 @@ export type ProviderRuntimeCapability = "capable" | "locked" | "unknown";
  * — leaving the record inheriting a provider-backed runtime with a null
  * provider. To avoid that, we resolve capability STATICALLY for known ids:
  *
- * - buzz-agent / goose → "capable" (`isProviderCapable`, id-based).
+ * - runtimes with catalog providerEnvVar → "capable" (`isProviderCapable`).
  * - claude / codex → "locked" (CLI-login runtimes; no LLM provider selection).
  * - anything else (custom, empty, genuinely unknown) → "unknown".
  *

@@ -8,8 +8,12 @@ import {
   type CreateChannelManagedAgentResult,
 } from "@/features/agents/hooks";
 import { getActivePersonas } from "@/features/agents/lib/catalog";
-import { resolvePersonaRuntime } from "@/features/agents/lib/resolvePersonaRuntime";
+import {
+  getDefaultPersonaRuntime,
+  resolvePersonaRuntime,
+} from "@/features/agents/lib/resolvePersonaRuntime";
 import { getUsableTeams } from "@/features/agents/lib/teamPersonas";
+import { useGlobalAgentConfig } from "@/features/agents/useGlobalAgentConfig";
 import { AddChannelBotPersonasSection } from "@/features/channels/ui/AddChannelBotPersonasSection";
 import { AddChannelBotTeamsSection } from "@/features/channels/ui/AddChannelBotTeamsSection";
 import { useInChannelPersonaIds } from "@/features/channels/ui/useInChannelPersonaIds";
@@ -69,6 +73,14 @@ export function AddChannelBotDialog({
     open && channelId !== null,
   );
   const createBotsMutation = useCreateChannelManagedAgentsMutation(channelId);
+  const { globalConfig, isReady: globalConfigReady } = useGlobalAgentConfig();
+  const defaultProvider = React.useMemo(
+    () =>
+      globalConfigReady
+        ? getDefaultPersonaRuntime(providers, globalConfig.preferred_runtime)
+        : null,
+    [globalConfig.preferred_runtime, globalConfigReady, providers],
+  );
   const personas = React.useMemo(
     () => getActivePersonas(personasQuery.data ?? []),
     [personasQuery.data],
@@ -135,17 +147,22 @@ export function AddChannelBotDialog({
   }
 
   async function handleSubmit() {
-    if (providers.length === 0 || selectedPersonas.length === 0) return;
+    if (!globalConfigReady || selectedPersonas.length === 0) return;
+    const submitDefaultProvider = getDefaultPersonaRuntime(
+      providers,
+      globalConfig.preferred_runtime,
+    );
+    if (!submitDefaultProvider) return;
 
     const inputs = selectedPersonas.map((persona) => {
       const resolved = resolvePersonaRuntime(
         persona.runtime,
         providers,
-        providers[0] ?? null,
+        submitDefaultProvider,
         false,
       );
       return {
-        runtime: resolved.runtime ?? providers[0],
+        runtime: resolved.runtime ?? submitDefaultProvider,
         name: persona.displayName,
         personaId: persona.id,
         harnessOverride: false,
@@ -190,7 +207,8 @@ export function AddChannelBotDialog({
   }
 
   const canSubmit =
-    providers.length > 0 &&
+    defaultProvider !== null &&
+    globalConfigReady &&
     selectedPersonas.length > 0 &&
     !providersLoading &&
     !createBotsMutation.isPending;

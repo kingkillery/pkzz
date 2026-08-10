@@ -463,53 +463,50 @@ pub fn apply_persona_snapshot(record: &mut ManagedAgentRecord, persona: &AgentDe
     }
     record.model = snapshot.model;
     record.provider = snapshot.provider;
-    record.runtime = snapshot.runtime;
-    // Drop a stale create-time harness pin when the definition switches to a
-    // different known runtime (builtin, static preset, or loaded custom). A pin
-    // that names an unknown/custom command is always kept.
-    //
-    // Both sides are resolved through the canonical harness-identity resolver
-    // (`canonical_harness_command`) which accepts either a runtime id OR a
-    // command string — covering aliases (e.g. "claude-code-acp"), path prefixes
-    // ("/usr/local/bin/goose"), and harnesses whose id ≠ command. The persona
-    // runtime side is resolved via `command_for_runtime_id` (id-only input is
-    // sufficient there since persona.runtime is always an authoritative id).
-    //
-    // Comparison is on canonical primary commands so "goose", "/usr/local/bin/goose",
-    // and runtime id "goose" all represent the same harness; the stale pin is
-    // dropped only when the canonical commands differ.
-    if let Some(new_cmd) = persona
-        .runtime
-        .as_deref()
-        .map(str::trim)
-        .filter(|r| !r.is_empty())
-        .and_then(super::command_for_runtime_id)
-    {
-        if let Some(pin) = record
-            .agent_command_override
-            .as_deref()
-            .map(str::trim)
-            .filter(|v| !v.is_empty())
-        {
-            // Resolve the pin via the canonical resolver (accepts id OR command).
-            if let Some(pin_cmd) = super::canonical_harness_command(pin) {
-                if pin_cmd != new_cmd {
-                    // Known harness switched to a different known harness — drop stale pin.
-                    record.agent_command_override = None;
-                }
-                // Same harness: keep the pin (e.g. explicit path override for same runtime).
+
+    let previous_source_runtime = record.runtime.clone();
+    let next_source_runtime = snapshot.runtime;
+    if record.launch_runtime_id.is_some() && record.agent_command_override.is_none() {
+        // An unpinned ID-backed instance follows a positive persona runtime
+        // change. A runtime-less persona makes no positive assertion, so the
+        // selected launch identity remains stable. An unchanged unavailable
+        // source also preserves its existing fallback identity.
+        if let Some(next_runtime_id) = next_source_runtime.as_deref() {
+            if previous_source_runtime.as_deref() != Some(next_runtime_id) {
+                record.launch_runtime_id = Some(next_runtime_id.to_string());
             }
-            // Custom/unknown pin: always keep.
         }
     }
-    // env_vars stay overrides-only. Self-heal records written before the env
-    // refresh: persona env used to be baked into `record.env_vars`, turning
-    // inherited values into pseudo-overrides that shadow later persona edits.
-    // An override equal to the persona's current value is indistinguishable
-    // from inheritance, so drop it and let the live merge supply it.
+    record.runtime = next_source_runtime;
+
+    // Legacy records retain the old stale command-pin cleanup. ID-backed
+    // records use the explicit marker and source/launch transition above.
+    if record.launch_runtime_id.is_none() {
+        if let Some(new_cmd) = persona
+            .runtime
+            .as_deref()
+            .map(str::trim)
+            .filter(|runtime| !runtime.is_empty())
+            .and_then(super::command_for_runtime_id)
+        {
+            if let Some(pin) = record
+                .agent_command_override
+                .as_deref()
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+            {
+                if let Some(pin_cmd) = super::canonical_harness_command(pin) {
+                    if pin_cmd != new_cmd {
+                        record.agent_command_override = None;
+                    }
+                }
+            }
+        }
+    }
+
     record
         .env_vars
-        .retain(|k, v| persona.env_vars.get(k) != Some(v));
+        .retain(|key, value| persona.env_vars.get(key) != Some(value));
     record.persona_source_version = Some(snapshot.source_version);
 }
 
@@ -545,3 +542,25 @@ pub fn preview_prospective_persona_snapshot(
 mod stale_pin_tests;
 #[cfg(test)]
 mod tests;
+
+/// Re-apply the linked persona onto a managed-agent record before local spawn
+/// or provider deploy so both start paths share the same runtime snapshot.
+pub fn apply_linked_persona_snapshot_for_start(
+    record: &mut ManagedAgentRecord,
+    personas: &[AgentDefinition],
+) -> Result<(), String> {
+    if let Some(persona_id) = record.persona_id.clone() {
+        match personas.iter().find(|persona| persona.id == persona_id) {
+            Some(persona) => {
+                apply_persona_snapshot(record, persona);
+                record.updated_at = crate::util::now_iso();
+            }
+            None => {
+                return Err(
+                    crate::managed_agents::effective_config::ORPHANED_INSTANCE_ERROR.to_string(),
+                );
+            }
+        }
+    }
+    Ok(())
+}

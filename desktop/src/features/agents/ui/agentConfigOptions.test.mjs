@@ -2,18 +2,22 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  buildPersonaRuntimeDropdownOptions,
   getDefaultPersonaRuntime,
   getPersonaModelOptions,
   getPersonaProviderOptions,
   getProviderApiKeyLabel,
+  isRuntimeReadyForNewSelection,
   resetConfigForHarnessChange,
+  shouldPersistImplicitRuntimePreference,
+  sortPersonaRuntimes,
   runtimeSupportsLlmProviderSelection,
 } from "./agentConfigOptions.tsx";
 import { formatModelDiscoveryErrorStatus } from "./personaModelDiscoveryStatus.ts";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
-function makeRuntime(id, availability = "available") {
+function makeRuntime(id, availability = "available", overrides = {}) {
   return {
     id,
     label: id,
@@ -21,6 +25,8 @@ function makeRuntime(id, availability = "available") {
     defaultArgs: [],
     mcpCommand: null,
     availability,
+    runtimeReadiness: "ready",
+    ...overrides,
   };
 }
 
@@ -75,10 +81,11 @@ test("getPersonaProviderOptions appends (current) tail for an unknown saved prov
   assert.equal(tail?.label, "my-custom-llm (current)");
 });
 
-// ── getDefaultPersonaRuntime — buzz-agent first ───────────────────────────────
+// ── getDefaultPersonaRuntime — OMPK first ────────────────────────────────────
 
 test("getDefaultPersonaRuntime honors an available global preference", () => {
   const runtimes = [
+    makeRuntime("ompk"),
     makeRuntime("buzz-agent"),
     makeRuntime("goose"),
     makeRuntime("claude"),
@@ -88,24 +95,37 @@ test("getDefaultPersonaRuntime honors an available global preference", () => {
 
 test("getDefaultPersonaRuntime ignores an unavailable global preference", () => {
   const runtimes = [
+    makeRuntime("ompk"),
     makeRuntime("buzz-agent"),
     makeRuntime("claude", "not_installed"),
   ];
-  assert.equal(getDefaultPersonaRuntime(runtimes, "claude")?.id, "buzz-agent");
+  assert.equal(getDefaultPersonaRuntime(runtimes, "claude")?.id, "ompk");
 });
 
-test("getDefaultPersonaRuntime returns buzz-agent over goose when both are available", () => {
+test("getDefaultPersonaRuntime returns OMPK over bundled fallbacks", () => {
   const runtimes = [
     makeRuntime("goose"),
     makeRuntime("buzz-agent"),
+    makeRuntime("ompk"),
     makeRuntime("claude"),
+  ];
+  const result = getDefaultPersonaRuntime(runtimes);
+  assert.equal(result?.id, "ompk");
+});
+
+test("getDefaultPersonaRuntime falls back to buzz-agent when OMPK is unavailable", () => {
+  const runtimes = [
+    makeRuntime("ompk", "not_installed"),
+    makeRuntime("goose"),
+    makeRuntime("buzz-agent"),
   ];
   const result = getDefaultPersonaRuntime(runtimes);
   assert.equal(result?.id, "buzz-agent");
 });
 
-test("getDefaultPersonaRuntime falls back to goose when buzz-agent is unavailable", () => {
+test("getDefaultPersonaRuntime falls back to goose when OMPK and buzz-agent are unavailable", () => {
   const runtimes = [
+    makeRuntime("ompk", "not_installed"),
     makeRuntime("buzz-agent", "not_installed"),
     makeRuntime("goose"),
   ];
@@ -113,8 +133,9 @@ test("getDefaultPersonaRuntime falls back to goose when buzz-agent is unavailabl
   assert.equal(result?.id, "goose");
 });
 
-test("getDefaultPersonaRuntime returns first available when neither buzz-agent nor goose is available", () => {
+test("getDefaultPersonaRuntime returns first available when preferred fallbacks are unavailable", () => {
   const runtimes = [
+    makeRuntime("ompk", "not_installed"),
     makeRuntime("buzz-agent", "adapter_missing"),
     makeRuntime("goose", "cli_missing"),
     makeRuntime("claude"),
@@ -123,28 +144,113 @@ test("getDefaultPersonaRuntime returns first available when neither buzz-agent n
   assert.equal(result?.id, "claude");
 });
 
+test("sortPersonaRuntimes orders OMPK first within the same availability", () => {
+  const runtimes = [
+    makeRuntime("claude"),
+    makeRuntime("goose"),
+    makeRuntime("buzz-agent"),
+    makeRuntime("ompk"),
+  ];
+  assert.deepEqual(
+    sortPersonaRuntimes(runtimes).map((runtime) => runtime.id),
+    ["ompk", "buzz-agent", "goose", "claude"],
+  );
+});
+
 test("getDefaultPersonaRuntime returns null for an empty list", () => {
   assert.equal(getDefaultPersonaRuntime([]), null);
 });
 
 test("getDefaultPersonaRuntime returns null when no runtime is available", () => {
   const runtimes = [
+    makeRuntime("ompk", "not_installed"),
     makeRuntime("buzz-agent", "not_installed"),
     makeRuntime("goose", "cli_missing"),
   ];
   assert.equal(getDefaultPersonaRuntime(runtimes), null);
 });
 
-// ── runtimeSupportsLlmProviderSelection — provider gating ────────────────────
+// ── Runtime selection readiness ─────────────────────────────────────────────
 
-test("runtimeSupportsLlmProviderSelection is true for buzz-agent and goose", () => {
-  assert.equal(runtimeSupportsLlmProviderSelection("buzz-agent"), true);
-  assert.equal(runtimeSupportsLlmProviderSelection("goose"), true);
+test("new runtime selection requires availability and confirmed readiness", () => {
+  assert.equal(
+    isRuntimeReadyForNewSelection(
+      makeRuntime("claude", "available", {
+        runtimeReadiness: "authentication_required",
+      }),
+    ),
+    false,
+  );
+  assert.equal(
+    isRuntimeReadyForNewSelection(makeRuntime("claude", "cli_missing")),
+    false,
+  );
+  assert.equal(isRuntimeReadyForNewSelection(makeRuntime("claude")), true);
 });
 
-test("runtimeSupportsLlmProviderSelection is false for codex and claude", () => {
-  assert.equal(runtimeSupportsLlmProviderSelection("codex"), false);
-  assert.equal(runtimeSupportsLlmProviderSelection("claude"), false);
+test("implicit defaults persist only a ready runtime", () => {
+  const unready = makeRuntime("ompk", "available", {
+    runtimeReadiness: "model_unavailable",
+  });
+  assert.equal(shouldPersistImplicitRuntimePreference(null, unready), false);
+  assert.equal(
+    shouldPersistImplicitRuntimePreference(null, makeRuntime("ompk")),
+    true,
+  );
+  assert.equal(shouldPersistImplicitRuntimePreference("ompk", unready), false);
+});
+
+test("runtime dropdown disables unready new selections but retains an edit's current choice", () => {
+  const unready = makeRuntime("ompk", "available", {
+    runtimeReadiness: "authentication_required",
+  });
+  const ready = makeRuntime("goose");
+  const createOptions = buildPersonaRuntimeDropdownOptions({
+    defaultRuntimeId: "goose",
+    isCreateMode: true,
+    runtime: "",
+    runtimes: [unready, ready],
+    runtimesLoading: false,
+  }).runtimeDropdownOptions;
+  assert.equal(
+    createOptions.find((option) => option.value === "ompk")?.disabled,
+    true,
+  );
+  assert.equal(
+    createOptions.find((option) => option.value === "goose")?.disabled,
+    false,
+  );
+
+  const editOptions = buildPersonaRuntimeDropdownOptions({
+    isCreateMode: false,
+    runtime: "ompk",
+    runtimes: [unready, ready],
+    runtimesLoading: false,
+  }).runtimeDropdownOptions;
+  assert.equal(
+    editOptions.find((option) => option.value === "ompk")?.disabled,
+    false,
+  );
+});
+
+// ── runtimeSupportsLlmProviderSelection — provider gating ────────────────────
+
+test("runtimeSupportsLlmProviderSelection follows catalog providerEnvVar", () => {
+  assert.equal(
+    runtimeSupportsLlmProviderSelection("BUZZ_AGENT_PROVIDER"),
+    true,
+  );
+  assert.equal(runtimeSupportsLlmProviderSelection("GOOSE_PROVIDER"), true);
+  assert.equal(runtimeSupportsLlmProviderSelection("  GOOSE_PROVIDER  "), true);
+});
+
+test("runtimeSupportsLlmProviderSelection is false without providerEnvVar", () => {
+  assert.equal(runtimeSupportsLlmProviderSelection(null), false);
+  assert.equal(runtimeSupportsLlmProviderSelection(undefined), false);
+  assert.equal(runtimeSupportsLlmProviderSelection(""), false);
+  assert.equal(runtimeSupportsLlmProviderSelection("   "), false);
+  // ompk currently projects null provider_env_var in the Rust catalog.
+  assert.equal(runtimeSupportsLlmProviderSelection(null), false);
 });
 
 test("resetConfigForHarnessChange clears harness-specific values", () => {
@@ -171,12 +277,15 @@ test("resetConfigForHarnessChange preserves compatible provider selection", () =
     provider: "anthropic",
   };
 
-  assert.deepEqual(resetConfigForHarnessChange(config, "goose"), {
-    env_vars: { KEEP_ME: "yes" },
-    model: null,
-    preferred_runtime: "goose",
-    provider: "anthropic",
-  });
+  assert.deepEqual(
+    resetConfigForHarnessChange(config, "goose", "GOOSE_PROVIDER"),
+    {
+      env_vars: { KEEP_ME: "yes" },
+      model: null,
+      preferred_runtime: "goose",
+      provider: "anthropic",
+    },
+  );
 });
 
 test("resetConfigForHarnessChange does not carry relay mesh to Goose", () => {
@@ -187,7 +296,10 @@ test("resetConfigForHarnessChange does not carry relay mesh to Goose", () => {
     provider: "relay-mesh",
   };
 
-  assert.equal(resetConfigForHarnessChange(config, "goose").provider, null);
+  assert.equal(
+    resetConfigForHarnessChange(config, "goose", "GOOSE_PROVIDER").provider,
+    null,
+  );
 });
 
 // ── getPersonaModelOptions — codex/claude do not use global provider ──────────
@@ -198,8 +310,8 @@ test("resetConfigForHarnessChange does not carry relay mesh to Goose", () => {
 // the static model options also stay provider-agnostic for those runtimes.
 
 test("getPersonaModelOptions for codex returns only default model regardless of provider", () => {
-  const withProvider = getPersonaModelOptions("codex", "anthropic");
-  const withoutProvider = getPersonaModelOptions("codex", "");
+  const withProvider = getPersonaModelOptions("codex", "anthropic", null);
+  const withoutProvider = getPersonaModelOptions("codex", "", null);
   assert.deepEqual(withProvider, withoutProvider);
   assert.equal(withProvider.length, 1);
   assert.equal(withProvider[0]?.id, "");
@@ -207,7 +319,11 @@ test("getPersonaModelOptions for codex returns only default model regardless of 
 
 test("getPersonaModelOptions for buzz-agent with anthropic filters out zero-value default", () => {
   // anthropic requires explicit model — zero-value option is filtered out
-  const options = getPersonaModelOptions("buzz-agent", "anthropic");
+  const options = getPersonaModelOptions(
+    "buzz-agent",
+    "anthropic",
+    "BUZZ_AGENT_PROVIDER",
+  );
   const zeroValue = options.find((o) => o.id === "");
   assert.equal(
     zeroValue,
@@ -217,7 +333,11 @@ test("getPersonaModelOptions for buzz-agent with anthropic filters out zero-valu
 });
 
 test("getPersonaModelOptions for buzz-agent with no provider returns default model", () => {
-  const options = getPersonaModelOptions("buzz-agent", "");
+  const options = getPersonaModelOptions(
+    "buzz-agent",
+    "",
+    "BUZZ_AGENT_PROVIDER",
+  );
   assert.equal(options.length, 1);
   assert.equal(options[0]?.id, "");
 });

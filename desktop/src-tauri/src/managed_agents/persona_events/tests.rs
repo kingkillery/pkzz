@@ -58,6 +58,8 @@ pub(super) fn sample_record() -> ManagedAgentRecord {
         definition_respond_to_allowlist: Vec::new(),
         definition_parallelism: None,
         relay_mesh: None,
+        launch_runtime_id: None,
+        raw_command_explicit: false,
     }
 }
 
@@ -629,6 +631,34 @@ fn snapshot_runtime_verbatim_from_persona() {
         snap.runtime, None,
         "persona runtime None must produce None snapshot (clears stale materialized value)"
     );
+}
+
+/// Local start and provider deploy must consume the same post-snapshot runtime
+/// identity after a persona runtime edit (OMPK-RUST-001).
+#[test]
+fn local_and_provider_start_share_post_snapshot_launch_runtime_identity() {
+    let mut local_record = sample_record();
+    local_record.runtime = Some("goose".into());
+    local_record.launch_runtime_id = Some("goose".into());
+    let mut provider_record = local_record.clone();
+
+    let mut persona = sample_persona();
+    persona.id = "test-persona".into();
+    persona.runtime = Some("ompk".into());
+
+    apply_persona_snapshot(&mut local_record, &persona);
+    apply_persona_snapshot(&mut provider_record, &persona);
+
+    assert_eq!(
+        local_record.launch_runtime_id.as_deref(),
+        Some("ompk"),
+        "local start snapshot must follow the persona runtime edit"
+    );
+    assert_eq!(
+        provider_record.launch_runtime_id, local_record.launch_runtime_id,
+        "provider deploy snapshot must resolve the same launch_runtime_id as local start"
+    );
+    assert_eq!(provider_record.runtime.as_deref(), Some("ompk"));
 }
 
 // ── persona_snapshot (definition-authoritative) ──────────────────────────

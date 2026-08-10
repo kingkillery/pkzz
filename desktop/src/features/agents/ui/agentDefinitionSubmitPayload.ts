@@ -14,6 +14,7 @@ export function buildRuntimeModelProviderPayload({
   runtime,
   model,
   provider,
+  providerEnvVar,
   isEditMode,
   isAutoSeeded,
   initialPreviousRuntime,
@@ -24,6 +25,7 @@ export function buildRuntimeModelProviderPayload({
   runtime: string;
   model: string;
   provider: string;
+  providerEnvVar?: string | null;
   isEditMode: boolean;
   isAutoSeeded: boolean;
   initialPreviousRuntime: string;
@@ -51,7 +53,7 @@ export function buildRuntimeModelProviderPayload({
     runtimeForSubmit.length === 0;
   const llmProviderVisibleForSubmit =
     (runtimeForSubmit.length > 0 &&
-      runtimeSupportsLlmProviderSelection(runtimeForSubmit)) ||
+      runtimeSupportsLlmProviderSelection(providerEnvVar)) ||
     modelProviderEditableWithoutRuntime;
   const shouldPreserveHiddenModelProvider =
     isEditMode &&

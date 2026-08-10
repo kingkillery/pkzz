@@ -12,8 +12,8 @@ import {
 // Every surface that starts an agent from a definition maps through
 // buildInstanceInputForDefinition + resolveStartRuntimeForDefinition +
 // availableRuntimesForStart. These tests pin the decided rows:
-//   row 1: refuse (actionable error) when the configured runtime is missing
-//   row 2: harnessOverride = !persona.runtime || persona.runtime === runtime.id
+//   row 1: unavailable configured runtime falls back with explicit provenance
+//   row 2: normal definition starts persist runtimeId without an explicit pin
 //   row 3: avatar through resolveManagedAgentAvatarUrl (injectable upload)
 //   row 4: create input NEVER contains definition env vars
 //   row 6: runtime list acquisition is refetch-aware
@@ -23,6 +23,7 @@ const gooseRuntime = {
   label: "Goose",
   avatarUrl: "https://runtime/goose.png",
   availability: "available",
+  runtimeReadiness: "ready",
   command: "goose-cmd",
   binaryPath: "/bin/goose",
   defaultArgs: ["--acp"],
@@ -46,6 +47,15 @@ const buzzAgentRuntime = {
   id: "buzz-agent",
   label: "Pkzz Agent",
   command: "buzz-agent-cmd",
+  mcpCommand: null,
+};
+
+const ompkRuntime = {
+  ...gooseRuntime,
+  id: "ompk",
+  label: "Oh My PK",
+  command: "ompk",
+  defaultArgs: ["acp"],
   mcpCommand: null,
 };
 
@@ -73,28 +83,27 @@ test("row 4: create input never contains definition env vars", async () => {
   );
 });
 
-test("row 2: harnessOverride follows the backend-aligned formula", async () => {
+test("row 2: normal definition starts persist runtime identity without pinning", async () => {
   const match = await buildInstanceInputForDefinition(
     persona({ runtime: "goose" }),
     gooseRuntime,
   );
-  assert.equal(match.harnessOverride, true, "picked == configured → true");
+  assert.equal(match.runtimeId, "goose");
+  assert.equal(match.harnessOverride, false);
 
   const noPreference = await buildInstanceInputForDefinition(
     persona({ runtime: undefined }),
-    gooseRuntime,
+    ompkRuntime,
   );
-  assert.equal(noPreference.harnessOverride, true, "no preference → true");
+  assert.equal(noPreference.runtimeId, "ompk");
+  assert.equal(noPreference.harnessOverride, false);
 
-  const differs = await buildInstanceInputForDefinition(
+  const fallback = await buildInstanceInputForDefinition(
     persona({ runtime: "claude" }),
     gooseRuntime,
   );
-  assert.equal(
-    differs.harnessOverride,
-    false,
-    "picked != configured → false (definition stays authoritative)",
-  );
+  assert.equal(fallback.runtimeId, "goose");
+  assert.equal(fallback.harnessOverride, false);
 });
 
 test("row 3: plain avatar URLs pass through; base64 data URIs upload via the injectable", async () => {
@@ -142,12 +151,13 @@ test("mapping carries the runtime and definition fields", async () => {
   assert.equal(input.name, "Test Agent");
   assert.equal(input.acpCommand, "buzz-acp");
   assert.equal(input.agentCommand, "goose-cmd");
+  assert.equal(input.runtimeId, "goose");
   // B-5: agentArgs is intentionally empty at create time — spawn reads args
   // live from the definition on every start so definition edits take effect
   // without recreating the agent. Seeding from runtime.defaultArgs here would
   // freeze args at create-time and silently ignore later definition edits.
   assert.deepEqual(input.agentArgs, []);
-  assert.equal(input.mcpCommand, "goose-mcp");
+  assert.equal("mcpCommand" in input, false);
   assert.equal(input.personaId, "p-1");
   assert.equal(input.systemPrompt, "prompt");
   assert.equal(input.model, undefined);
@@ -170,9 +180,9 @@ test("no backend intent is byte-identical to the pre-intent mapping", async () =
     avatarUrl: "https://example.com/a.png",
     acpCommand: "buzz-acp",
     agentCommand: "goose-cmd",
+    runtimeId: "goose",
     agentArgs: [],
-    mcpCommand: "goose-mcp",
-    harnessOverride: true,
+    harnessOverride: false,
     model: undefined,
     provider: undefined,
     spawnAfterCreate: true,
@@ -217,6 +227,7 @@ test("provider intent forces startOnAppLaunch off and omits local commands", asy
   for (const key of [
     "acpCommand",
     "agentCommand",
+    "runtimeId",
     "agentArgs",
     "mcpCommand",
     "model",
@@ -230,16 +241,14 @@ test("provider intent forces startOnAppLaunch off and omits local commands", asy
   assert.equal(input.systemPrompt, "prompt");
 });
 
-test("row 1: refuses when the configured runtime is not available", () => {
-  assert.throws(
-    () =>
-      resolveStartRuntimeForDefinition(persona({ runtime: "missing" }), [
-        gooseRuntime,
-        claudeRuntime,
-      ]),
-    /not available|No available runtime/i,
-    "configured-but-missing runtime must refuse, never silently fall back",
+test("row 1: unavailable configured runtime falls back with provenance", () => {
+  const result = resolveStartRuntimeForDefinition(
+    persona({ runtime: "missing" }),
+    [gooseRuntime, claudeRuntime],
   );
+  assert.equal(result.runtime.id, "goose");
+  assert.equal(result.provenance, "fallback");
+  assert.match(result.warnings[0], /missing/);
 });
 
 test("row 1: resolves the configured runtime when available", () => {
@@ -249,6 +258,13 @@ test("row 1: resolves the configured runtime when available", () => {
   );
   assert.equal(runtime.id, "claude");
   assert.deepEqual(warnings, []);
+  assert.equal(
+    resolveStartRuntimeForDefinition(persona({ runtime: "claude" }), [
+      gooseRuntime,
+      claudeRuntime,
+    ]).provenance,
+    "persona",
+  );
 });
 
 test("row 1: no preference resolves the default with no warnings", () => {
@@ -258,6 +274,13 @@ test("row 1: no preference resolves the default with no warnings", () => {
   );
   assert.equal(runtime.id, "goose");
   assert.deepEqual(warnings, []);
+  assert.equal(
+    resolveStartRuntimeForDefinition(persona({ runtime: undefined }), [
+      gooseRuntime,
+      claudeRuntime,
+    ]).provenance,
+    "implicit_default",
+  );
 });
 
 test("row 1: refuses when no runtimes exist at all", () => {
@@ -298,23 +321,25 @@ test("row 6: unfetched query refetches instead of resolving empty", async () => 
   );
 });
 
-// ── item-13 regression: buzz-agent-first default runtime ─────────────────────
+// ── canonical OMPK-first default runtime ─────────────────────────────────────
 //
-// Before this fix, resolveStartRuntimeForDefinition used runtimes[0] (catalog
-// order: goose, claude, codex, buzz-agent), so an installed goose would beat
-// the bundled buzz-agent sidecar as the default for runtime-less personas.
-// The fix applies the preference order: buzz-agent → goose → first available.
+// Runtime-less personas use the shared preference order instead of catalog
+// order: OMPK → bundled Pkzz Agent → Goose → first available.
+test("OMPK wins for a runtime-less persona when available", () => {
+  const { runtime, warnings } = resolveStartRuntimeForDefinition(
+    persona({ runtime: undefined }),
+    [gooseRuntime, claudeRuntime, buzzAgentRuntime, ompkRuntime],
+  );
+  assert.equal(runtime.id, "ompk");
+  assert.deepEqual(warnings, []);
+});
 
-test("item-13: goose+buzz-agent both available — persona with no runtime resolves buzz-agent", () => {
+test("Pkzz Agent wins when OMPK is absent", () => {
   const { runtime, warnings } = resolveStartRuntimeForDefinition(
     persona({ runtime: undefined }),
     [gooseRuntime, claudeRuntime, buzzAgentRuntime],
   );
-  assert.equal(
-    runtime.id,
-    "buzz-agent",
-    "buzz-agent must win over catalog-first goose for runtime-less personas",
-  );
+  assert.equal(runtime.id, "buzz-agent");
   assert.deepEqual(warnings, []);
 });
 
@@ -333,4 +358,16 @@ test("item-13: no runtimes available — refuses with actionable error", () => {
     /No available runtime/,
     "empty runtime list must throw, not silently return null",
   );
+});
+
+test("runtime-less OMPK create carries ID, empty args, and no catalog metadata", async () => {
+  const input = await buildInstanceInputForDefinition(
+    persona({ runtime: null }),
+    ompkRuntime,
+  );
+  assert.equal(input.runtimeId, "ompk");
+  assert.deepEqual(input.agentArgs, []);
+  assert.equal(input.harnessOverride, false);
+  assert.equal("mcpCommand" in input, false);
+  assert.equal("defaultArgs" in input, false);
 });

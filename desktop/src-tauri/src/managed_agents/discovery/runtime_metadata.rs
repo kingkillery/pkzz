@@ -1,10 +1,69 @@
+use crate::managed_agents::HarnessSource;
+
+/// How a rich runtime exposes authentication/setup.
+///
+/// Absence of a non-interactive CLI probe is not evidence that authentication
+/// is irrelevant: ACP runtimes such as OMPK can advertise account/setup
+/// methods while having no truthful login-status command.
+///
+/// `AcpMethods` is used only after hermetic initialize acceptance proves the
+/// runtime's advertised ACP metadata contract (owner-permission bridge ack).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum RuntimeAuthentication {
+    NotApplicable,
+    CliProbe {
+        /// CLI argv used only for a non-interactive authentication probe.
+        /// `args[0]` is the executable and the remainder is its subcommand.
+        args: &'static [&'static str],
+        login_hint: &'static str,
+    },
+    AcpMethods {
+        login_hint: &'static str,
+    },
+}
+
+impl RuntimeAuthentication {
+    pub(crate) fn probe_args(self) -> Option<&'static [&'static str]> {
+        match self {
+            Self::CliProbe { args, .. } => Some(args),
+            Self::NotApplicable | Self::AcpMethods { .. } => None,
+        }
+    }
+
+    pub(crate) fn login_hint(self) -> Option<&'static str> {
+        match self {
+            Self::NotApplicable => None,
+            Self::CliProbe { login_hint, .. } | Self::AcpMethods { login_hint } => Some(login_hint),
+        }
+    }
+
+    pub(crate) fn can_connect_account(self) -> bool {
+        !matches!(self, Self::NotApplicable)
+    }
+}
+
+/// Rust-owned policy used to determine whether an installed runtime can
+/// actually service a managed ACP session.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum RuntimeReadinessPolicy {
+    AvailabilityOnly,
+    Authentication,
+    AcpModelCatalog,
+}
+
 /// Static capabilities and installation metadata for a known ACP runtime.
+#[derive(Debug)]
 pub(crate) struct KnownAcpRuntime {
     pub id: &'static str,
     pub label: &'static str,
     pub commands: &'static [&'static str],
     pub aliases: &'static [&'static str],
     pub avatar_url: &'static str,
+    /// Trust/editability source is independent from capability richness.
+    pub source: HarnessSource,
+    /// Canonical default argv for this runtime. Empty persisted instance args
+    /// resolve to this live catalog value.
+    pub default_args: &'static [&'static str],
     /// Legacy MCP server binary field. Vestigial — all agents now use the bundled CLI
     /// directly. Will be removed when runtime discovery is simplified.
     pub mcp_command: Option<&'static str>,
@@ -59,12 +118,8 @@ pub(crate) struct KnownAcpRuntime {
     /// Used by the config bridge to mark fields as required in the UI.
     /// Keys match the camelCase names used in `NormalizedConfig` (e.g. "model", "provider").
     pub required_normalized_fields: &'static [&'static str],
-    /// Human-readable hint shown in Doctor when the runtime is available but not
-    /// authenticated. `None` for runtimes that have no login step (goose, buzz-agent).
-    pub login_hint: Option<&'static str>,
-    /// CLI args for probing authentication status. `args[0]` is the binary name;
-    /// the remainder are the subcommand. `None` for runtimes with no login step.
-    pub auth_probe_args: Option<&'static [&'static str]>,
+    pub authentication: RuntimeAuthentication,
+    pub readiness_policy: RuntimeReadinessPolicy,
 }
 
 impl KnownAcpRuntime {
@@ -87,6 +142,8 @@ impl KnownAcpRuntime {
 #[cfg(test)]
 mod tests {
     use super::super::known_acp_runtime_exact;
+    use super::{RuntimeAuthentication, RuntimeReadinessPolicy};
+    use crate::managed_agents::HarnessSource;
 
     #[test]
     fn vendor_metadata_distinguishes_cli_and_adapter_guidance() {
@@ -123,5 +180,78 @@ mod tests {
         );
         assert!(codex.adapter_install_instructions_url.contains("codex-acp"));
         assert!(codex.cli_install_hint.contains("Codex CLI"));
+    }
+    #[test]
+    fn frozen_authentication_and_readiness_policies_are_truthful() {
+        for id in ["goose", "buzz-agent"] {
+            let runtime = known_acp_runtime_exact(id).unwrap();
+            assert_eq!(runtime.authentication, RuntimeAuthentication::NotApplicable);
+            assert_eq!(
+                runtime.readiness_policy,
+                RuntimeReadinessPolicy::AvailabilityOnly
+            );
+        }
+
+        let claude = known_acp_runtime_exact("claude").unwrap();
+        assert_eq!(
+            claude.authentication,
+            RuntimeAuthentication::CliProbe {
+                args: &["claude", "auth", "status"],
+                login_hint: "Run the Claude CLI to complete authentication.",
+            }
+        );
+        assert_eq!(
+            claude.readiness_policy,
+            RuntimeReadinessPolicy::Authentication
+        );
+
+        let codex = known_acp_runtime_exact("codex").unwrap();
+        assert_eq!(
+            codex.authentication,
+            RuntimeAuthentication::CliProbe {
+                args: &["codex", "login", "status"],
+                login_hint: "Run `codex login` to authenticate.",
+            }
+        );
+        assert_eq!(
+            codex.readiness_policy,
+            RuntimeReadinessPolicy::Authentication
+        );
+    }
+
+    #[test]
+    fn ompk_rich_metadata_contains_only_verified_capabilities() {
+        let ompk = known_acp_runtime_exact("ompk").expect("OMPK must be rich metadata");
+        assert_eq!(ompk.id, "ompk");
+        assert_eq!(ompk.commands, &["ompk"]);
+        assert!(ompk.aliases.is_empty());
+        assert_eq!(ompk.source, HarnessSource::Preset);
+        assert_eq!(ompk.default_args, &["acp"]);
+        assert!(matches!(
+            ompk.authentication,
+            RuntimeAuthentication::AcpMethods { .. }
+        ));
+        assert_eq!(
+            ompk.readiness_policy,
+            RuntimeReadinessPolicy::AcpModelCatalog
+        );
+        assert!(ompk.supports_acp_model_switching);
+        assert!(ompk.model_env_var.is_none());
+        assert!(ompk.provider_env_var.is_none());
+        assert!(ompk.thinking_env_var.is_none());
+        assert!(ompk.max_tokens_env_var.is_none());
+        assert!(ompk.context_limit_env_var.is_none());
+        assert!(ompk.max_rounds_env_var.is_none());
+        assert!(ompk.config_file_path.is_none());
+        assert!(ompk.config_file_format.is_none());
+        assert!(!ompk.supports_acp_native_config);
+        assert!(ompk.mcp_command.is_none());
+        assert!(!ompk.mcp_hooks);
+        assert!(ompk.default_env.is_empty());
+        assert!(ompk.underlying_cli.is_none());
+        assert!(ompk.cli_install_commands.is_empty());
+        assert!(ompk.cli_install_commands_windows.is_empty());
+        assert!(ompk.adapter_install_commands.is_empty());
+        assert!(ompk.required_normalized_fields.is_empty());
     }
 }

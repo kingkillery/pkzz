@@ -284,13 +284,14 @@ fn record_with(
         definition_respond_to_allowlist: Vec::new(),
         definition_parallelism: None,
         relay_mesh: None,
+        launch_runtime_id: None,
+        raw_command_explicit: false,
     }
 }
 
 #[test]
 fn record_agent_command_own_runtime_wins_over_persona() {
-    // A record with its own materialized runtime never consults the
-    // persona list — the unified-model resolution.
+    // A record with its own materialized runtime never consults the persona list.
     let personas = vec![persona_with_runtime("p1", Some("goose"))];
     let record = record_with(Some("claude"), Some("p1"), None);
     assert_eq!(record_agent_command(&record, &personas), "claude-agent-acp");
@@ -304,8 +305,7 @@ fn record_agent_command_override_beats_runtime() {
 
 #[test]
 fn record_agent_command_legacy_persona_fallback() {
-    // Pre-migration record: persona_id set, no runtime — resolves through
-    // the legacy persona path unchanged.
+    // Pre-migration records resolve through the legacy persona path unchanged.
     let personas = vec![persona_with_runtime("p1", Some("goose"))];
     let record = record_with(None, Some("p1"), None);
     assert_eq!(record_agent_command(&record, &personas), "goose");

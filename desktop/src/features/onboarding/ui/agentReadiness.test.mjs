@@ -3,26 +3,45 @@ import test from "node:test";
 
 import { resolveAgentReadiness } from "./agentReadiness.ts";
 
-// Minimal stub helpers.
 function makeRuntime(overrides = {}) {
   return {
-    id: "goose",
-    label: "Goose",
+    id: "generic-cli",
+    label: "Generic CLI",
     availability: "available",
-    authStatus: { status: "logged_in" },
+    authStatus: { status: "unknown" },
+    runtimeReadiness: "ready",
+    canConnectAccount: false,
     avatarUrl: "",
-    command: "goose",
-    binaryPath: "/usr/local/bin/goose",
+    command: "generic-cli",
+    binaryPath: "/usr/local/bin/generic-cli",
     defaultArgs: [],
     mcpCommand: null,
+    modelEnvVar: null,
+    providerEnvVar: null,
+    thinkingEnvVar: null,
+    maxTokensEnvVar: null,
+    contextLimitEnvVar: null,
+    maxRoundsEnvVar: null,
     installHint: "",
     installInstructionsUrl: "https://example.com",
     canAutoInstall: false,
+    requiresExternalCli: false,
     underlyingCliPath: null,
     nodeRequired: false,
     loginHint: null,
+    source: "preset",
     ...overrides,
   };
+}
+
+function configuredRuntime(overrides = {}) {
+  return makeRuntime({
+    id: "buzz-agent",
+    label: "Pkzz Agent",
+    providerEnvVar: "BUZZ_LLM_PROVIDER",
+    modelEnvVar: "BUZZ_LLM_MODEL",
+    ...overrides,
+  });
 }
 
 function makeConfig(overrides = {}) {
@@ -30,225 +49,174 @@ function makeConfig(overrides = {}) {
     env_vars: {},
     provider: null,
     model: null,
-    preferred_runtime: "goose",
+    preferred_runtime: "generic-cli",
     ...overrides,
   };
 }
 
-// ---------------------------------------------------------------------------
-// CLI path
-// ---------------------------------------------------------------------------
-
-test("resolveAgentReadiness_cli_returns_ready_when_preferred_cli_runtime_is_logged_in", () => {
-  const runtimes = [makeRuntime({ id: "claude", label: "Claude" })];
+test("auth unknown plus Rust-ready is ready", () => {
   const result = resolveAgentReadiness(
-    runtimes,
-    makeConfig({ preferred_runtime: "claude" }),
+    [
+      makeRuntime({
+        id: "ompk",
+        label: "Oh My PK",
+        authStatus: { status: "unknown" },
+        runtimeReadiness: "ready",
+      }),
+    ],
+    makeConfig({ preferred_runtime: "ompk" }),
+    "preferred",
   );
   assert.deepEqual(result, {
     ready: true,
-    reason: "cli",
-    runtimeLabel: "Claude",
+    reason: "runtime",
+    runtimeLabel: "Oh My PK",
   });
 });
 
-test("resolveAgentReadiness_uses_only_the_preferred_runtime", () => {
-  const runtimes = [
-    makeRuntime({ id: "claude", label: "Claude" }),
-    makeRuntime({ id: "goose", label: "Goose" }),
-  ];
-  const result = resolveAgentReadiness(runtimes, makeConfig(), "preferred");
-  assert.equal(result.ready, false);
+test("model-unavailable and unknown runtime readiness fail closed", () => {
+  for (const runtimeReadiness of ["model_unavailable", "unknown"]) {
+    const result = resolveAgentReadiness(
+      [
+        makeRuntime({
+          authStatus: { status: "logged_in" },
+          runtimeReadiness,
+        }),
+      ],
+      makeConfig(),
+      "preferred",
+    );
+    assert.deepEqual(result, { ready: false });
+  }
 });
 
-test("resolveAgentReadiness_cli_skips_logged_out_runtimes", () => {
-  const runtimes = [
-    makeRuntime({
-      id: "goose",
-      label: "Goose",
-      authStatus: { status: "logged_out" },
-    }),
-  ];
-  const result = resolveAgentReadiness(runtimes, makeConfig(), "preferred");
-  assert.equal(result.ready, false);
-});
-
-test("resolveAgentReadiness_goose_requires_provider_and_model", () => {
-  const runtimes = [
-    makeRuntime({
-      id: "goose",
-      label: "Goose",
-      availability: "available",
-      authStatus: { status: "not_applicable" },
-    }),
-  ];
-  const result = resolveAgentReadiness(runtimes, makeConfig(), "preferred");
-  assert.equal(result.ready, false);
-});
-
-test("resolveAgentReadiness_cli_not_ready_for_unknown_auth_status", () => {
-  // unknown means auth state hasn't been determined yet — conservative.
-  const runtimes = [
-    makeRuntime({
-      id: "goose",
-      label: "Goose",
-      availability: "available",
-      authStatus: { status: "unknown" },
-    }),
-  ];
-  const result = resolveAgentReadiness(runtimes, makeConfig(), "preferred");
-  assert.equal(result.ready, false);
-});
-
-test("resolveAgentReadiness_cli_not_ready_for_config_invalid_auth_status", () => {
-  const runtimes = [
-    makeRuntime({
-      id: "goose",
-      label: "Goose",
-      availability: "available",
-      authStatus: { status: "config_invalid" },
-    }),
-  ];
-  const result = resolveAgentReadiness(runtimes, makeConfig(), "preferred");
-  assert.equal(result.ready, false);
-});
-
-test("resolveAgentReadiness_cli_skips_unavailable_runtimes", () => {
-  const runtimes = [
-    makeRuntime({
-      id: "goose",
-      label: "Goose",
-      availability: "not_installed",
-      authStatus: { status: "logged_in" },
-    }),
-  ];
-  const result = resolveAgentReadiness(runtimes, makeConfig(), "preferred");
-  assert.equal(result.ready, false);
-});
-
-test("resolveAgentReadiness_cli_ignores_buzz_agent_runtime", () => {
-  // buzz-agent with availability=available and logged_in must NOT trigger the CLI path.
-  const runtimes = [
-    makeRuntime({
-      id: "buzz-agent",
-      label: "buzz-agent",
-      authStatus: { status: "not_applicable" },
-    }),
-  ];
-  const result = resolveAgentReadiness(runtimes, makeConfig(), "preferred");
-  assert.equal(result.ready, false);
-});
-
-// ---------------------------------------------------------------------------
-// buzz-agent path
-// ---------------------------------------------------------------------------
-
-test("resolveAgentReadiness_buzz_agent_ready_when_provider_model_and_key_set", () => {
-  // anthropic requires ANTHROPIC_API_KEY
+test("authentication-required readiness fails even with stale logged-in auth", () => {
   const result = resolveAgentReadiness(
-    [makeRuntime({ id: "buzz-agent", label: "Pkzz Agent" })],
-    makeConfig({
-      preferred_runtime: "buzz-agent",
-      provider: "anthropic",
-      model: "claude-3-5-sonnet-latest",
-      env_vars: { ANTHROPIC_API_KEY: "sk-ant-test" },
-    }),
-  );
-  assert.deepEqual(result, { ready: true, reason: "buzz-agent" });
-});
-
-test("resolveAgentReadiness_buzz_agent_not_ready_when_missing_required_credential_key", () => {
-  const config = makeConfig({
-    provider: "anthropic",
-    model: "claude-3-5-sonnet-latest",
-    env_vars: {},
-  });
-  const result = resolveAgentReadiness([], config);
-  assert.equal(result.ready, false);
-});
-
-test("resolveAgentReadiness_buzz_agent_not_ready_when_provider_missing", () => {
-  const config = makeConfig({
-    provider: null,
-    model: "claude-3-5-sonnet-latest",
-    env_vars: { ANTHROPIC_API_KEY: "sk-ant-test" },
-  });
-  const result = resolveAgentReadiness([], config);
-  assert.equal(result.ready, false);
-});
-
-test("resolveAgentReadiness_buzz_agent_not_ready_when_model_missing", () => {
-  const config = makeConfig({
-    provider: "anthropic",
-    model: null,
-    env_vars: { ANTHROPIC_API_KEY: "sk-ant-test" },
-  });
-  const result = resolveAgentReadiness([], config);
-  assert.equal(result.ready, false);
-});
-
-// ---------------------------------------------------------------------------
-// Neither path ready
-// ---------------------------------------------------------------------------
-
-test("resolveAgentReadiness_neither_returns_not_ready", () => {
-  const result = resolveAgentReadiness([], makeConfig());
-  assert.deepEqual(result, { ready: false });
-});
-
-test("resolveAgentReadiness_welcome_readiness_uses_ready_cli_without_preference", () => {
-  const runtimes = [makeRuntime({ id: "claude", label: "Claude" })];
-  const result = resolveAgentReadiness(
-    runtimes,
-    makeConfig({ preferred_runtime: null }),
-  );
-  assert.deepEqual(result, {
-    ready: true,
-    reason: "cli",
-    runtimeLabel: "Claude",
-  });
-});
-
-test("resolveAgentReadiness_legacy_config_without_preference_uses_buzz_agent_fields", () => {
-  const runtimes = [makeRuntime({ id: "buzz-agent", label: "Pkzz Agent" })];
-  const result = resolveAgentReadiness(
-    runtimes,
-    makeConfig({
-      preferred_runtime: null,
-      provider: "anthropic",
-      model: "claude-3-5-sonnet-latest",
-      env_vars: { ANTHROPIC_API_KEY: "sk-ant-test" },
-    }),
-  );
-  assert.deepEqual(result, { ready: true, reason: "buzz-agent" });
-});
-
-test("resolveAgentReadiness_legacy_config_does_not_treat_goose_binary_as_ready", () => {
-  const result = resolveAgentReadiness(
-    [makeRuntime({ id: "goose", label: "Goose" })],
-    makeConfig({ preferred_runtime: null }),
+    [
+      makeRuntime({
+        authStatus: { status: "logged_in" },
+        runtimeReadiness: "authentication_required",
+      }),
+    ],
+    makeConfig(),
     "preferred",
   );
   assert.deepEqual(result, { ready: false });
 });
 
-// ---------------------------------------------------------------------------
-// Preferred runtime isolation
-// ---------------------------------------------------------------------------
-
-test("resolveAgentReadiness_preferred_goose_does_not_borrow_ready_buzz_agent_config", () => {
-  const runtimes = [
-    makeRuntime({ id: "goose", label: "Goose" }),
-    makeRuntime({ id: "buzz-agent", label: "Pkzz Agent" }),
-  ];
+test("unavailable runtimes never become ready", () => {
   const result = resolveAgentReadiness(
-    runtimes,
+    [makeRuntime({ availability: "not_installed" })],
+    makeConfig(),
+    "preferred",
+  );
+  assert.deepEqual(result, { ready: false });
+});
+
+test("preferred scope evaluates only the saved runtime", () => {
+  const result = resolveAgentReadiness(
+    [
+      makeRuntime({ id: "other", label: "Other" }),
+      makeRuntime({
+        id: "preferred",
+        runtimeReadiness: "model_unavailable",
+      }),
+    ],
+    makeConfig({ preferred_runtime: "preferred" }),
+    "preferred",
+  );
+  assert.deepEqual(result, { ready: false });
+});
+
+test("any scope accepts any operationally ready runtime", () => {
+  const result = resolveAgentReadiness(
+    [
+      makeRuntime({ id: "first", runtimeReadiness: "unknown" }),
+      makeRuntime({ id: "second", label: "Second" }),
+    ],
+    makeConfig({ preferred_runtime: null }),
+  );
+  assert.deepEqual(result, {
+    ready: true,
+    reason: "runtime",
+    runtimeLabel: "Second",
+  });
+});
+
+test("catalog provider/model metadata requires normalized global config", () => {
+  const runtime = configuredRuntime();
+  assert.deepEqual(
+    resolveAgentReadiness(
+      [runtime],
+      makeConfig({ preferred_runtime: runtime.id }),
+      "preferred",
+    ),
+    { ready: false },
+  );
+  assert.deepEqual(
+    resolveAgentReadiness(
+      [runtime],
+      makeConfig({
+        model: "claude-3-5-sonnet-latest",
+        preferred_runtime: runtime.id,
+      }),
+      "preferred",
+    ),
+    { ready: false },
+  );
+});
+
+test("configured runtime requires provider credentials", () => {
+  const runtime = configuredRuntime();
+  const missingKey = resolveAgentReadiness(
+    [runtime],
     makeConfig({
+      model: "claude-3-5-sonnet-latest",
+      preferred_runtime: runtime.id,
       provider: "anthropic",
-      model: null,
-      env_vars: { ANTHROPIC_API_KEY: "sk-ant-test" },
     }),
     "preferred",
   );
-  assert.equal(result.ready, false);
+  assert.deepEqual(missingKey, { ready: false });
+
+  const ready = resolveAgentReadiness(
+    [runtime],
+    makeConfig({
+      env_vars: { ANTHROPIC_API_KEY: "sk-ant-test" },
+      model: "claude-3-5-sonnet-latest",
+      preferred_runtime: runtime.id,
+      provider: "anthropic",
+    }),
+    "preferred",
+  );
+  assert.deepEqual(ready, {
+    ready: true,
+    reason: "configured",
+    runtimeLabel: "Pkzz Agent",
+  });
+});
+
+test("provider capability is derived from catalog metadata, not runtime ID", () => {
+  const runtime = configuredRuntime({
+    id: "custom-provider-runtime",
+    label: "Custom Provider Runtime",
+  });
+  const result = resolveAgentReadiness(
+    [runtime],
+    makeConfig({
+      model: "custom-model",
+      preferred_runtime: runtime.id,
+      provider: "keyless-provider",
+    }),
+    "preferred",
+  );
+  assert.deepEqual(result, {
+    ready: true,
+    reason: "configured",
+    runtimeLabel: "Custom Provider Runtime",
+  });
+});
+
+test("empty catalog has no ready path", () => {
+  assert.deepEqual(resolveAgentReadiness([], makeConfig()), { ready: false });
 });

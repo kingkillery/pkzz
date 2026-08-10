@@ -419,6 +419,8 @@ mod tests {
             agent_command_override: None,
             persona_source_version: None,
             provider: None,
+            launch_runtime_id: None,
+            raw_command_explicit: false,
         }
     }
 

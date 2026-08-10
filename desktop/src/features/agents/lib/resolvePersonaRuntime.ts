@@ -1,13 +1,30 @@
 import type { AcpRuntime, AcpRuntimeCatalogEntry } from "@/shared/api/types";
 
+const DEFAULT_PERSONA_RUNTIME_ORDER: readonly string[] = [
+  "ompk",
+  "buzz-agent",
+  "goose",
+];
+
+/** Rank a runtime for implicit selection and picker ordering. */
+export function getPersonaRuntimePreferenceRank(runtimeId: string) {
+  const rank = DEFAULT_PERSONA_RUNTIME_ORDER.indexOf(runtimeId);
+  return rank === -1 ? DEFAULT_PERSONA_RUNTIME_ORDER.length : rank;
+}
+
 /**
- * Select the best default runtime from a catalog, using the same preference
- * order as the UI picker: buzz-agent first (bundled sidecar), then goose,
- * then the first available entry, then null when nothing is available.
+ * Select the best default runtime from a catalog using the same preference
+ * order as the UI picker: OMPK first, then the bundled Pkzz Agent, then Goose,
+ * then the first ready entry, then null when no implicit candidate is ready.
+ *
+ * An explicit available global preference always wins, regardless of
+ * readiness, so a saved choice that needs setup remains visible and
+ * actionable. Only implicit candidates are readiness-gated, and upstream OMP
+ * is explicit-only.
  *
  * Generic so that passing AcpRuntime[] (the already-filtered start-path
  * list) returns AcpRuntime | null while passing AcpRuntimeCatalogEntry[]
- * (the full catalog) returns AcpRuntimeCatalogEntry | null.  Both call sites
+ * (the full catalog) returns AcpRuntimeCatalogEntry | null. Both call sites
  * share one preference-order implementation.
  */
 export function getDefaultPersonaRuntime<T extends AcpRuntimeCatalogEntry>(
@@ -17,14 +34,35 @@ export function getDefaultPersonaRuntime<T extends AcpRuntimeCatalogEntry>(
   const available = runtimes.filter(
     (runtime) => runtime.availability === "available",
   );
-  return (
-    available.find((runtime) => runtime.id === preferredRuntimeId) ??
-    available.find((runtime) => runtime.id === "buzz-agent") ??
-    available.find((runtime) => runtime.id === "goose") ??
-    available[0] ??
-    null
+  const configured = available.find(
+    (runtime) => runtime.id === preferredRuntimeId,
   );
+  if (configured) return configured;
+
+  const readyImplicitCandidates = available.filter(
+    (runtime) => runtime.id !== "omp" && runtime.runtimeReadiness === "ready",
+  );
+  for (const runtimeId of DEFAULT_PERSONA_RUNTIME_ORDER) {
+    const runtime = readyImplicitCandidates.find(
+      (candidate) => candidate.id === runtimeId,
+    );
+    if (runtime) return runtime;
+  }
+
+  return readyImplicitCandidates[0] ?? null;
 }
+
+/**
+ * Why a runtime was selected. This provenance is also the launch-intent
+ * boundary: only `forced_override` represents a deliberate per-instance pin;
+ * persona inheritance, implicit defaults, and unavailable-runtime fallbacks
+ * remain unpinned.
+ */
+export type PersonaRuntimeResolutionProvenance =
+  | "implicit_default"
+  | "persona"
+  | "fallback"
+  | "forced_override";
 
 /**
  * Result of resolving a persona's preferred runtime against the set of
@@ -34,13 +72,14 @@ export function getDefaultPersonaRuntime<T extends AcpRuntimeCatalogEntry>(
  * `warnings` contains user-visible messages when the resolved runtime
  * differs from what the persona requested (e.g. the configured runtime
  * was uninstalled) or when no runtime is available at all.
- * `isOverridden` is true when the resolved runtime differs from what the
- * persona originally requested (either via explicit override or fallback).
+ * `isOverridden` is retained for callers that only need mismatch state;
+ * `provenance` preserves the actual selection reason and pin intent.
  */
 export type ResolvePersonaRuntimeResult = {
   runtime: AcpRuntime | null;
   warnings: string[];
   isOverridden: boolean;
+  provenance: PersonaRuntimeResolutionProvenance;
 };
 
 /**
@@ -72,6 +111,7 @@ export function resolvePersonaRuntime(
             "No agent runtimes are available. Install a runtime (e.g. Goose) to deploy agents.",
           ],
       isOverridden: false,
+      provenance: "implicit_default",
     };
   }
 
@@ -85,12 +125,14 @@ export function resolvePersonaRuntime(
           `Runtime override: using ${defaultRuntime.label} instead of ${matched.label}.`,
         ],
         isOverridden: true,
+        provenance: "forced_override",
       };
     }
     return {
       runtime: forceOverride && defaultRuntime ? defaultRuntime : matched,
       warnings: [],
       isOverridden: false,
+      provenance: "persona",
     };
   }
 
@@ -102,6 +144,7 @@ export function resolvePersonaRuntime(
         `This agent is configured for runtime "${personaRuntimeId}" but it is not available. Using ${defaultRuntime.label} instead.`,
       ],
       isOverridden: true,
+      provenance: "fallback",
     };
   }
 
@@ -111,6 +154,7 @@ export function resolvePersonaRuntime(
       `This agent is configured for runtime "${personaRuntimeId}" but it is not available, and no other runtimes were found.`,
     ],
     isOverridden: false,
+    provenance: "fallback",
   };
 }
 

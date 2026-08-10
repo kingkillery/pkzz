@@ -2,6 +2,7 @@ import * as React from "react";
 
 import {
   collectRuntimeWarnings,
+  getDefaultPersonaRuntime,
   resolvePersonaRuntime,
 } from "@/features/agents/lib/resolvePersonaRuntime";
 import type { AcpRuntime, AgentPersona } from "@/shared/api/types";
@@ -15,7 +16,8 @@ export function useEffectiveRuntimes(
   selectedRuntime: AcpRuntime | null,
   isOverrideActive: boolean,
 ) {
-  const fallback = selectedRuntime ?? providers[0] ?? null;
+  const fallback =
+    selectedRuntime ?? getDefaultPersonaRuntime(providers) ?? null;
 
   const runtimeWarnings = React.useMemo(
     () =>

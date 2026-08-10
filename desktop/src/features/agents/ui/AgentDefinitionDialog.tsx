@@ -38,9 +38,9 @@ import {
   BLOCK_BUILD_HIDDEN_PROVIDER_IDS,
   buildPersonaRuntimeDropdownOptions,
   CUSTOM_PROVIDER_DROPDOWN_VALUE,
-  computeLocalModeGate,
   formatRuntimeOptionLabel,
   getDefaultPersonaRuntime,
+  isRuntimeReadyForNewSelection,
   getPersonaModelOptions,
   getPersonaProviderOptions,
   getProviderApiKeyLabel,
@@ -51,7 +51,6 @@ import {
   PERSONA_FIELD_CONTROL_CLASS,
   PERSONA_FIELD_SHELL_CLASS,
   PERSONA_LABEL_OPTIONAL_CLASS,
-  shouldClearKnownModelForSelectionScope,
 } from "./agentConfigOptions";
 import { RequiredFieldLabel } from "./agentConfigControls";
 import {
@@ -70,6 +69,10 @@ import {
 } from "./usePersonaModelDiscovery";
 import { useBakedBuildEnvKeysQuery, useRuntimeFileConfigQuery } from "../hooks";
 import { useAgentDialogDefaults } from "./useAgentDialogDefaults";
+import {
+  useLocalModeGate,
+  useResetModelOnRuntimeChange,
+} from "./useLocalModeGate";
 import { AgentDefaultsDialog } from "./AgentDefaultsDialog";
 import { AgentHarnessField } from "./AgentHarnessField";
 import {
@@ -334,6 +337,7 @@ export function AgentDefinitionDialog({
       runtime,
       model: aiConfigurationMode === "defaults" ? "" : model,
       provider: aiConfigurationMode === "defaults" ? "" : provider,
+      providerEnvVar: selectedRuntime?.providerEnvVar,
       isEditMode: "id" in initialValues,
       isAutoSeeded: isRuntimeAutoSeededRef.current,
       initialPreviousRuntime: initialValues.runtime?.trim() ?? "",
@@ -389,7 +393,7 @@ export function AgentDefinitionDialog({
   const blankRuntimeModelProviderEditable =
     initialModelProviderEditableWithoutRuntime && runtime.trim().length === 0;
   const runtimeCanChooseLlmProvider =
-    runtimeSupportsLlmProviderSelection(runtime) ||
+    runtimeSupportsLlmProviderSelection(selectedRuntime?.providerEnvVar) ||
     blankRuntimeModelProviderEditable;
   const llmProviderFieldVisible =
     (runtime.trim().length > 0 && runtimeCanChooseLlmProvider) ||
@@ -419,32 +423,19 @@ export function AgentDefinitionDialog({
     setModel(nextPair.model);
   }
   const { data: bakedEnvKeys } = useBakedBuildEnvKeysQuery({ enabled: open });
-  const localModeGate = React.useMemo(
-    () =>
-      computeLocalModeGate({
-        bakedEnvKeys,
-        envVars,
-        globalEnvVars: globalConfig.env_vars,
-        globalProvider: inheritedProviderDefault.value,
-        globalModel: inheritedModelDefault.value,
-        isProviderMode: false,
-        model,
-        provider: trimmedProvider,
-        runtimeId: runtime,
-        runtimeFileConfig,
-      }),
-    [
-      bakedEnvKeys,
-      envVars,
-      globalConfig.env_vars,
-      inheritedModelDefault.value,
-      inheritedProviderDefault.value,
-      model,
-      trimmedProvider,
-      runtime,
-      runtimeFileConfig,
-    ],
-  );
+  const localModeGate = useLocalModeGate({
+    bakedEnvKeys,
+    envVars,
+    globalEnvVars: globalConfig.env_vars,
+    globalProvider: inheritedProviderDefault.value,
+    globalModel: inheritedModelDefault.value,
+    isProviderMode: false,
+    model,
+    provider: trimmedProvider,
+    providerEnvVar: selectedRuntime?.providerEnvVar,
+    runtimeFileConfig,
+    runtimeId: runtime,
+  });
   // requiredEnvKeys: the gate already handles baked-, global-, and file-
   // satisfied keys so no further filtering is needed.
   const { requiredEnvKeys } = localModeGate;
@@ -488,25 +479,19 @@ export function AgentDefinitionDialog({
     { provider, model },
     runtimeCanChooseLlmProvider,
   );
-  const selectedRuntimeIsAvailable =
+  const selectedRuntimeIsReady =
     runtime.trim().length === 0 ||
-    selectedRuntime?.availability === "available";
-  // Gate model/provider validity through missingNormalizedFields — single
-  // source of truth with the readiness gate so display and Save can't drift.
+    isRuntimeReadyForNewSelection(selectedRuntime);
+  // Gate model/provider validity through missingNormalizedFields to avoid drift.
   const canSubmit =
     canSubmitPersonaDialog({ displayName, isPending }) &&
     (!isCreateMode || runtime.trim().length > 0) &&
-    (!isCreateMode || selectedRuntimeIsAvailable) &&
+    (!isCreateMode || selectedRuntimeIsReady) &&
     (!isCreateMode || !createSubmitBlocked) &&
-    // Crash-loop guard, create AND edit: an empty allowlist would crash
-    // every instance minted from this definition at startup.
     personaBehaviorDraftValid(behaviorDraft) &&
-    // D1: localModeSatisfied covers both missingNormalizedFields AND
-    // missingEnvKeys — credential env keys now block submit, not just display.
     localModeSatisfied &&
     customAiPairSatisfied &&
     !isAvatarUploadPending;
-
   // Merge global env as the base layer so credential keys satisfied via global
   // config are available to model discovery — same rationale as in AgentInstanceEditDialog.
   const envVarsForDiscovery = React.useMemo(
@@ -525,12 +510,18 @@ export function AgentDefinitionDialog({
     // Gate provider by runtime: runtimes that don't support LLM provider
     // selection (codex, claude) must not inherit the global provider — doing
     // so causes them to discover models from the wrong provider.
-    provider: runtimeSupportsLlmProviderSelection(runtime)
+    provider: runtimeSupportsLlmProviderSelection(
+      selectedRuntime?.providerEnvVar,
+    )
       ? effectiveProvider
       : "",
     selectedRuntime,
   });
-  const staticModelOptions = getPersonaModelOptions(runtime, effectiveProvider);
+  const staticModelOptions = getPersonaModelOptions(
+    runtime,
+    effectiveProvider,
+    selectedRuntime?.providerEnvVar,
+  );
   const runtimeModelOptions = getRuntimePersonaModelOptions(runtime);
   const {
     isCustom: isModelCustom,
@@ -623,30 +614,17 @@ export function AgentDefinitionDialog({
     ? { duration: 0 }
     : ADVANCED_FIELDS_MOTION_TRANSITION;
 
-  React.useEffect(() => {
-    if (
-      !open ||
-      !modelFieldVisible ||
-      isCustomModelEditing ||
-      !shouldClearKnownModelForSelectionScope({
-        model,
-        provider: effectiveProvider,
-        runtime,
-      })
-    ) {
-      return;
-    }
-
-    setModel("");
-    setIsCustomModelEditing(false);
-  }, [
+  useResetModelOnRuntimeChange({
+    effectiveProvider,
     isCustomModelEditing,
     model,
     modelFieldVisible,
     open,
-    effectiveProvider,
+    providerEnvVar: selectedRuntime?.providerEnvVar,
     runtime,
-  ]);
+    setIsCustomModelEditing,
+    setModel,
+  });
 
   const selection: RuntimeModelProviderSelection = {
     provider,
@@ -663,16 +641,21 @@ export function AgentDefinitionDialog({
     setIsCustomModelEditing(next.isCustomModelEditing);
     setEnvVars(next.envVars);
   }
-
   function handleRuntimeDropdownChange(nextValue: string) {
     const action = runtimeDropdownAction(nextValue);
     if (action.kind === "add-custom-harness") {
       setIsAddHarnessOpen(true);
       return;
     }
-    setHasUserChanges(true);
     const nextRuntime = action.runtimeId;
-    // The user made an explicit choice — no longer auto-seeded.
+    if (
+      nextRuntime &&
+      !isRuntimeReadyForNewSelection(
+        runtimes.find((candidate) => candidate.id === nextRuntime),
+      )
+    )
+      return;
+    setHasUserChanges(true);
     isRuntimeAutoSeededRef.current = false;
     setRuntime(nextRuntime);
     applySelection(
@@ -681,7 +664,12 @@ export function AgentDefinitionDialog({
         nextRuntime,
         nextRuntimeCanChooseProvider:
           nextRuntime.trim().length > 0 &&
-          runtimeSupportsLlmProviderSelection(nextRuntime),
+          runtimeSupportsLlmProviderSelection(
+            runtimes.find((entry) => entry.id === nextRuntime)?.providerEnvVar,
+          ),
+        nextRuntimeProviderEnvVar: runtimes.find(
+          (entry) => entry.id === nextRuntime,
+        )?.providerEnvVar,
         lockedRuntimeReset: "full",
       }),
     );

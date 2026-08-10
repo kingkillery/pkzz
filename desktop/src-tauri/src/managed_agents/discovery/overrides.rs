@@ -151,3 +151,118 @@ pub fn create_time_agent_command_override(
 
     divergent_agent_command_override(persona_id, personas, picked_command)
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct CreateHarnessSelection {
+    pub launch_runtime_id: Option<String>,
+    pub raw_command_explicit: bool,
+    pub command: String,
+    pub command_override: Option<String>,
+    pub args: Vec<String>,
+}
+
+pub(crate) fn resolve_create_harness_selection(
+    persona_id: Option<&str>,
+    personas: &[crate::managed_agents::types::AgentDefinition],
+    runtime_id: Option<Option<&str>>,
+    picked_command: Option<&str>,
+    args: &[String],
+    harness_override: bool,
+) -> Result<CreateHarnessSelection, String> {
+    let explicit_args = args
+        .iter()
+        .map(|arg| arg.trim().to_string())
+        .filter(|arg| !arg.is_empty())
+        .collect::<Vec<_>>();
+
+    if let Some(Some(runtime_id)) = runtime_id {
+        let runtime_id = runtime_id.trim();
+        if runtime_id.is_empty() {
+            return Err("runtimeId must not be empty".to_string());
+        }
+        let spec = super::resolve_catalog_harness_by_id(runtime_id)?;
+        let command_override =
+            (persona_id.is_none() || harness_override).then(|| spec.command.clone());
+        return Ok(CreateHarnessSelection {
+            launch_runtime_id: Some(spec.runtime_id),
+            raw_command_explicit: false,
+            command: spec.command,
+            command_override,
+            args: explicit_args,
+        });
+    }
+
+    if matches!(runtime_id, Some(None)) {
+        let command = picked_command
+            .map(str::trim)
+            .filter(|command| !command.is_empty())
+            .ok_or_else(|| {
+                "runtimeId null requires a non-empty raw custom agentCommand".to_string()
+            })?;
+        return Ok(CreateHarnessSelection {
+            launch_runtime_id: None,
+            raw_command_explicit: true,
+            command: command.to_string(),
+            command_override: Some(command.to_string()),
+            args: explicit_args,
+        });
+    }
+
+    let command_override =
+        create_time_agent_command_override(persona_id, personas, picked_command, harness_override);
+    let command = effective_agent_command(persona_id, personas, command_override.as_deref());
+    Ok(CreateHarnessSelection {
+        launch_runtime_id: None,
+        raw_command_explicit: false,
+        args: super::normalize_agent_args(&command, explicit_args),
+        command,
+        command_override,
+    })
+}
+
+pub(crate) fn apply_harness_update(
+    record: &mut crate::managed_agents::types::ManagedAgentRecord,
+    personas: &[crate::managed_agents::types::AgentDefinition],
+    runtime_id: Option<Option<&str>>,
+    agent_command: Option<&str>,
+    harness_override: bool,
+) -> Result<(), String> {
+    match runtime_id {
+        Some(Some(runtime_id)) => {
+            let runtime_id = runtime_id.trim();
+            if runtime_id.is_empty() {
+                return Err("runtimeId must not be empty".to_string());
+            }
+            let spec = super::resolve_catalog_harness_by_id(runtime_id)?;
+            record.launch_runtime_id = Some(spec.runtime_id);
+            record.raw_command_explicit = false;
+            record.agent_command = spec.command.clone();
+            record.agent_command_override =
+                (record.persona_id.is_none() || harness_override).then_some(spec.command);
+        }
+        Some(None) => {
+            let picked = agent_command
+                .map(str::trim)
+                .filter(|command| !command.is_empty())
+                .ok_or_else(|| {
+                    "runtimeId null requires a non-empty raw custom agentCommand".to_string()
+                })?;
+            record.launch_runtime_id = None;
+            record.raw_command_explicit = true;
+            record.agent_command = picked.to_string();
+            record.agent_command_override = update_time_agent_command_override(
+                record.persona_id.as_deref(),
+                personas,
+                Some(picked),
+                harness_override,
+            )
+            .or_else(|| Some(picked.to_string()));
+        }
+        None => {
+            if let Some(agent_command) = agent_command {
+                apply_agent_command_update(record, personas, agent_command, harness_override);
+            }
+        }
+    }
+    Ok(())
+}

@@ -35,6 +35,8 @@ export function selectionOnRuntimeChange(
     nextRuntime: string;
     /** Caller-computed: whether the next runtime supports provider selection. */
     nextRuntimeCanChooseProvider: boolean;
+    /** Catalog-projected provider env var for the next runtime. */
+    nextRuntimeProviderEnvVar?: string | null;
     /**
      * Persona/Edit clear the managed API key and custom-model editing flag
      * when switching to a provider-locked runtime ("full"); Create clears
@@ -53,6 +55,7 @@ export function selectionOnRuntimeChange(
     shouldClearKnownModelForSelectionScope({
       model: current.model,
       provider: current.provider,
+      providerEnvVar: params.nextRuntimeProviderEnvVar,
       runtime: params.nextRuntime,
     })
   ) {

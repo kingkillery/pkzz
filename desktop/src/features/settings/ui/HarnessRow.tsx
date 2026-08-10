@@ -94,7 +94,7 @@ function RuntimeOverflowMenu({
   const hasInstructions =
     runtime.installInstructionsUrl.trim().length > 0 &&
     (runtime.availability !== "available" ||
-      runtime.authStatus.status === "logged_out" ||
+      runtime.runtimeReadiness !== "ready" ||
       runtime.authStatus.status === "config_invalid");
   const hasActions =
     runtime.nodeRequired ||
@@ -193,12 +193,9 @@ function RuntimeActions({
   runtime: AcpRuntimeCatalogEntry;
 }) {
   const isAvailable = runtime.availability === "available";
-  // Signed-out rows carry the amber "Sign-in needed" status chip instead of a
-  // green Ready chip — auth-required is an explicit row-face state, and Ready
-  // must not claim otherwise.
-  const isAuthNeeded =
-    isAvailable && runtime.authStatus.status === "logged_out";
-  const canInstall = runtime.canAutoInstall && !runtime.nodeRequired;
+  const isReady = isAvailable && runtime.runtimeReadiness === "ready";
+  const canInstall =
+    !isAvailable && runtime.canAutoInstall && !runtime.nodeRequired;
   const isWorking = isInstalling || isConnecting;
 
   return (
@@ -220,15 +217,13 @@ function RuntimeActions({
             data-testid={`doctor-runtime-loading-${runtime.id}`}
           />
         </div>
-      ) : isAvailable ? (
-        isAuthNeeded ? null : ( // Signed-out rows carry the amber status chip instead; never Install.
-          <span
-            className="inline-flex shrink-0 items-center rounded-md bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400"
-            data-testid={`doctor-runtime-ready-${runtime.id}`}
-          >
-            Ready
-          </span>
-        )
+      ) : isReady ? (
+        <span
+          className="inline-flex shrink-0 items-center rounded-md bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400"
+          data-testid={`doctor-runtime-ready-${runtime.id}`}
+        >
+          Ready
+        </span>
       ) : canInstall ? (
         // Rows needing multi-step setup render no action here — setup lives in
         // the Add-runtimes catalog. Custom rows keep their ••• menu instead.
@@ -249,10 +244,8 @@ function RuntimeActions({
 }
 
 function RuntimeStatusChip({ runtime }: { runtime: AcpRuntimeCatalogEntry }) {
-  // Single availability→label source: entryStatusLabel drives this row chip
-  // AND the catalog detail chip, so the two surfaces cannot drift. That
-  // includes "Sign-in needed" for installed-but-signed-out runtimes — an
-  // explicit auth-required state on the row face, not just a ••• menu item.
+  // Single availability/readiness label source: entryStatusLabel drives this
+  // row chip and the catalog detail chip, so the two surfaces cannot drift.
   const label = entryStatusLabel(runtime);
 
   if (!label) {
@@ -263,7 +256,7 @@ function RuntimeStatusChip({ runtime }: { runtime: AcpRuntimeCatalogEntry }) {
   const isAuthNeeded =
     !isConfigError &&
     runtime.availability === "available" &&
-    runtime.authStatus.status === "logged_out";
+    runtime.runtimeReadiness === "authentication_required";
 
   return (
     <>
@@ -365,7 +358,8 @@ export function HarnessRow({
 
   const canConnectAccount =
     runtime.availability === "available" &&
-    runtime.authStatus.status === "logged_out";
+    runtime.runtimeReadiness !== "ready" &&
+    runtime.canConnectAccount;
   const authMethodsQuery = useAcpAuthMethodsQuery(runtime.id, {
     enabled: canConnectAccount,
   });
@@ -472,6 +466,17 @@ export function HarnessRow({
           </div>
         ) : null}
 
+        {runtime.availability === "available" &&
+        runtime.runtimeReadiness === "model_unavailable" ? (
+          <p
+            className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-sm text-amber-700 dark:text-amber-300"
+            data-testid={`doctor-runtime-model-guidance-${runtime.id}`}
+          >
+            No usable model is configured. Connect an account or complete model
+            setup, then check again.
+          </p>
+        ) : null}
+
         {runtime.authStatus.status === "config_invalid" ? (
           <p
             className="mt-2 whitespace-pre-line rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-1.5 text-sm text-destructive"
@@ -511,8 +516,8 @@ export function HarnessRow({
             className="mt-2 rounded-lg border border-border/60 bg-background/60 px-3 py-1.5 text-sm text-muted-foreground"
             data-testid={`doctor-runtime-terminal-guidance-${runtime.id}`}
           >
-            Finish signing in from the Terminal window, then click Check again
-            to re-check {runtime.label}.
+            Finish setup in the Terminal window, then click Check again to
+            re-check {runtime.label}.
           </p>
         ) : null}
         {confirmingDelete ? (

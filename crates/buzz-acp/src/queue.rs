@@ -13,7 +13,7 @@
 //!   still queue normally.
 //! - **Queue** — all events accumulate; batched on the next flush cycle.
 
-use nostr::{Event, ToBech32};
+use nostr::{Event, EventId, PublicKey, ToBech32};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::time::{Duration, Instant};
 use uuid::Uuid;
@@ -891,6 +891,111 @@ pub fn parse_thread_tags(event: &Event) -> ThreadTags {
     }
 }
 
+/// Fixed, host-derived route for the one automatic final reply to a batch.
+///
+/// It deliberately contains no model-controlled destination, kind, tag, or
+/// recipient data. The root comes only from canonical NIP-10 ancestry on the
+/// immutable final admitted event; the parent is always that triggering event.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FinalReplyTarget {
+    pub channel_id: Uuid,
+    pub trigger_event_id: EventId,
+    pub trigger_author: PublicKey,
+    root_event_id: EventId,
+}
+
+impl FinalReplyTarget {
+    /// Derive a fixed reply target from the last event admitted to `batch`.
+    ///
+    /// Verification here prevents a relay frame with a forged signature, ID,
+    /// channel scope, or malformed ancestry from being amplified into an event
+    /// signed by the managed agent.
+    pub fn from_batch(batch: &FlushBatch) -> Result<Self, FinalReplyTargetError> {
+        let trigger = batch
+            .events
+            .last()
+            .ok_or(FinalReplyTargetError::EmptyBatch)?;
+        let event = &trigger.event;
+        if event.kind != nostr::Kind::Custom(9) {
+            return Err(FinalReplyTargetError::UnsupportedKind);
+        }
+        if event.verify().is_err() {
+            return Err(FinalReplyTargetError::InvalidTrigger);
+        }
+
+        let expected_channel = batch.channel_id.to_string();
+        let h_tags: Vec<&[String]> = event
+            .tags
+            .iter()
+            .map(|tag| tag.as_slice())
+            .filter(|parts| parts.first().map(String::as_str) == Some("h"))
+            .collect();
+        if h_tags.len() != 1
+            || h_tags[0].len() != 2
+            || h_tags[0][1] != expected_channel
+            || h_tags[0][1].parse::<Uuid>().ok() != Some(batch.channel_id)
+        {
+            return Err(FinalReplyTargetError::InvalidChannelScope);
+        }
+
+        let mut root = None;
+        let mut reply = None;
+        for tag in event.tags.iter() {
+            let parts = tag.as_slice();
+            if parts.first().map(String::as_str) != Some("e") {
+                continue;
+            }
+            if parts.len() < 4 {
+                return Err(FinalReplyTargetError::InvalidThread);
+            }
+            let event_id =
+                EventId::from_hex(&parts[1]).map_err(|_| FinalReplyTargetError::InvalidThread)?;
+            match parts[3].as_str() {
+                "root" if root.replace(event_id).is_some() => {
+                    return Err(FinalReplyTargetError::InvalidThread);
+                }
+                "reply" if reply.replace(event_id).is_some() => {
+                    return Err(FinalReplyTargetError::InvalidThread);
+                }
+                _ => {}
+            }
+        }
+        // A reply-only marker is the only known prior ancestry, so preserve it
+        // as the outgoing root. The immutable trigger still remains the parent.
+        let root_event_id = root.or(reply).unwrap_or(event.id);
+
+        Ok(Self {
+            channel_id: batch.channel_id,
+            trigger_event_id: event.id,
+            trigger_author: event.pubkey,
+            root_event_id,
+        })
+    }
+
+    /// Return the reply tags to emit for the fixed final route.
+    pub fn thread_ref(&self) -> buzz_sdk::ThreadRef {
+        buzz_sdk::ThreadRef {
+            root_event_id: self.root_event_id,
+            parent_event_id: self.trigger_event_id,
+        }
+    }
+}
+
+/// Why an admitted event cannot safely become an automatic-reply origin.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FinalReplyTargetError {
+    /// The batch contained no admitted event.
+    EmptyBatch,
+    /// The event was not an ordinary kind-9 chat message.
+    UnsupportedKind,
+    /// The event ID or signature did not verify.
+    InvalidTrigger,
+    /// The event did not carry exactly the batch's NIP-29 channel scope.
+    InvalidChannelScope,
+    /// The event's NIP-10 root/reply ancestry was malformed or ambiguous.
+    InvalidThread,
+}
+
 /// Extract a leading slash command from message content.
 ///
 /// ACP connectors (claude-agent-acp, codex-acp) detect slash commands by
@@ -1633,7 +1738,7 @@ pub(crate) fn native_steer_framing() -> (&'static str, &'static str) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nostr::{EventBuilder, Keys, Kind, Timestamp};
+    use nostr::{EventBuilder, Keys, Kind, Tag, Timestamp};
     use std::time::Duration;
 
     /// Build a test event with the given content and kind.
@@ -1683,6 +1788,104 @@ mod tests {
             received_at: Instant::now(),
             prompt_tag: "test".into(),
         }
+    }
+
+    #[test]
+    fn final_reply_target_uses_last_event_root_and_trigger_parent() {
+        let channel_id = Uuid::new_v4();
+        let root = "a".repeat(64);
+        let channel = channel_id.to_string();
+        let keys = Keys::generate();
+        let event = EventBuilder::new(Kind::Custom(9), "latest admitted request")
+            .tags([
+                Tag::parse(["h", &channel]).unwrap(),
+                Tag::parse(["e", &root, "", "root"]).unwrap(),
+            ])
+            .sign_with_keys(&keys)
+            .unwrap();
+        let trigger_id = event.id;
+        let batch = FlushBatch {
+            channel_id,
+            events: vec![BatchEvent {
+                event,
+                prompt_tag: "@mention".into(),
+                received_at: Instant::now(),
+            }],
+            cancelled_events: vec![],
+            cancel_reason: None,
+        };
+
+        let target = FinalReplyTarget::from_batch(&batch).expect("valid fixed target");
+        let thread = target.thread_ref();
+        assert_eq!(target.trigger_event_id, trigger_id);
+        assert_eq!(thread.root_event_id, EventId::from_hex(&root).unwrap());
+        assert_eq!(thread.parent_event_id, trigger_id);
+    }
+
+    #[test]
+    fn final_reply_target_uses_reply_only_ancestor_as_root_and_trigger_as_parent() {
+        let channel_id = Uuid::new_v4();
+        let channel = channel_id.to_string();
+        let previous_reply = "b".repeat(64);
+        let keys = Keys::generate();
+        let event = EventBuilder::new(Kind::Custom(9), "request with reply-only ancestry")
+            .tags([
+                Tag::parse(["h", &channel]).unwrap(),
+                Tag::parse(["e", &previous_reply, "", "reply"]).unwrap(),
+            ])
+            .sign_with_keys(&keys)
+            .unwrap();
+        let trigger_id = event.id;
+        let batch = FlushBatch {
+            channel_id,
+            events: vec![BatchEvent {
+                event,
+                prompt_tag: "@mention".into(),
+                received_at: Instant::now(),
+            }],
+            cancelled_events: vec![],
+            cancel_reason: None,
+        };
+
+        let thread = FinalReplyTarget::from_batch(&batch)
+            .expect("reply-only ancestry is a valid root fallback")
+            .thread_ref();
+        assert_eq!(
+            thread.root_event_id,
+            EventId::from_hex(&previous_reply).unwrap()
+        );
+        assert_eq!(thread.parent_event_id, trigger_id);
+    }
+
+    #[test]
+    fn final_reply_target_rejects_wrong_or_duplicate_channel_scope() {
+        let channel_id = Uuid::new_v4();
+        let other_channel = Uuid::new_v4();
+        let channel = channel_id.to_string();
+        let other = other_channel.to_string();
+        let keys = Keys::generate();
+        let event = EventBuilder::new(Kind::Custom(9), "request")
+            .tags([
+                Tag::parse(["h", &channel]).unwrap(),
+                Tag::parse(["h", &other]).unwrap(),
+            ])
+            .sign_with_keys(&keys)
+            .unwrap();
+        let batch = FlushBatch {
+            channel_id,
+            events: vec![BatchEvent {
+                event,
+                prompt_tag: "@mention".into(),
+                received_at: Instant::now(),
+            }],
+            cancelled_events: vec![],
+            cancel_reason: None,
+        };
+
+        assert_eq!(
+            FinalReplyTarget::from_batch(&batch),
+            Err(FinalReplyTargetError::InvalidChannelScope)
+        );
     }
 
     fn pending_count(q: &EventQueue) -> usize {

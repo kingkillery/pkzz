@@ -23,6 +23,15 @@ export function commandsMatch(left: string, right: string) {
   return normalizeCommandIdentity(left) === normalizeCommandIdentity(right);
 }
 
+function runtimeMatches(
+  agent: ManagedAgent,
+  requestedRuntimeId?: string,
+): boolean {
+  return (
+    requestedRuntimeId === undefined || agent.runtime === requestedRuntimeId
+  );
+}
+
 export function parseTimestamp(value: string | null | undefined) {
   if (!value) {
     return 0;
@@ -50,10 +59,12 @@ export function findReusablePersonaAgent(
   agents: ManagedAgent[],
   personaId: string,
   channelMemberPubkeys: ReadonlySet<string>,
+  requestedRuntimeId?: string,
 ): ManagedAgent | undefined {
   const candidates = agents.filter(
     (agent) =>
       agent.personaId === personaId &&
+      runtimeMatches(agent, requestedRuntimeId) &&
       !channelMemberPubkeys.has(normalizePubkey(agent.pubkey)),
   );
   return pickPreferredManagedAgent(candidates);
@@ -63,11 +74,13 @@ export function findReusableGenericAgent(
   agents: ManagedAgent[],
   command: string,
   channelMemberPubkeys: ReadonlySet<string>,
+  requestedRuntimeId?: string,
 ): ManagedAgent | undefined {
   const candidates = agents.filter(
     (agent) =>
       !agent.personaId &&
       !agent.systemPrompt?.trim() &&
+      runtimeMatches(agent, requestedRuntimeId) &&
       commandsMatch(agent.agentCommand, command) &&
       !channelMemberPubkeys.has(normalizePubkey(agent.pubkey)),
   );
@@ -85,6 +98,7 @@ export function findReusableAgent(
     personaId?: string | null;
     systemPrompt?: string;
     command: string;
+    runtimeId?: string;
   },
 ): ManagedAgent | undefined {
   if (input.personaId) {
@@ -92,6 +106,7 @@ export function findReusableAgent(
       agents,
       input.personaId,
       channelMemberPubkeys,
+      input.runtimeId,
     );
   }
   if (!input.systemPrompt?.trim()) {
@@ -99,6 +114,7 @@ export function findReusableAgent(
       agents,
       input.command,
       channelMemberPubkeys,
+      input.runtimeId,
     );
   }
   return undefined;

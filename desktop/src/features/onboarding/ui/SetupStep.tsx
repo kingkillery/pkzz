@@ -103,103 +103,54 @@ function RuntimeStatus({
   onInstall: () => void;
   runtime: AcpRuntimeCatalogEntry;
 }) {
+  const isReady = runtimeIsReadyForOnboarding(runtime);
+  const needsSetup =
+    runtime.runtimeReadiness === "authentication_required" ||
+    runtime.runtimeReadiness === "model_unavailable";
+  const canConnectAccount =
+    runtime.availability === "available" &&
+    !isReady &&
+    needsSetup &&
+    runtime.canConnectAccount;
   const methodsQuery = useAcpAuthMethodsQuery(runtime.id, {
-    enabled:
-      runtime.availability === "available" &&
-      runtime.authStatus.status === "logged_out",
+    enabled: canConnectAccount,
   });
   const connectMutation = useConnectAcpRuntimeMutation();
   const runtimesQuery = useAcpRuntimesQuery();
-  const [isWaitingForSignIn, setIsWaitingForSignIn] = React.useState(false);
-  const [didSignInCheckTimeOut, setDidSignInCheckTimeOut] =
+  const [isWaitingForReadiness, setIsWaitingForReadiness] =
     React.useState(false);
-  const isReady = runtimeIsReadyForOnboarding(runtime);
+  const [didReadinessCheckTimeOut, setDidReadinessCheckTimeOut] =
+    React.useState(false);
 
   React.useEffect(() => {
-    if (!isWaitingForSignIn || !isReady) return;
-    setIsWaitingForSignIn(false);
-    setDidSignInCheckTimeOut(false);
-  }, [isReady, isWaitingForSignIn]);
+    if (!isWaitingForReadiness || !isReady) return;
+    setIsWaitingForReadiness(false);
+    setDidReadinessCheckTimeOut(false);
+  }, [isReady, isWaitingForReadiness]);
 
+  // Terminal setup continues outside the app. Poll the force-refreshed catalog
+  // until Rust reports the runtime ready or the bounded wait expires.
   React.useEffect(() => {
-    if (!isWaitingForSignIn) return;
+    if (!isWaitingForReadiness) return;
 
     const interval = window.setInterval(() => {
       void runtimesQuery.refetch();
     }, 2_000);
     const timeout = window.setTimeout(() => {
-      setIsWaitingForSignIn(false);
-      setDidSignInCheckTimeOut(true);
+      setIsWaitingForReadiness(false);
+      setDidReadinessCheckTimeOut(true);
     }, 120_000);
 
     return () => {
       window.clearInterval(interval);
       window.clearTimeout(timeout);
     };
-  }, [isWaitingForSignIn, runtimesQuery.refetch]);
+  }, [isWaitingForReadiness, runtimesQuery.refetch]);
+
   const authMethods = getOnboardingAuthMethods(
-    runtime,
     methodsQuery.data?.methods ?? [],
   );
   const authMethod = authMethods[0] ?? null;
-  const shouldSignIn =
-    runtime.availability === "available" &&
-    runtime.authStatus.status === "logged_out";
-
-  if (shouldSignIn) {
-    return (
-      <div className="flex flex-col items-center gap-1.5">
-        <Button
-          aria-label={`Sign in to ${runtime.label}`}
-          className="buzz-onboarding-runtime-setup h-5 rounded-full bg-[var(--buzz-welcome-chartreuse)]/30 px-2.5 font-mono !text-badge font-normal uppercase text-foreground hover:bg-[var(--buzz-welcome-chartreuse)]/40"
-          data-testid={`onboarding-runtime-instructions-${runtime.id}`}
-          onClick={() => {
-            if (didSignInCheckTimeOut) {
-              setDidSignInCheckTimeOut(false);
-              setIsWaitingForSignIn(true);
-              void runtimesQuery.refetch();
-              return;
-            }
-            if (!authMethod) {
-              void methodsQuery.refetch();
-              return;
-            }
-            connectMutation.mutate(
-              {
-                methodId: authMethod.id,
-                runtimeId: runtime.id,
-              },
-              {
-                onSuccess: () => setIsWaitingForSignIn(true),
-              },
-            );
-          }}
-          type="button"
-          variant="ghost"
-        >
-          {isWaitingForSignIn
-            ? "CHECKING…"
-            : didSignInCheckTimeOut
-              ? "CHECK AGAIN"
-              : "SIGN IN"}
-        </Button>
-        {methodsQuery.error instanceof Error ? (
-          <RuntimeErrorTooltip
-            className="absolute inset-x-3 bottom-2 truncate text-xs leading-4 text-destructive"
-            detail="Couldn’t load sign-in options."
-            label="Sign-in unavailable"
-          />
-        ) : null}
-        {connectMutation.error instanceof Error ? (
-          <RuntimeErrorTooltip
-            className="absolute inset-x-3 bottom-2 truncate text-xs leading-4 text-destructive"
-            detail="Couldn’t start sign-in. Try again."
-            label="Sign-in failed"
-          />
-        ) : null}
-      </div>
-    );
-  }
 
   if (isInstalling) {
     return (
@@ -214,7 +165,7 @@ function RuntimeStatus({
     );
   }
 
-  if (runtimeIsReadyForOnboarding(runtime)) {
+  if (isReady) {
     return (
       <Tooltip>
         <TooltipTrigger asChild>
@@ -235,9 +186,96 @@ function RuntimeStatus({
     );
   }
 
+  if (canConnectAccount) {
+    const isAuthenticationRequired =
+      runtime.runtimeReadiness === "authentication_required";
+    const initialLabel = isAuthenticationRequired ? "SIGN IN" : "SET UP";
+    return (
+      <div className="flex flex-col items-center gap-1.5">
+        <Button
+          aria-label={`${isAuthenticationRequired ? "Sign in to" : "Set up"} ${runtime.label}`}
+          className="buzz-onboarding-runtime-setup h-5 rounded-full bg-[var(--buzz-welcome-chartreuse)]/30 px-2.5 font-mono !text-badge font-normal uppercase text-foreground hover:bg-[var(--buzz-welcome-chartreuse)]/40"
+          data-testid={`onboarding-runtime-instructions-${runtime.id}`}
+          onClick={() => {
+            if (didReadinessCheckTimeOut) {
+              setDidReadinessCheckTimeOut(false);
+              setIsWaitingForReadiness(true);
+              void runtimesQuery.refetch();
+              return;
+            }
+            if (!authMethod) {
+              void methodsQuery.refetch();
+              return;
+            }
+            connectMutation.mutate(
+              {
+                methodId: authMethod.id,
+                runtimeId: runtime.id,
+              },
+              {
+                onSuccess: (result) => {
+                  if (result.launched && authMethod.type === "terminal") {
+                    setIsWaitingForReadiness(true);
+                    return;
+                  }
+                  void runtimesQuery.refetch();
+                },
+              },
+            );
+          }}
+          type="button"
+          variant="ghost"
+        >
+          {isWaitingForReadiness
+            ? "CHECKING…"
+            : didReadinessCheckTimeOut
+              ? "CHECK AGAIN"
+              : initialLabel}
+        </Button>
+        {methodsQuery.error instanceof Error ? (
+          <RuntimeErrorTooltip
+            className="absolute inset-x-3 bottom-2 truncate text-xs leading-4 text-destructive"
+            detail={`Couldn’t load ${isAuthenticationRequired ? "sign-in" : "setup"} options.`}
+            label={`${isAuthenticationRequired ? "Sign-in" : "Setup"} unavailable`}
+          />
+        ) : null}
+        {connectMutation.error instanceof Error ? (
+          <RuntimeErrorTooltip
+            className="absolute inset-x-3 bottom-2 truncate text-xs leading-4 text-destructive"
+            detail={`Couldn’t start ${isAuthenticationRequired ? "sign-in" : "setup"}. Try again.`}
+            label={`${isAuthenticationRequired ? "Sign-in" : "Setup"} failed`}
+          />
+        ) : null}
+      </div>
+    );
+  }
+
   if (
     runtime.availability === "available" &&
-    runtime.authStatus.status === "unknown"
+    runtime.runtimeReadiness === "model_unavailable"
+  ) {
+    return (
+      <Button
+        aria-label={`View ${runtime.label} model setup instructions`}
+        className="buzz-onboarding-runtime-setup h-5 rounded-full bg-[var(--buzz-welcome-chartreuse)]/30 px-2.5 font-mono !text-badge font-normal uppercase text-foreground hover:bg-[var(--buzz-welcome-chartreuse)]/40"
+        onClick={() => {
+          if (runtime.installInstructionsUrl.trim()) {
+            void openUrl(runtime.installInstructionsUrl);
+          } else {
+            void runtimesQuery.refetch();
+          }
+        }}
+        type="button"
+        variant="ghost"
+      >
+        SET UP
+      </Button>
+    );
+  }
+
+  if (
+    runtime.availability === "available" &&
+    runtime.runtimeReadiness === "unknown"
   ) {
     return (
       <Button
@@ -394,51 +432,11 @@ function runtimeDetailText(runtime: AcpRuntimeCatalogEntry): string {
   return "";
 }
 
-function isSupportedOnboardingAuthMethod(
-  runtime: AcpRuntimeCatalogEntry,
-  method: AcpAuthMethod,
-) {
-  if (runtime.id !== "codex") return true;
-  return !/api[-_ ]?key/i.test(`${method.id} ${method.name}`);
-}
-
-function isPreferredClaudeAuthMethod(method: AcpAuthMethod) {
-  const haystack = [
-    method.id,
-    method.name,
-    method.description ?? "",
-    method.command.join(" "),
-    method.args.join(" "),
-  ]
-    .join(" ")
-    .toLowerCase();
-  return (
-    haystack.includes("claudeai") ||
-    haystack.includes("claude ai") ||
-    haystack.includes("claude.ai") ||
-    haystack.includes("subscription")
+function getOnboardingAuthMethods(methods: AcpAuthMethod[]) {
+  return [...methods].sort(
+    (left, right) =>
+      Number(right.type === "terminal") - Number(left.type === "terminal"),
   );
-}
-
-function getOnboardingAuthMethods(
-  runtime: AcpRuntimeCatalogEntry,
-  methods: AcpAuthMethod[],
-) {
-  const supported = methods.filter((method) =>
-    isSupportedOnboardingAuthMethod(runtime, method),
-  );
-
-  if (runtime.id === "claude") {
-    const preferred =
-      supported.find(isPreferredClaudeAuthMethod) ?? supported[0];
-    return preferred ? [preferred] : [];
-  }
-
-  if (runtime.id === "codex") {
-    return supported.slice(0, 1);
-  }
-
-  return supported;
 }
 
 function RuntimeAuthError({ runtime }: { runtime: AcpRuntimeCatalogEntry }) {
@@ -453,12 +451,25 @@ function RuntimeAuthError({ runtime }: { runtime: AcpRuntimeCatalogEntry }) {
   }
   if (
     runtime.availability === "available" &&
-    runtime.authStatus.status === "unknown"
+    runtime.runtimeReadiness === "model_unavailable" &&
+    !runtime.canConnectAccount
   ) {
     return (
       <RuntimeErrorTooltip
         className="absolute inset-x-3 bottom-2 truncate text-xs leading-4 text-destructive"
-        detail="Couldn’t verify authentication."
+        detail="Connect an account or configure a usable model, then check again."
+        label="Model setup needed"
+      />
+    );
+  }
+  if (
+    runtime.availability === "available" &&
+    runtime.runtimeReadiness === "unknown"
+  ) {
+    return (
+      <RuntimeErrorTooltip
+        className="absolute inset-x-3 bottom-2 truncate text-xs leading-4 text-destructive"
+        detail="Couldn’t verify runtime readiness."
         label="Status unavailable"
       />
     );
@@ -621,8 +632,8 @@ function RuntimeProvidersSection({
           Set up your agent harnesses
         </h1>
         <p className="mx-auto mt-3 max-w-[760px] text-sm leading-6 text-foreground/90">
-          Pkzz checks for command-line harnesses on this machine. Install the
-          CLI or sign in to at least one to continue.
+          Pkzz checks for command-line harnesses on this machine. Install, sign
+          in, or configure a model for at least one to continue.
         </p>
       </div>
 

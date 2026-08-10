@@ -21,9 +21,15 @@ import {
 // usePersonaModelDiscovery (keyed on provider), so the model dropdown updates
 // without saving. These tests guard the visibility predicate.
 
+function providerEnvVarForRuntime(runtimeId) {
+  if (runtimeId === "buzz-agent") return "BUZZ_AGENT_PROVIDER";
+  if (runtimeId === "goose") return "GOOSE_PROVIDER";
+  return null;
+}
+
 test("editAgent_providerFieldVisible_forBuzzAgent", () => {
   assert.equal(
-    runtimeSupportsLlmProviderSelection("buzz-agent"),
+    runtimeSupportsLlmProviderSelection("BUZZ_AGENT_PROVIDER"),
     true,
     "buzz-agent runtime must expose the provider picker",
   );
@@ -31,7 +37,7 @@ test("editAgent_providerFieldVisible_forBuzzAgent", () => {
 
 test("editAgent_providerFieldVisible_forGoose", () => {
   assert.equal(
-    runtimeSupportsLlmProviderSelection("goose"),
+    runtimeSupportsLlmProviderSelection("GOOSE_PROVIDER"),
     true,
     "goose runtime must expose the provider picker",
   );
@@ -39,7 +45,7 @@ test("editAgent_providerFieldVisible_forGoose", () => {
 
 test("editAgent_providerFieldHidden_forClaude", () => {
   assert.equal(
-    runtimeSupportsLlmProviderSelection("claude"),
+    runtimeSupportsLlmProviderSelection(null),
     false,
     "claude runtime locks the provider; picker must be hidden",
   );
@@ -47,7 +53,7 @@ test("editAgent_providerFieldHidden_forClaude", () => {
 
 test("editAgent_providerFieldHidden_forBlankRuntime", () => {
   assert.equal(
-    runtimeSupportsLlmProviderSelection(""),
+    runtimeSupportsLlmProviderSelection(null),
     false,
     "blank runtime (catalog miss) must not show the provider picker",
   );
@@ -205,9 +211,12 @@ test("editAgent_runtimeSwitch_toBuzzAgentEnablesProvider", () => {
   // Simulate: user switches from "claude" to "buzz-agent"
   const previousRuntime = "claude";
   const nextRuntime = "buzz-agent";
-  const previousSupportsProvider =
-    runtimeSupportsLlmProviderSelection(previousRuntime);
-  const nextSupportsProvider = runtimeSupportsLlmProviderSelection(nextRuntime);
+  const previousSupportsProvider = runtimeSupportsLlmProviderSelection(
+    providerEnvVarForRuntime(previousRuntime),
+  );
+  const nextSupportsProvider = runtimeSupportsLlmProviderSelection(
+    providerEnvVarForRuntime(nextRuntime),
+  );
   assert.equal(
     previousSupportsProvider,
     false,
@@ -237,8 +246,9 @@ test("editAgent_providerFieldHidden_forLockedRuntimeEvenWithSavedProvider", () =
   const liveRuntimeId = "claude";
   const savedProvider = "databricks_v2";
   // New logic: visibility is keyed on LIVE runtime, not saved provider.
-  const llmProviderFieldVisible =
-    runtimeSupportsLlmProviderSelection(liveRuntimeId);
+  const llmProviderFieldVisible = runtimeSupportsLlmProviderSelection(
+    providerEnvVarForRuntime(liveRuntimeId),
+  );
   assert.equal(
     llmProviderFieldVisible,
     false,
@@ -246,8 +256,9 @@ test("editAgent_providerFieldHidden_forLockedRuntimeEvenWithSavedProvider", () =
   );
   // Confirm: if we had used the old logic (|| savedProvider), it would be visible.
   const oldLogic =
-    runtimeSupportsLlmProviderSelection(liveRuntimeId) ||
-    savedProvider.trim().length > 0;
+    runtimeSupportsLlmProviderSelection(
+      providerEnvVarForRuntime(liveRuntimeId),
+    ) || savedProvider.trim().length > 0;
   assert.equal(
     oldLogic,
     true,
@@ -349,8 +360,9 @@ test("editAgent_noOpSavePreservesProvider_whenCatalogLate", () => {
   const normalizedProvider = savedProvider;
 
   // The visibility logic (mirrors the component).
-  const llmProviderFieldVisible =
-    runtimeSupportsLlmProviderSelection(selectedRuntimeId);
+  const llmProviderFieldVisible = runtimeSupportsLlmProviderSelection(
+    providerEnvVarForRuntime(selectedRuntimeId),
+  );
 
   // The submit logic for provider tri-state.
   let providerUpdate;
@@ -652,8 +664,9 @@ test("editAgent_inheritedAgentRuntimeSwitch_producesConsistentCommandProviderPai
       : undefined;
 
   const selectedRuntimeId = "buzz-agent";
-  const llmProviderFieldVisible =
-    runtimeSupportsLlmProviderSelection(selectedRuntimeId);
+  const llmProviderFieldVisible = runtimeSupportsLlmProviderSelection(
+    providerEnvVarForRuntime(selectedRuntimeId),
+  );
   const chosenProvider = "databricks_v2";
   const savedProvider = null; // was null (inherited Claude, no provider)
   const normalizedProvider = chosenProvider;
@@ -722,7 +735,9 @@ function computeProviderCapability({
       ? runtimes.find((r) => r.id === effectiveRuntimeIdForSubmit)
       : undefined;
   if (matchedCatalogEntry === undefined) return "unknown";
-  return runtimeSupportsLlmProviderSelection(matchedCatalogEntry.id)
+  return runtimeSupportsLlmProviderSelection(
+    providerEnvVarForRuntime(matchedCatalogEntry.id),
+  )
     ? "capable"
     : "locked";
 }
@@ -771,8 +786,9 @@ test("editAgent_inheritCheckboxRoundTrip_doesNotPersistProviderOnInheritedRuntim
 
   // llmProviderFieldVisible is driven by the live dropdown (buzz-agent → true).
   // This is the UX visibility — unchanged by the fix.
-  const llmProviderFieldVisible =
-    runtimeSupportsLlmProviderSelection(selectedRuntimeId);
+  const llmProviderFieldVisible = runtimeSupportsLlmProviderSelection(
+    providerEnvVarForRuntime(selectedRuntimeId),
+  );
   assert.equal(
     llmProviderFieldVisible,
     true,
@@ -883,8 +899,9 @@ test("editAgent_inheritedBuzzAgentProvider_preservedOnNameOnlySave", () => {
   const currentProvider = "databricks_v2"; // unchanged by user
 
   // llmProviderFieldVisible (UX) is true since dropdown shows buzz-agent.
-  const llmProviderFieldVisible =
-    runtimeSupportsLlmProviderSelection(selectedRuntimeId);
+  const llmProviderFieldVisible = runtimeSupportsLlmProviderSelection(
+    providerEnvVarForRuntime(selectedRuntimeId),
+  );
   assert.equal(
     llmProviderFieldVisible,
     true,
@@ -1496,10 +1513,10 @@ test("blockSave_inheritTransition_claudePin_toBuzzAgentPersona_missingKey_blocke
   const provider = "anthropic"; // agent's configured provider (in envVars / state)
 
   // Mirror the component's providerForRequiredKeys computation:
-  //   providerForRequiredKeys = runtimeSupportsLlmProviderSelection(prospectiveRuntimeId)
+  //   providerForRequiredKeys = runtimeSupportsLlmProviderSelection(providerEnvVarForRuntime(prospectiveRuntimeId))
   //                              ? provider : ""
   const providerForRequiredKeys = runtimeSupportsLlmProviderSelection(
-    prospectiveRuntimeId,
+    providerEnvVarForRuntime(prospectiveRuntimeId),
   )
     ? provider
     : "";
@@ -1535,7 +1552,7 @@ test("blockSave_inheritTransition_buzzAgentPin_toClaudePersona_notBlocked", () =
 
   // Mirror the component's providerForRequiredKeys computation:
   const providerForRequiredKeys = runtimeSupportsLlmProviderSelection(
-    prospectiveRuntimeId,
+    providerEnvVarForRuntime(prospectiveRuntimeId),
   )
     ? provider
     : "";

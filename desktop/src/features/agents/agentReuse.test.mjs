@@ -20,6 +20,7 @@ function makeAgent(overrides = {}) {
     pubkey: PUB_A,
     agentCommand: "goose",
     status: "running",
+    runtime: "goose",
     personaId: null,
     systemPrompt: null,
     updatedAt: "2026-01-15T00:00:00Z",
@@ -215,6 +216,44 @@ test("findReusablePersonaAgent: pubkey comparison is case-insensitive", () => {
   assert.equal(result, undefined);
 });
 
+test("findReusablePersonaAgent: explicit runtime request requires identity match", () => {
+  const gooseAgent = makeAgent({
+    id: "goose-agent",
+    personaId: "p1",
+    runtime: "goose",
+    pubkey: PUB_A,
+  });
+  const ompkAgent = makeAgent({
+    id: "ompk-agent",
+    personaId: "p1",
+    runtime: "ompk",
+    pubkey: PUB_B,
+    status: "stopped",
+  });
+  const result = findReusablePersonaAgent(
+    [gooseAgent, ompkAgent],
+    "p1",
+    new Set([PUB_C]),
+    "ompk",
+  );
+  assert.equal(result, ompkAgent);
+  assert.equal(
+    findReusablePersonaAgent([gooseAgent], "p1", new Set([PUB_C]), "ompk"),
+    undefined,
+  );
+});
+
+test("findReusablePersonaAgent: implicit reuse retains the preferred existing identity", () => {
+  const gooseAgent = makeAgent({
+    personaId: "p1",
+    runtime: "goose",
+    pubkey: PUB_A,
+  });
+  const result = findReusablePersonaAgent([gooseAgent], "p1", new Set([PUB_B]));
+  assert.equal(result, gooseAgent);
+  assert.equal(result.runtime, "goose");
+});
+
 test("findReusableGenericAgent: finds agent with matching command and no persona/prompt", () => {
   const agent = makeAgent({
     agentCommand: "goose",
@@ -306,6 +345,19 @@ test("findReusableGenericAgent: command matching uses normalization", () => {
     channelMembers,
   );
   assert.equal(result, agent);
+});
+
+test("findReusableGenericAgent: requested catalog identity rejects legacy/raw command matches", () => {
+  const rawAgent = makeAgent({
+    agentCommand: "goose",
+    runtime: null,
+    personaId: null,
+    systemPrompt: null,
+  });
+  assert.equal(
+    findReusableGenericAgent([rawAgent], "goose", new Set([PUB_B]), "goose"),
+    undefined,
+  );
 });
 
 test("findReusableAgent: routes to persona search when personaId provided", () => {

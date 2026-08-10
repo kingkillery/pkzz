@@ -1,4 +1,5 @@
 use super::*;
+use crate::managed_agents::persona_events::apply_linked_persona_snapshot_for_start;
 use crate::managed_agents::AgentDefinition;
 
 fn bare_agent_record(
@@ -62,6 +63,8 @@ fn bare_agent_record(
         definition_respond_to: None,
         definition_respond_to_allowlist: vec![],
         definition_parallelism: None,
+        launch_runtime_id: None,
+        raw_command_explicit: false,
     }
 }
 fn persona_record(id: &str, model: Option<&str>, provider: Option<&str>) -> AgentDefinition {
@@ -654,5 +657,43 @@ fn owner_only_access_deploy_payload_clamps_stale_access() {
         payload["respond_to_allowlist"],
         serde_json::json!([]),
         "owner-only-access deploy payload retained a stale allowlist"
+    );
+}
+
+#[test]
+fn linked_persona_snapshot_helper_matches_local_and_provider_runtime_identity() {
+    let mut local_record =
+        bare_agent_record(Some("def-1"), Some("stale-model"), Some("stale-prov"));
+    local_record.runtime = Some("goose".into());
+    local_record.launch_runtime_id = Some("goose".into());
+    let mut provider_record = local_record.clone();
+
+    let mut persona = persona_record("def-1", Some("claude"), Some("anthropic"));
+    persona.runtime = Some("ompk".into());
+    let personas = vec![persona];
+
+    apply_linked_persona_snapshot_for_start(&mut local_record, &personas)
+        .expect("local snapshot applies");
+    apply_linked_persona_snapshot_for_start(&mut provider_record, &personas)
+        .expect("provider snapshot applies");
+
+    assert_eq!(local_record.launch_runtime_id.as_deref(), Some("ompk"));
+    assert_eq!(
+        provider_record.launch_runtime_id,
+        local_record.launch_runtime_id
+    );
+    assert_eq!(local_record.model.as_deref(), Some("claude"));
+    assert_eq!(provider_record.provider.as_deref(), Some("anthropic"));
+}
+
+#[test]
+fn linked_persona_snapshot_helper_rejects_orphaned_persona_id() {
+    let mut record =
+        bare_agent_record(Some("missing-def"), Some("stale-model"), Some("stale-prov"));
+    let err = apply_linked_persona_snapshot_for_start(&mut record, &[])
+        .expect_err("orphaned persona must fail");
+    assert_eq!(
+        err,
+        crate::managed_agents::effective_config::ORPHANED_INSTANCE_ERROR
     );
 }

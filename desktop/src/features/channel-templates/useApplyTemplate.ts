@@ -9,7 +9,10 @@ import {
   usePersonasQuery,
   useTeamsQuery,
 } from "@/features/agents/hooks";
-import { resolvePersonaRuntime } from "@/features/agents/lib/resolvePersonaRuntime";
+import {
+  getDefaultPersonaRuntime,
+  resolvePersonaRuntime,
+} from "@/features/agents/lib/resolvePersonaRuntime";
 import { resolveTeamPersonas } from "@/features/agents/lib/teamPersonas";
 import { useLastRuntime } from "@/features/agents/lib/useLastRuntime";
 import { useChannelTemplatesQuery } from "@/features/channel-templates/hooks";
@@ -24,6 +27,14 @@ function toManagedBackend(
 ): CreateChannelManagedAgentInput["backend"] {
   if (!backend || backend.type === "local") return { type: "local" };
   return { type: "provider", id: backend.id, config: {} };
+}
+export function isExplicitTemplateRuntimePin(
+  requestedRuntimeId: string | null,
+  resolvedRuntimeId: string,
+): boolean {
+  return (
+    requestedRuntimeId !== null && requestedRuntimeId === resolvedRuntimeId
+  );
 }
 
 export function useApplyTemplate() {
@@ -72,9 +83,9 @@ export function useApplyTemplate() {
     const runtimes = acpRuntimesQuery.data ?? [];
     if (runtimes.length === 0) return; // No runtimes — skip silently
 
-    // Resolve default provider: user's last-used preference, or first available
-    const defaultProvider =
-      runtimes.find((p) => p.id === lastRuntimeId) ?? runtimes[0] ?? null;
+    // The last-used harness is an explicit preference; if unavailable, use the
+    // same OMPK-first fallback as every other agent launch surface.
+    const defaultProvider = getDefaultPersonaRuntime(runtimes, lastRuntimeId);
     if (!defaultProvider) return;
 
     const seenPersonaIds = new Set<string>();
@@ -91,10 +102,15 @@ export function useApplyTemplate() {
         runtimes,
         defaultProvider,
       );
+      const runtime = resolved.runtime ?? defaultProvider;
       inputs.push({
-        runtime: resolved.runtime ?? defaultProvider,
+        runtime,
         name: persona.displayName,
         personaId: persona.id,
+        harnessOverride: isExplicitTemplateRuntimePin(
+          entry.runtime,
+          runtime.id,
+        ),
         systemPrompt: persona.systemPrompt,
         avatarUrl: persona.avatarUrl ?? undefined,
         model: entry.model ?? persona.model ?? undefined,
@@ -116,10 +132,15 @@ export function useApplyTemplate() {
           runtimes,
           defaultProvider,
         );
+        const runtime = resolved.runtime ?? defaultProvider;
         inputs.push({
-          runtime: resolved.runtime ?? defaultProvider,
+          runtime,
           name: persona.displayName,
           personaId: persona.id,
+          harnessOverride: isExplicitTemplateRuntimePin(
+            teamEntry.runtime,
+            runtime.id,
+          ),
           systemPrompt: persona.systemPrompt,
           avatarUrl: persona.avatarUrl ?? undefined,
           model: teamEntry.model ?? persona.model ?? undefined,

@@ -8,11 +8,17 @@ import {
   runtimeIsVisibleInOnboarding,
 } from "./onboardingRuntimeSelection.ts";
 
-function runtime(id, availability, status) {
-  return { id, availability, authStatus: { status } };
+function runtime(id, availability, runtimeReadiness, authStatus = "unknown") {
+  return {
+    id,
+    availability,
+    authStatus: { status: authStatus },
+    runtimeReadiness,
+  };
 }
 
-test("all bundled harnesses are visible in onboarding", () => {
+test("all featured harnesses are visible in onboarding", () => {
+  assert.equal(runtimeIsVisibleInOnboarding("ompk"), true);
   assert.equal(runtimeIsVisibleInOnboarding("claude"), true);
   assert.equal(runtimeIsVisibleInOnboarding("codex"), true);
   assert.equal(runtimeIsVisibleInOnboarding("goose"), true);
@@ -22,46 +28,54 @@ test("all bundled harnesses are visible in onboarding", () => {
 
 test("visible onboarding runtimes use the product order", () => {
   const runtimes = [
-    runtime("buzz-agent", "available", "not_applicable"),
-    runtime("codex", "available", "logged_in"),
-    runtime("goose", "available", "not_applicable"),
-    runtime("claude", "available", "logged_in"),
+    runtime("ompk", "available", "ready"),
+    runtime("buzz-agent", "available", "ready"),
+    runtime("codex", "available", "ready"),
+    runtime("goose", "available", "ready"),
+    runtime("claude", "available", "ready"),
   ];
 
   assert.deepEqual(
     getVisibleOnboardingRuntimes(runtimes).map(({ id }) => id),
-    ["claude", "codex", "goose", "buzz-agent"],
+    ["ompk", "claude", "codex", "goose", "buzz-agent"],
   );
 });
 
-test("readiness requires an available and authenticated runtime", () => {
-  assert.equal(
-    runtimeIsReadyForOnboarding(runtime("claude", "available", "logged_in")),
-    true,
-  );
+test("readiness requires availability and Rust operational readiness", () => {
   assert.equal(
     runtimeIsReadyForOnboarding(
-      runtime("codex", "available", "not_applicable"),
+      runtime("ompk", "available", "ready", "unknown"),
     ),
     true,
   );
   assert.equal(
-    runtimeIsReadyForOnboarding(runtime("claude", "available", "logged_out")),
+    runtimeIsReadyForOnboarding(
+      runtime("ompk", "available", "model_unavailable", "unknown"),
+    ),
     false,
   );
   assert.equal(
-    runtimeIsReadyForOnboarding(runtime("codex", "not_installed", "logged_in")),
+    runtimeIsReadyForOnboarding(
+      runtime("claude", "available", "authentication_required", "logged_out"),
+    ),
+    false,
+  );
+  assert.equal(
+    runtimeIsReadyForOnboarding(
+      runtime("codex", "not_installed", "ready", "logged_in"),
+    ),
     false,
   );
 });
 
 test("ready onboarding runtimes exclude unknown and non-ready harnesses", () => {
   const runtimes = [
-    runtime("goose", "available", "not_applicable"),
-    runtime("codex", "available", "logged_out"),
-    runtime("buzz-agent", "available", "not_applicable"),
-    runtime("claude", "available", "logged_in"),
-    runtime("custom", "available", "not_applicable"),
+    runtime("ompk", "available", "model_unavailable"),
+    runtime("goose", "available", "ready"),
+    runtime("codex", "available", "authentication_required", "logged_out"),
+    runtime("buzz-agent", "available", "ready"),
+    runtime("claude", "available", "ready", "unknown"),
+    runtime("custom", "available", "ready"),
   ];
 
   assert.deepEqual(

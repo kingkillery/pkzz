@@ -6,9 +6,11 @@
  * receive the already-populated value on first render, eliminating the
  * per-mount IPC race that caused required-env-key rows to be missing on open.
  *
- * On fetch error the query falls back to EMPTY_CONFIG (safe — the absence of
- * a global config is never an error state for callers).
+ * Callers that persist a runtime choice can distinguish the placeholder from a
+ * completed read through `isReady`, or force an action-time read with
+ * `refetchGlobalConfig`.
  */
+import { useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { getGlobalAgentConfig } from "@/shared/api/tauriGlobalAgentConfig";
@@ -26,8 +28,10 @@ export const globalAgentConfigQueryKey = ["globalAgentConfig"] as const;
 export function useGlobalAgentConfig(): {
   globalConfig: GlobalAgentConfig;
   isLoading: boolean;
+  isReady: boolean;
+  refetchGlobalConfig: () => Promise<GlobalAgentConfig>;
 } {
-  const { data, isPending } = useQuery({
+  const { data, isPending, isPlaceholderData, refetch } = useQuery({
     queryKey: globalAgentConfigQueryKey,
     queryFn: getGlobalAgentConfig,
     // Config is only mutated via setGlobalAgentConfig — treat as stable until
@@ -37,8 +41,24 @@ export function useGlobalAgentConfig(): {
     placeholderData: EMPTY_CONFIG,
   });
 
+  const refetchGlobalConfig = useCallback(async () => {
+    const result = await refetch({
+      cancelRefetch: false,
+      throwOnError: true,
+    });
+    if (!result.data || result.isPlaceholderData) {
+      throw (
+        result.error ??
+        new Error("Global agent configuration has not finished loading.")
+      );
+    }
+    return result.data;
+  }, [refetch]);
+
   return {
     globalConfig: data ?? EMPTY_CONFIG,
-    isLoading: isPending,
+    isLoading: isPending || isPlaceholderData,
+    isReady: data !== undefined && !isPlaceholderData,
+    refetchGlobalConfig,
   };
 }

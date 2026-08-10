@@ -14,6 +14,7 @@ use std::sync::OnceLock;
 use super::normalize_agent_args;
 use crate::managed_agents::{
     AcpAvailabilityStatus, AcpRuntimeCatalogEntry, AuthStatus, HarnessSource,
+    RuntimeReadinessStatus,
 };
 
 pub(crate) struct PresetHarness {
@@ -93,6 +94,12 @@ pub(crate) fn preset_catalog_entry(
         _ => None,
     };
 
+    let runtime_readiness = if availability == AcpAvailabilityStatus::Available {
+        RuntimeReadinessStatus::Ready
+    } else {
+        RuntimeReadinessStatus::Unknown
+    };
+
     AcpRuntimeCatalogEntry {
         id: def.id.to_string(),
         label: def.label.to_string(),
@@ -118,6 +125,8 @@ pub(crate) fn preset_catalog_entry(
         underlying_cli_path,
         node_required: false,
         auth_status: AuthStatus::NotApplicable,
+        runtime_readiness,
+        can_connect_account: false,
         login_hint,
         source: HarnessSource::Preset,
         definition_env: Default::default(),
@@ -148,27 +157,6 @@ pub(crate) const PRESET_HARNESSES: &[PresetHarness] = &[
         install_hint: "Pkzz talks to Cursor through the cursor-agent CLI's ACP mode.",
         underlying_cli: None,
         login_hint: None,
-    },
-    PresetHarness {
-        id: "ompk",
-        label: "Oh My PK",
-        // The package installs three bins — `oh-my-pk`, `ompk`, and `omp`.
-        // `omp` is deliberately NOT the probed command: upstream oh-my-pi
-        // claims that name too, so probing it would light this row up for an
-        // install that is not this harness. `ompk` is unique to the fork.
-        command: "ompk",
-        args: &["acp"],
-        install_instructions_url: "https://github.com/kingkillery/oh-my-pk",
-        install_hint: "Pkzz talks to Oh My PK through its CLI's ACP mode (ompk acp).",
-        underlying_cli: None,
-        // Verified against the fork's `auth-broker` CLI: `login <provider>`
-        // runs the OAuth dance in-process and writes the credential to the
-        // local store, so it needs no broker deployment. Provider ids are the
-        // fork's own (`anthropic`, `cursor`, `openai-codex`).
-        login_hint: Some(
-            "Sign in from a terminal with `ompk auth-broker login anthropic` \
-             (also `cursor`, `openai-codex`), or run `ompk` and use `/login`.",
-        ),
     },
     PresetHarness {
         id: "omp",
@@ -275,15 +263,16 @@ pub(crate) fn preset_harness_ids() -> &'static [&'static str] {
         .as_slice()
 }
 
+pub(super) fn preset_harness_by_id(id: &str) -> Option<&'static PresetHarness> {
+    PRESET_HARNESSES.iter().find(|preset| preset.id == id)
+}
+
 /// Return the primary command for a preset harness by id, or `None` if the id
 /// is not a known preset.
 ///
 /// Returns a `&'static str` so callers can use it without allocation.
 pub(super) fn preset_command_for_id(id: &str) -> Option<&'static str> {
-    PRESET_HARNESSES
-        .iter()
-        .find(|p| p.id == id)
-        .map(|p| p.command)
+    preset_harness_by_id(id).map(|preset| preset.command)
 }
 
 /// Return the primary harness command for a given runtime id, or `None`.
@@ -349,7 +338,9 @@ pub(crate) fn canonical_harness_command(input: &str) -> Option<String> {
 mod tests {
     use std::path::PathBuf;
 
-    use crate::managed_agents::{AcpAvailabilityStatus, AuthStatus, HarnessSource};
+    use crate::managed_agents::{
+        AcpAvailabilityStatus, AuthStatus, HarnessSource, RuntimeReadinessStatus,
+    };
 
     use super::{preset_catalog_entry, PresetHarness, PRESET_HARNESSES};
 
@@ -539,5 +530,47 @@ mod tests {
             entry.max_parallelism, None,
             "uncapped preset (devin) must have max_parallelism: None"
         );
+    }
+
+    #[test]
+    fn ompk_exists_once_in_rich_metadata_and_not_flat_presets() {
+        assert_eq!(
+            super::super::known_runtime_ids()
+                .filter(|id| *id == "ompk")
+                .count(),
+            1
+        );
+        assert_eq!(
+            PRESET_HARNESSES
+                .iter()
+                .filter(|preset| preset.id == "ompk")
+                .count(),
+            0
+        );
+
+        let ompk = super::super::known_acp_runtime_exact("ompk").unwrap();
+        assert_eq!(ompk.source, HarnessSource::Preset);
+        assert_eq!(ompk.commands, &["ompk"]);
+        assert_eq!(ompk.default_args, &["acp"]);
+        assert!(!ompk.commands.contains(&"omp"));
+    }
+
+    #[test]
+    fn upstream_omp_remains_a_separate_flat_preset() {
+        let omp = PRESET_HARNESSES
+            .iter()
+            .find(|preset| preset.id == "omp")
+            .expect("upstream OMP must remain selectable");
+        assert_eq!(omp.command, "omp");
+        assert_eq!(omp.args, &["acp"]);
+
+        let entry = preset_catalog_entry(omp, |command| {
+            (command == "omp").then(|| PathBuf::from("/usr/local/bin/omp"))
+        });
+        assert_eq!(entry.source, HarnessSource::Preset);
+        assert_eq!(entry.command.as_deref(), Some("omp"));
+        assert_eq!(entry.default_args, vec!["acp"]);
+        assert_eq!(entry.runtime_readiness, RuntimeReadinessStatus::Ready);
+        assert!(!entry.can_connect_account);
     }
 }

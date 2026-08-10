@@ -12,6 +12,10 @@ import {
   resolveInheritedRuntimeSubmission,
   resolveRuntimeProviderCapability,
 } from "./personaRuntimeModel.ts";
+import {
+  buildRuntimeDropdownOptions,
+  canPersistRuntimePin,
+} from "./agentInstanceRuntimeIdentity.ts";
 
 // ── Phase 1B.3b re-host pinning: inherit-toggle → gate → submit ─────────────
 //
@@ -28,9 +32,21 @@ import {
 // re-host that re-derives any seam independently fails here.
 
 const runtimes = [
+  { id: "ompk", command: "ompk", defaultArgs: ["acp"] },
   { id: "buzz-agent", command: "buzz-agent-cmd", defaultArgs: [] },
   { id: "claude", command: "claude-cmd", defaultArgs: [] },
 ];
+
+function selectedRuntimeIdFor({ runtime, agentCommand }) {
+  const effectiveRuntimeId = runtime?.trim();
+  const matched =
+    runtimes.find((candidate) => candidate.id === effectiveRuntimeId) ??
+    runtimes.find(
+      (candidate) => candidate.command?.trim() === agentCommand.trim(),
+    ) ??
+    runtimes.find((candidate) => candidate.id === agentCommand.trim());
+  return effectiveRuntimeId || matched?.id || "custom";
+}
 
 // Mirrors the component's prospectiveRuntimeId memo: when inheriting, resolve
 // from the linked persona's runtime; fall back to the agentCommand dual-match.
@@ -50,10 +66,47 @@ function prospectiveRuntimeIdFor({
     );
   }
   return (
+    runtimes.find((r) => r.id === "ompk")?.id ??
     runtimes.find((r) => r.command?.trim() === agentCommand.trim())?.id ??
     runtimes.find((r) => r.id === agentCommand.trim())?.id ??
     ""
   );
+}
+
+function resolveRuntimeIdentityFields({
+  runtimeTouched,
+  argsTouched,
+  inheritHarness,
+  selectedRuntimeId,
+  prospectiveRuntimeId,
+  agentCommandUpdate,
+  parsedArgs,
+  originalArgs,
+}) {
+  const runtimeIdentityChanged =
+    runtimeTouched ||
+    (!inheritHarness &&
+      selectedRuntimeId === "custom" &&
+      agentCommandUpdate != null);
+  const runtimeId = runtimeIdentityChanged
+    ? inheritHarness
+      ? prospectiveRuntimeId || undefined
+      : selectedRuntimeId === "custom"
+        ? null
+        : selectedRuntimeId
+    : undefined;
+  const agentArgs = runtimeIdentityChanged
+    ? (!inheritHarness && selectedRuntimeId === "custom") || argsTouched
+      ? parsedArgs
+      : []
+    : argsTouched && parsedArgs.join(",") !== originalArgs.join(",")
+      ? parsedArgs
+      : undefined;
+  return {
+    runtimeId,
+    harnessOverride: runtimeIdentityChanged ? !inheritHarness : undefined,
+    agentArgs,
+  };
 }
 
 // A Claude-pinned agent linked to a buzz-agent/anthropic persona — the
@@ -96,6 +149,12 @@ function inheritTransitionState() {
   return { inheritHarness, prospectiveRuntimeId, inheritedSubmission };
 }
 
+function providerEnvVarForRuntime(runtimeId) {
+  if (runtimeId === "buzz-agent") return "BUZZ_AGENT_PROVIDER";
+  if (runtimeId === "goose") return "GOOSE_PROVIDER";
+  return null;
+}
+
 test("rehost_toggle_resolvesProspectiveRuntimeFromPersona_notOverride", () => {
   const { prospectiveRuntimeId } = inheritTransitionState();
   assert.equal(
@@ -112,7 +171,7 @@ test("rehost_gate_validatesTheSubmissionSnapshot_sameValuesAsSubmit", () => {
   // Gate half: the credential requirement must be computed from the
   // PROSPECTIVE runtime + the submission snapshot's provider/env.
   const providerForRequiredKeys = runtimeSupportsLlmProviderSelection(
-    prospectiveRuntimeId,
+    providerEnvVarForRuntime(prospectiveRuntimeId),
   )
     ? (inheritedSubmission.provider ?? "")
     : "";
@@ -203,6 +262,21 @@ test("rehost_submit_persistsToggleAsCommandClear_andOmitsHarnessOverride", () =>
     false,
     "harnessOverride must derive from the shared agentCommandUpdate, signalling the cleared pin",
   );
+  const identity = resolveRuntimeIdentityFields({
+    runtimeTouched: true,
+    argsTouched: false,
+    inheritHarness: true,
+    selectedRuntimeId: "claude",
+    prospectiveRuntimeId: "buzz-agent",
+    agentCommandUpdate,
+    parsedArgs: [],
+    originalArgs: [],
+  });
+  assert.deepEqual(identity, {
+    runtimeId: "buzz-agent",
+    harnessOverride: false,
+    agentArgs: [],
+  });
 
   // And the provider tri-state must classify the PROSPECTIVE runtime — the
   // same id the gate used — so submit persists what the gate validated.
@@ -210,7 +284,9 @@ test("rehost_submit_persistsToggleAsCommandClear_andOmitsHarnessOverride", () =>
     inheritTransitionState();
   const capability = resolveRuntimeProviderCapability(
     prospectiveRuntimeId,
-    runtimeSupportsLlmProviderSelection(prospectiveRuntimeId),
+    runtimeSupportsLlmProviderSelection(
+      providerEnvVarForRuntime(prospectiveRuntimeId),
+    ),
   );
   assert.equal(capability, "capable");
   const providerUpdate =
@@ -247,6 +323,161 @@ test("rehost_steadyStateInherit_localEditsStayAuthoritative", () => {
     "empty local model in steady state stays empty (runtime default), never backfilled from the persona",
   );
   assert.deepEqual(submission.envVars, { DATABRICKS_TOKEN: "tok" });
+});
+
+test("effective runtime id seeds selection before command inference", () => {
+  assert.equal(
+    selectedRuntimeIdFor({
+      runtime: "ompk",
+      agentCommand: "claude-cmd",
+    }),
+    "ompk",
+  );
+});
+
+test("explicit catalog selection sends id, pin intent, and untouched defaults sentinel", () => {
+  assert.deepEqual(
+    resolveRuntimeIdentityFields({
+      runtimeTouched: true,
+      argsTouched: false,
+      inheritHarness: false,
+      selectedRuntimeId: "ompk",
+      prospectiveRuntimeId: "ompk",
+      agentCommandUpdate: "ompk",
+      parsedArgs: ["acp"],
+      originalArgs: [],
+    }),
+    {
+      runtimeId: "ompk",
+      harnessOverride: true,
+      agentArgs: [],
+    },
+  );
+});
+
+test("unready runtimes cannot become new pins but existing pins survive unrelated edits", () => {
+  const unready = {
+    id: "ompk",
+    label: "Oh My PK",
+    availability: "available",
+    runtimeReadiness: "authentication_required",
+  };
+  const ready = {
+    id: "goose",
+    label: "Goose",
+    availability: "available",
+    runtimeReadiness: "ready",
+  };
+  const options = buildRuntimeDropdownOptions([unready, ready], "goose");
+  assert.equal(
+    options.find((option) => option.value === "ompk")?.disabled,
+    true,
+  );
+  assert.equal(
+    canPersistRuntimePin({
+      inheritHarness: false,
+      runtimeTouched: true,
+      selectedRuntime: unready,
+      selectedRuntimeId: "ompk",
+    }),
+    false,
+  );
+  assert.equal(
+    canPersistRuntimePin({
+      inheritHarness: false,
+      runtimeTouched: false,
+      selectedRuntime: unready,
+      selectedRuntimeId: "ompk",
+    }),
+    true,
+  );
+});
+
+test("manually edited catalog args remain explicit", () => {
+  assert.deepEqual(
+    resolveRuntimeIdentityFields({
+      runtimeTouched: true,
+      argsTouched: true,
+      inheritHarness: false,
+      selectedRuntimeId: "ompk",
+      prospectiveRuntimeId: "ompk",
+      agentCommandUpdate: "ompk",
+      parsedArgs: ["acp", "--profile", "work"],
+      originalArgs: [],
+    }),
+    {
+      runtimeId: "ompk",
+      harnessOverride: true,
+      agentArgs: ["acp", "--profile", "work"],
+    },
+  );
+});
+
+test("runtime-less inherit resolves the current default id with non-explicit intent", () => {
+  const prospectiveRuntimeId = prospectiveRuntimeIdFor({
+    inheritHarness: true,
+    selectedRuntimeId: "claude",
+    linkedPersonaRuntime: null,
+    agentCommand: "legacy-command",
+  });
+  assert.equal(prospectiveRuntimeId, "ompk");
+  assert.deepEqual(
+    resolveRuntimeIdentityFields({
+      runtimeTouched: true,
+      argsTouched: false,
+      inheritHarness: true,
+      selectedRuntimeId: "claude",
+      prospectiveRuntimeId,
+      agentCommandUpdate: "",
+      parsedArgs: [],
+      originalArgs: [],
+    }),
+    {
+      runtimeId: "ompk",
+      harnessOverride: false,
+      agentArgs: [],
+    },
+  );
+});
+
+test("raw custom selection clears catalog identity and preserves command args", () => {
+  assert.deepEqual(
+    resolveRuntimeIdentityFields({
+      runtimeTouched: true,
+      argsTouched: false,
+      inheritHarness: false,
+      selectedRuntimeId: "custom",
+      prospectiveRuntimeId: "custom",
+      agentCommandUpdate: "/opt/custom-acp",
+      parsedArgs: ["serve", "--stdio"],
+      originalArgs: [],
+    }),
+    {
+      runtimeId: null,
+      harnessOverride: true,
+      agentArgs: ["serve", "--stdio"],
+    },
+  );
+});
+
+test("name-only save omits runtime identity, pin intent, and args", () => {
+  assert.deepEqual(
+    resolveRuntimeIdentityFields({
+      runtimeTouched: false,
+      argsTouched: false,
+      inheritHarness: true,
+      selectedRuntimeId: "ompk",
+      prospectiveRuntimeId: "ompk",
+      agentCommandUpdate: undefined,
+      parsedArgs: [],
+      originalArgs: [],
+    }),
+    {
+      runtimeId: undefined,
+      harnessOverride: undefined,
+      agentArgs: undefined,
+    },
+  );
 });
 
 test("editValidity_allowlistWithEmptyList_blocksSave", () => {

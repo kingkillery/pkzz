@@ -311,9 +311,9 @@ export type ManagedAgent = {
   name: string;
   personaId: string | null;
   /**
-   * The record's harness/runtime id (e.g. "goose", "my-custom-harness").
-   * `null` means the agent inherits its harness from the linked persona.
-   * Used to count agents referencing a harness definition (delete confirm).
+   * Effective catalog runtime ID selected to launch this instance (e.g.
+   * "goose", "ompk", "my-custom-harness"). `null` is reserved for legacy/raw
+   * command records with no catalog identity.
    */
   runtime: string | null;
   teamId?: string | null;
@@ -415,6 +415,11 @@ export type CreateManagedAgentInput = {
   acpCommand?: string;
   agentCommand?: string;
   /**
+   * Selected Rust catalog identity. The backend derives command, defaults,
+   * definition env, and capabilities from this ID.
+   */
+  runtimeId?: string;
+  /**
    * True when `agentCommand` is a runtime command the caller deliberately wants
    * to preserve instead of inheriting the linked persona command. This covers
    * deploy-dialog runtime selections and discovered or installed aliases for the
@@ -457,28 +462,16 @@ export type ManagedAgentLog = {
   logPath: string;
 };
 
-export type CancelManagedAgentTurnResult = {
-  status: "sent" | "no_active_turn";
-};
-
-/**
- * Outcome of a live `switch_model` control frame, surfaced asynchronously via
- * the agent's `control_result` observer frame. Busy path: `sent` (cancel +
- * requeue on the new model) or `turn_ending` (oneshot already consumed this
- * turn). Idle path: `switched`, `unsupported_model`, or `no_active_turn`.
- */
-export type SwitchManagedAgentModelStatus =
-  | "sent"
-  | "turn_ending"
-  | "switched"
-  | "unsupported_model"
-  | "no_active_turn";
-
-export type ControlResultFrame = {
-  type: "cancel_turn" | "switch_model";
-  status: string;
-  modelId?: string;
-};
+export type {
+  CancelManagedAgentTurnResult,
+  CancelTurnControlResultFrame,
+  ControlResultFrame,
+  PermissionControlResultFrame,
+  PermissionDecision,
+  PermissionDecisionBinding,
+  SwitchManagedAgentModelStatus,
+  SwitchModelControlResultFrame,
+} from "./agentControlTypes";
 
 export type GitBashPrerequisite = {
   available: boolean;
@@ -487,69 +480,13 @@ export type GitBashPrerequisite = {
   installHint: string;
 };
 
-export type AcpAvailabilityStatus =
-  | "available"
-  | "adapter_missing"
-  | "adapter_outdated"
-  | "cli_missing"
-  | "not_installed";
-
-/** Authentication/login status for a CLI-based ACP runtime. */
-export type AuthStatus =
-  | { status: "logged_in" }
-  | { status: "logged_out" }
-  | { status: "config_invalid"; diagnostic: string }
-  | { status: "not_applicable" }
-  | { status: "unknown" };
-
-export type AcpRuntimeCatalogEntry = {
-  id: string;
-  label: string;
-  avatarUrl: string;
-  availability: AcpAvailabilityStatus;
-  command: string | null;
-  binaryPath: string | null;
-  defaultArgs: string[];
-  mcpCommand: string | null;
-  /** Environment variable used to apply the initial model, when supported. */
-  modelEnvVar: string | null;
-  /** Environment variable used to apply the selected LLM provider, when supported. */
-  providerEnvVar: string | null;
-  /** Environment variable used to apply thinking effort, when supported. */
-  thinkingEnvVar: string | null;
-  maxTokensEnvVar: string | null;
-  contextLimitEnvVar: string | null;
-  maxRoundsEnvVar: string | null;
-  installHint: string;
-  installInstructionsUrl: string;
-  canAutoInstall: boolean;
-  /** True when the runtime depends on a separately installed vendor CLI. */
-  requiresExternalCli: boolean;
-  underlyingCliPath: string | null;
-  /** True when an npm adapter step is pending but Node.js / npm is absent. */
-  nodeRequired: boolean;
-  /** Login/auth status for CLI-based runtimes. */
-  authStatus: AuthStatus;
-  /** Hint for completing authentication; null when not applicable or already logged in. */
-  loginHint: string | null;
-  /** "builtin" (compiled in), "preset" (PATH-probed, not editable), or "custom" (user JSON). Controls UI editability. */
-  source: "builtin" | "preset" | "custom";
-  /**
-   * Definition-level env vars for `source: custom` entries. Populated from
-   * `HarnessDefinition.env` so saves don't erase existing vars. Absent for
-   * builtin/preset entries.
-   */
-  definitionEnv?: Record<string, string>;
-  /** Spawn-time parallelism cap; absent for uncapped harnesses. */
-  maxParallelism?: number;
-};
-
-/** An AcpRuntimeCatalogEntry that is confirmed available — command and binaryPath are non-null. */
-export type AcpRuntime = AcpRuntimeCatalogEntry & {
-  availability: "available";
-  command: string;
-  binaryPath: string;
-};
+export type {
+  AcpAvailabilityStatus,
+  AcpRuntime,
+  AcpRuntimeCatalogEntry,
+  AuthStatus,
+  RuntimeReadinessStatus,
+} from "./acpRuntimeTypes";
 
 export type {
   InstallRuntimeResult,
@@ -690,6 +627,11 @@ export type UpdateManagedAgentInput = {
   relayUrl?: string;
   acpCommand?: string;
   agentCommand?: string;
+  /**
+   * Harness identity patch. Absent = no identity edit; string = select a
+   * catalog runtime; null = clear catalog identity for a raw custom command.
+   */
+  runtimeId?: string | null;
   /**
    * True when `agentCommand` is a runtime/Custom command the user deliberately
    * picked (the dialog is not inheriting). Preserves a pin that maps to the

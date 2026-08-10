@@ -61,6 +61,46 @@ export type AgentActivityDescriptor = {
 /** Observer/ACP wire label for dev-only transcript debugging. */
 export type TranscriptAcpSource = string;
 
+export type TranscriptPermissionRpcId = string | number;
+
+export type TranscriptPermissionBinding = {
+  agentPubkey: string;
+  relayUrl: string;
+  sessionId: string;
+  requestId: string;
+};
+
+export type TranscriptPermissionToolCall = {
+  toolCallId: string;
+  title: string;
+  kind?: string;
+  rawInput?: unknown;
+  content?: unknown[];
+  locations?: unknown[];
+};
+
+export type TranscriptPermissionRequest = {
+  binding: TranscriptPermissionBinding;
+  rpcId: TranscriptPermissionRpcId;
+  expiresAt: string;
+  canApproveOnce: boolean;
+  detailsComplete: boolean;
+  toolCall: TranscriptPermissionToolCall;
+};
+
+export type TranscriptPermissionResolution = {
+  binding: TranscriptPermissionBinding;
+  rpcId: TranscriptPermissionRpcId;
+  outcome:
+    | "approved"
+    | "rejected"
+    | "expired"
+    | "cancelled"
+    | "unavailable"
+    | "invalid_request";
+  resolvedAt: string;
+};
+
 /** Shared optional identity fields attached during transcript construction. */
 export type TranscriptItemIdentity = {
   turnId?: string | null;
@@ -104,11 +144,24 @@ export type TranscriptItem =
   | ({
       id: string;
       type: "lifecycle";
-      renderClass: "status" | "permission" | "error";
+      renderClass: "status" | "error";
       title: string;
       text: string;
-      /** Resolved outcome for permission items (e.g. "Approved (allow_once)", "Denied (reject_once)", "Cancelled"). */
+      timestamp: string;
+      descriptor?: AgentActivityDescriptor;
+      acpSource?: TranscriptAcpSource;
+    } & TranscriptItemIdentity)
+  | ({
+      id: string;
+      type: "lifecycle";
+      renderClass: "permission";
+      title: string;
+      text: string;
+      /** Fixed human-readable terminal label from ACP or semantic resolution telemetry. */
       outcome?: string;
+      /** Present only when trusted semantic telemetry supplies the complete binding. */
+      permission?: TranscriptPermissionRequest;
+      permissionResolution?: TranscriptPermissionResolution;
       timestamp: string;
       descriptor?: AgentActivityDescriptor;
       acpSource?: TranscriptAcpSource;

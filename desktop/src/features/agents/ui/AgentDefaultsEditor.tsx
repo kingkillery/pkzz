@@ -27,11 +27,14 @@ import {
 import {
   formatRuntimeOptionLabel,
   getDefaultPersonaRuntime,
+  isRuntimeReadyForNewSelection,
   PERSONA_FIELD_CONTROL_CLASS,
   PERSONA_FIELD_SHELL_CLASS,
   resetConfigForHarnessChange,
+  shouldPersistImplicitRuntimePreference,
   sortPersonaRuntimes,
 } from "@/features/agents/ui/agentConfigOptions";
+import { runtimeAvailabilityWarning } from "@/features/agents/ui/runtimeAvailabilityWarning";
 import { AgentDropdownSelect } from "@/features/agents/ui/agentConfigControls";
 import {
   AgentConfigFields,
@@ -139,24 +142,25 @@ export function AgentDefaultsEditor({
     () => sortPersonaRuntimes(runtimesQuery.data ?? []),
     [runtimesQuery.data],
   );
-  // An unset preferred runtime uses the same Pkzz Agent-first fallback as
-  // deployment. The rendered draft below carries that fallback forward so the
-  // next user edit persists the visible harness instead of saving null.
-  const selectedRuntime = React.useMemo(() => {
-    const configuredRuntime = sortedRuntimes.find(
-      (runtime) => runtime.id === config.preferred_runtime,
-    );
-    return (
-      configuredRuntime ??
-      getDefaultPersonaRuntime(sortedRuntimes) ??
-      sortedRuntimes[0]
-    );
-  }, [config.preferred_runtime, sortedRuntimes]);
+  // An explicit available saved runtime wins even when it still needs setup.
+  // Unset or unavailable preferences use the shared readiness-filtered
+  // OMPK-first fallback. Keep a final catalog row only for setup guidance when
+  // no runtime can resolve.
+  const selectedRuntime = React.useMemo(
+    () =>
+      getDefaultPersonaRuntime(sortedRuntimes, config.preferred_runtime) ??
+      sortedRuntimes[0],
+    [config.preferred_runtime, sortedRuntimes],
+  );
   const renderedConfig = React.useMemo(
     () =>
-      config.preferred_runtime || !selectedRuntime
-        ? config
-        : { ...config, preferred_runtime: selectedRuntime.id },
+      selectedRuntime &&
+      shouldPersistImplicitRuntimePreference(
+        config.preferred_runtime,
+        selectedRuntime,
+      )
+        ? { ...config, preferred_runtime: selectedRuntime.id }
+        : config,
     [config, selectedRuntime],
   );
   const { data: runtimeFileConfig } = useRuntimeFileConfigQuery(
@@ -165,11 +169,17 @@ export function AgentDefaultsEditor({
   const harnessOptions = React.useMemo(
     () =>
       sortedRuntimes.map((runtime) => ({
+        disabled:
+          runtime.id !== config.preferred_runtime &&
+          !isRuntimeReadyForNewSelection(runtime),
         label: formatRuntimeOptionLabel(runtime),
         value: runtime.id,
       })),
-    [sortedRuntimes],
+    [config.preferred_runtime, sortedRuntimes],
   );
+  const runtimeWarningText = selectedRuntime
+    ? runtimeAvailabilityWarning(selectedRuntime)
+    : null;
   const configSurfaceLoading = isLoading || runtimesQuery.isLoading;
   const configSurfaceError =
     loadError ||
@@ -185,7 +195,22 @@ export function AgentDefaultsEditor({
   }
 
   function handleHarnessChange(runtimeId: string) {
-    handleConfigChange(resetConfigForHarnessChange(config, runtimeId));
+    const nextRuntime = sortedRuntimes.find(
+      (candidate) => candidate.id === runtimeId,
+    );
+    if (
+      runtimeId === config.preferred_runtime ||
+      !isRuntimeReadyForNewSelection(nextRuntime)
+    ) {
+      return;
+    }
+    handleConfigChange(
+      resetConfigForHarnessChange(
+        config,
+        runtimeId,
+        nextRuntime?.providerEnvVar,
+      ),
+    );
     setConfigIsValid(false);
     setIsCustomModelEditing(false);
     setIsCustomProvider(false);
@@ -293,6 +318,11 @@ export function AgentDefaultsEditor({
               testId="global-agent-default-harness"
               value={selectedRuntime?.id ?? ""}
             />
+            {runtimeWarningText ? (
+              <p className="text-xs text-warning">
+                {runtimeWarningText} Visit Settings &gt; Agents to set it up.
+              </p>
+            ) : null}
           </div>
           {flatLayout ? (
             <AnimatePresence initial={false}>

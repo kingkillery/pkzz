@@ -15,6 +15,7 @@
       ],
       "command": "goose",
       "env": {
+        "GOOSE_MODE": "auto",
         "GOOSE_MODEL": "gpt-5",
         "GOOSE_PROVIDER": "openai",
         "USER_KEY": "user-value"

@@ -13,7 +13,12 @@ use std::{
 };
 
 use serde::Serialize;
-use tokio::sync::broadcast;
+use tokio::{sync::broadcast, time::Instant};
+
+use crate::permission::{
+    OwnerPermissionDecision, PermissionBinding, PermissionBroker, PermissionDispatchStatus,
+    PermissionScope, PermissionWaiter,
+};
 
 const OBSERVER_BUFFER_CAP: usize = 1_000;
 
@@ -40,6 +45,7 @@ struct ObserverInner {
     tx: broadcast::Sender<ObserverEvent>,
     buffer: Mutex<VecDeque<ObserverEvent>>,
     seq: AtomicU64,
+    permission_broker: PermissionBroker,
 }
 
 fn new_observer_handle() -> ObserverHandle {
@@ -49,6 +55,7 @@ fn new_observer_handle() -> ObserverHandle {
             tx,
             buffer: Mutex::new(VecDeque::with_capacity(OBSERVER_BUFFER_CAP)),
             seq: AtomicU64::new(1),
+            permission_broker: PermissionBroker::default(),
         }),
     }
 }
@@ -133,6 +140,53 @@ impl ObserverHandle {
         }
 
         let _ = self.inner.tx.send(event);
+    }
+    /// Enable the one-shot owner-permission bridge for one exact process scope.
+    pub fn enable_permission_bridge(
+        &self,
+        agent_pubkey: &str,
+        relay_url: &str,
+    ) -> Result<(), &'static str> {
+        let scope = PermissionScope::new(agent_pubkey, relay_url)?;
+        self.inner.permission_broker.enable(scope);
+        Ok(())
+    }
+
+    /// Disable the bridge and wake every pending permission into denial.
+    pub fn disable_permission_bridge(&self) {
+        self.inner.permission_broker.disable();
+    }
+
+    /// Begin one exact permission rendezvous using the captured observer
+    /// context as authoritative channel/session telemetry.
+    pub fn begin_permission(
+        &self,
+        session_id: &str,
+        context: ObserverContext,
+        deadline: Instant,
+    ) -> Option<PermissionWaiter> {
+        self.inner
+            .permission_broker
+            .register(session_id, context, deadline)
+    }
+
+    /// Deliver an owner decision to the matching live request, if any.
+    pub fn resolve_permission(
+        &self,
+        binding: &PermissionBinding,
+        decision: OwnerPermissionDecision,
+    ) -> PermissionDispatchStatus {
+        self.inner.permission_broker.resolve(binding, decision)
+    }
+
+    /// Cancel one exact pending request.
+    pub fn cancel_permission(&self, binding: &PermissionBinding) -> PermissionDispatchStatus {
+        self.inner.permission_broker.cancel(binding)
+    }
+
+    /// Cancel only pending requests associated with one Pkzz channel.
+    pub fn cancel_permissions_for_channel(&self, channel_id: &str) -> usize {
+        self.inner.permission_broker.cancel_channel(channel_id)
     }
 }
 

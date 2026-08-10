@@ -600,7 +600,7 @@ fn claude_spawn_uses_the_probed_cli_executable() {
     std::env::set_var("PATH", temp.path());
     crate::managed_agents::clear_resolve_cache();
     let mut command = std::process::Command::new("buzz-acp");
-    super::configure_runtime_cli(&mut command, super::known_acp_runtime("claude-agent-acp"));
+    super::configure_runtime_cli(&mut command, known_acp_runtime("claude-agent-acp"));
     if let Some(path) = original_path {
         std::env::set_var("PATH", path);
     } else {
@@ -615,7 +615,7 @@ fn claude_spawn_uses_the_probed_cli_executable() {
 #[test]
 fn codex_spawn_does_not_set_a_claude_executable() {
     let mut command = std::process::Command::new("buzz-acp");
-    super::configure_runtime_cli(&mut command, super::known_acp_runtime("codex-acp"));
+    super::configure_runtime_cli(&mut command, known_acp_runtime("codex-acp"));
     assert!(!command
         .get_envs()
         .any(|(key, _)| key == "CLAUDE_CODE_EXECUTABLE"));

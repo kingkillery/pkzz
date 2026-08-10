@@ -37,33 +37,28 @@ export async function availableRuntimesForStart(
 }
 
 /**
- * Resolve the runtime a definition should start on, refusing when the
- * definition's configured runtime is not available (Phase 1B.3.5 row 1,
- * Wes's call: one consistent refuse-with-actionable-error everywhere —
- * never silently start on a different runtime than configured).
+ * Resolve the catalog runtime a definition should start on. A configured,
+ * available persona runtime wins; an unavailable configured runtime uses the
+ * readiness-gated implicit default and is reported as fallback provenance so
+ * callers never mistake it for an explicit pin.
  */
 export function resolveStartRuntimeForDefinition(
   persona: AgentPersona,
   runtimes: readonly AcpRuntime[],
   preferredRuntimeId?: string | null,
-): { runtime: AcpRuntime; warnings: string[] } {
-  // Use the buzz-agent-first preference (buzz-agent → goose → first available)
-  // so a freshly installed goose never beats the bundled buzz-agent sidecar
-  // for runtime-less personas (item 13 regression guard).
+): {
+  runtime: AcpRuntime;
+  warnings: string[];
+  provenance: ResolvePersonaRuntimeResult["provenance"];
+} {
   const defaultRuntime = getDefaultPersonaRuntime(runtimes, preferredRuntimeId);
-  const { runtime, warnings, isOverridden }: ResolvePersonaRuntimeResult =
+  const { runtime, warnings, provenance }: ResolvePersonaRuntimeResult =
     resolvePersonaRuntime(persona.runtime, runtimes, defaultRuntime);
 
   if (!runtime) {
     throw new Error("No available runtime found for this agent.");
   }
-  if (isOverridden) {
-    throw new Error(
-      warnings[0] ??
-        "This agent's configured runtime is not available. Install the runtime or edit the agent before starting it.",
-    );
-  }
-  return { runtime, warnings };
+  return { runtime, warnings, provenance };
 }
 
 /**
@@ -93,11 +88,10 @@ export type BackendIntent = {
  * surface that creates a running instance from a definition builds its
  * CreateManagedAgentInput here so the mapping cannot drift per-site.
  *
- * - harnessOverride uses the backend-aligned formula: true only when the
- *   definition has no runtime preference or the picked runtime matches it
- *   (`create_time_agent_command_override` stores None when picked ==
- *   inherited; on fallback `harness_override: false` keeps the definition
- *   authoritative).
+ * - A normal definition start is inherited/implicit launch intent. The
+ *   selected catalog identity is persisted via `runtimeId`, while
+ *   `harnessOverride` remains false even when the definition has no runtime or
+ *   its unavailable runtime resolved to a fallback.
  * - avatarUrl goes through resolveManagedAgentAvatarUrl (base64 data URIs
  *   upload via the injectable `upload`; other URLs pass through unchanged).
  * - envVars are never seeded from the definition: record.env_vars is
@@ -143,6 +137,7 @@ export async function buildInstanceInputForDefinition(
     ...base,
     acpCommand: "buzz-acp",
     agentCommand: runtime.command,
+    runtimeId: runtime.id,
     // Do NOT seed agentArgs from runtime.defaultArgs: record.agent_args must
     // remain empty so spawn resolves args live from the definition on every
     // start.  Seeding here would freeze the args at create-time, silently
@@ -150,8 +145,7 @@ export async function buildInstanceInputForDefinition(
     // envVars are intentionally never seeded for the same reason (see comment
     // at top of this function).
     agentArgs: [],
-    mcpCommand: runtime.mcpCommand ?? "",
-    harnessOverride: !persona.runtime || persona.runtime === runtime.id,
+    harnessOverride: false,
     model: persona.model ?? undefined,
     provider: persona.provider ?? undefined,
     spawnAfterCreate: true,

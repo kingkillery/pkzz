@@ -52,9 +52,11 @@ const { isRateLimited, resetRateLimitGate } = await import(
   "./relayRateLimitGate.ts"
 );
 
-// Import the production classifier from tauri.ts — tests must exercise the
-// real function, not a local copy, so a logic change is always caught here.
-const { applyTauriRateLimitIfNeeded } = await import("./tauri.ts");
+// Import production API functions so tests exercise the real invoke payload
+// construction rather than a duplicated frontend shape.
+const { applyTauriRateLimitIfNeeded, createManagedAgent } = await import(
+  "./tauri.ts"
+);
 
 function resetGate(startMs = 0) {
   pendingTimers.clear();
@@ -184,6 +186,27 @@ test("fromRawAcpRuntimeCatalogEntry preserves source preset", () => {
   assert.deepStrictEqual(entry.definitionEnv, {});
 });
 
+test("fromRawAcpRuntimeCatalogEntry maps generic readiness and account actions", () => {
+  const entry = fromRawAcpRuntimeCatalogEntry({
+    id: "ompk",
+    label: "Oh My Pi",
+    availability: "available",
+    command: "ompk",
+    source: "preset",
+    default_args: ["acp"],
+    can_auto_install: false,
+    requires_external_cli: false,
+    install_hint: "",
+    install_instructions_url: "",
+    auth_status: "unknown",
+    runtime_readiness: "model_unavailable",
+    can_connect_account: true,
+  });
+
+  assert.equal(entry.runtimeReadiness, "model_unavailable");
+  assert.equal(entry.canConnectAccount, true);
+});
+
 test("fromRawAcpRuntimeCatalogEntry env round-trips through edit payload shape", () => {
   // Simulate the full save → re-open cycle: raw entry comes back from Rust
   // with definition_env populated; the edit form reads entry.definitionEnv.
@@ -255,6 +278,43 @@ test("fromRawAcpRuntimeCatalogEntry omits maxParallelism when max_parallelism is
     undefined,
     "uncapped harness must have maxParallelism: undefined",
   );
+});
+
+// ── createManagedAgent runtime identity forwarding ───────────────────────────
+
+test("createManagedAgent forwards catalog identity with live-default args", async () => {
+  let captured = null;
+  const previousInternals = window.__TAURI_INTERNALS__;
+  window.__TAURI_INTERNALS__ = {
+    invoke: async (command, args) => {
+      captured = { command, args };
+      throw new Error("captured create payload");
+    },
+  };
+
+  try {
+    await assert.rejects(
+      createManagedAgent({
+        name: "Fizz",
+        runtimeId: "ompk",
+        agentCommand: "ompk",
+        agentArgs: [],
+        harnessOverride: false,
+      }),
+      /captured create payload/,
+    );
+  } finally {
+    if (previousInternals === undefined) {
+      delete window.__TAURI_INTERNALS__;
+    } else {
+      window.__TAURI_INTERNALS__ = previousInternals;
+    }
+  }
+
+  assert.equal(captured.command, "create_managed_agent");
+  assert.equal(captured.args.input.runtimeId, "ompk");
+  assert.deepEqual(captured.args.input.agentArgs, []);
+  assert.equal(captured.args.input.harnessOverride, false);
 });
 
 // ── Teardown ──────────────────────────────────────────────────────────────────

@@ -610,6 +610,8 @@ pub async fn confirm_team_snapshot_import(
             definition_parallelism: minted_parallelism,
             relay_mesh: None,
             runtime: member.definition.runtime.clone(),
+            launch_runtime_id: None,
+            raw_command_explicit: false,
             name_pool: member.definition.name_pool.clone(),
         };
 

@@ -80,6 +80,7 @@ pub async fn set_global_agent_config(
 
         // Re-read from disk so the returned value reflects the strip-on-write pass.
         let new_global = load_global_agent_config(&app_for_write)?;
+        crate::managed_agents::invalidate_runtime_readiness();
 
         // Pre-filter: identify agents that look eligible before taking any locks.
         // This is a hint only; definitive eligibility check happens under lock

@@ -1,5 +1,63 @@
 import { sendAgentObserverControl } from "@/shared/api/observerRelay";
-import type { CancelManagedAgentTurnResult } from "@/shared/api/types";
+import type {
+  CancelManagedAgentTurnResult,
+  PermissionDecision,
+  PermissionDecisionBinding,
+} from "@/shared/api/types";
+
+export type PermissionDecisionPayload = PermissionDecisionBinding & {
+  type: "permission_decision";
+  decision: PermissionDecision;
+};
+
+function requireNonEmptyBindingField(
+  value: string,
+  field: keyof PermissionDecisionBinding,
+) {
+  if (value.length === 0) {
+    throw new Error(`Permission decision is missing ${field}.`);
+  }
+}
+
+export function buildPermissionDecisionPayload(
+  managedAgentPubkey: string,
+  binding: PermissionDecisionBinding,
+  decision: PermissionDecision,
+): PermissionDecisionPayload {
+  if (managedAgentPubkey !== binding.agentPubkey) {
+    throw new Error(
+      "Permission decision agent does not match the managed agent.",
+    );
+  }
+  requireNonEmptyBindingField(binding.agentPubkey, "agentPubkey");
+  requireNonEmptyBindingField(binding.relayUrl, "relayUrl");
+  requireNonEmptyBindingField(binding.sessionId, "sessionId");
+  requireNonEmptyBindingField(binding.requestId, "requestId");
+  if (decision !== "approve_once" && decision !== "reject") {
+    throw new Error("Unsupported permission decision.");
+  }
+  return {
+    type: "permission_decision",
+    agentPubkey: binding.agentPubkey,
+    relayUrl: binding.relayUrl,
+    sessionId: binding.sessionId,
+    requestId: binding.requestId,
+    decision,
+  };
+}
+
+export async function decideManagedAgentPermission(
+  managedAgentPubkey: string,
+  binding: PermissionDecisionBinding,
+  decision: PermissionDecision,
+): Promise<void> {
+  const payload = buildPermissionDecisionPayload(
+    managedAgentPubkey,
+    binding,
+    decision,
+  );
+  await sendAgentObserverControl(managedAgentPubkey, payload);
+}
 
 export async function cancelManagedAgentTurn(
   pubkey: string,

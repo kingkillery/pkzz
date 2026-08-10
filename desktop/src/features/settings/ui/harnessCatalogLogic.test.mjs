@@ -37,6 +37,8 @@ function entry(overrides = {}) {
     underlyingCliPath: null,
     nodeRequired: false,
     authStatus: { status: "not_applicable" },
+    runtimeReadiness: "ready",
+    canConnectAccount: false,
     loginHint: null,
     ...overrides,
   };
@@ -119,16 +121,20 @@ describe("catalogDialogEntries", () => {
 // ── groupCatalogEntries ──────────────────────────────────────────────────────
 
 describe("groupCatalogEntries", () => {
-  it("splits ready entries into installed, everything else into setup", () => {
+  it("splits operationally ready entries from setup-required entries", () => {
     const entries = [
       entry({ id: "needs-cli", availability: "cli_missing" }),
       entry({ id: "ready", availability: "available" }),
-      entry({ id: "needs-adapter", availability: "adapter_missing" }),
+      entry({
+        id: "needs-model",
+        availability: "available",
+        runtimeReadiness: "model_unavailable",
+      }),
     ];
     const groups = groupCatalogEntries(entries);
     assert.deepEqual(
       groups.setup.map((e) => e.id),
-      ["needs-cli", "needs-adapter"],
+      ["needs-cli", "needs-model"],
     );
     assert.deepEqual(
       groups.installed.map((e) => e.id),
@@ -280,24 +286,40 @@ describe("entryStatusLabel", () => {
     );
   });
 
-  it("flags sign-in for available-but-logged-out", () => {
+  it("maps generic Rust readiness states for available entries", () => {
     assert.equal(
       entryStatusLabel(
         entry({
           availability: "available",
-          authStatus: { status: "logged_out" },
+          runtimeReadiness: "authentication_required",
         }),
       ),
       "Sign-in needed",
     );
-  });
-
-  it("is silent for ready + logged in", () => {
     assert.equal(
       entryStatusLabel(
         entry({
           availability: "available",
-          authStatus: { status: "logged_in" },
+          runtimeReadiness: "model_unavailable",
+        }),
+      ),
+      "Model setup needed",
+    );
+    assert.equal(
+      entryStatusLabel(
+        entry({
+          availability: "available",
+          runtimeReadiness: "unknown",
+        }),
+      ),
+      "Status unavailable",
+    );
+    assert.equal(
+      entryStatusLabel(
+        entry({
+          availability: "available",
+          authStatus: { status: "unknown" },
+          runtimeReadiness: "ready",
         }),
       ),
       null,
@@ -310,12 +332,13 @@ describe("entryStatusLabel", () => {
 describe("entryLoginHint", () => {
   const hint = "Sign in with `ompk auth-broker login anthropic`.";
 
-  it("shows the hint for an installed runtime that still needs a provider", () => {
+  it("shows the hint only when authentication is required", () => {
     assert.equal(
       entryLoginHint(
         entry({
           availability: "available",
-          authStatus: { status: "not_applicable" },
+          authStatus: { status: "unknown" },
+          runtimeReadiness: "authentication_required",
           loginHint: hint,
         }),
       ),
@@ -323,30 +346,20 @@ describe("entryLoginHint", () => {
     );
   });
 
-  it("shows the hint for an installed runtime that probed logged out", () => {
-    assert.equal(
-      entryLoginHint(
-        entry({
-          availability: "available",
-          authStatus: { status: "logged_out" },
-          loginHint: hint,
-        }),
-      ),
-      hint,
-    );
-  });
-
-  it("stays silent once the runtime is signed in", () => {
-    assert.equal(
-      entryLoginHint(
-        entry({
-          availability: "available",
-          authStatus: { status: "logged_in" },
-          loginHint: hint,
-        }),
-      ),
-      null,
-    );
+  it("suppresses login copy for ready/keyless and model-setup runtimes", () => {
+    for (const runtimeReadiness of ["ready", "model_unavailable", "unknown"]) {
+      assert.equal(
+        entryLoginHint(
+          entry({
+            availability: "available",
+            authStatus: { status: "unknown" },
+            runtimeReadiness,
+            loginHint: hint,
+          }),
+        ),
+        null,
+      );
+    }
   });
 
   it("stays silent while the CLI is missing — install copy owns that row", () => {
@@ -405,6 +418,20 @@ describe("catalogPrimaryAction", () => {
     assert.deepEqual(
       catalogPrimaryAction(entry({ availability: "available" })),
       { kind: "none" },
+    );
+  });
+
+  it("opens setup guidance for installed but non-ready entries", () => {
+    assert.deepEqual(
+      catalogPrimaryAction(
+        entry({
+          availability: "available",
+          runtimeReadiness: "model_unavailable",
+          canAutoInstall: true,
+          installInstructionsUrl: "https://example.com/setup",
+        }),
+      ),
+      { kind: "docs", label: "Setup guide" },
     );
   });
 

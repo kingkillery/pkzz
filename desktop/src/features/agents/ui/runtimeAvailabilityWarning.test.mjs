@@ -24,6 +24,7 @@ function entry(overrides) {
     underlyingCliPath: null,
     nodeRequired: false,
     authStatus: "not_applicable",
+    runtimeReadiness: "ready",
     loginHint: null,
     source: "preset",
     definitionEnv: {},
@@ -35,6 +36,31 @@ test("available runtimes produce no warning", () => {
   assert.equal(
     runtimeAvailabilityWarning(entry({ availability: "available" })),
     null,
+  );
+});
+
+test("available runtimes requiring sign-in retain the catalog login guidance", () => {
+  assert.equal(
+    runtimeAvailabilityWarning(
+      entry({
+        availability: "available",
+        runtimeReadiness: "authentication_required",
+        loginHint: "Run amp login.",
+      }),
+    ),
+    "Amp requires sign-in. Run amp login.",
+  );
+});
+
+test("available runtimes with no configured model retain setup guidance", () => {
+  assert.equal(
+    runtimeAvailabilityWarning(
+      entry({
+        availability: "available",
+        runtimeReadiness: "model_unavailable",
+      }),
+    ),
+    "Amp needs a model configured before it can run.",
   );
 });
 

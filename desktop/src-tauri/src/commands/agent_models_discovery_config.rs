@@ -64,8 +64,9 @@ pub(super) fn agent_model_discovery_config(
         crate::managed_agents::resolve_effective_harness_descriptor(record, personas, global)?;
     let (model, provider) =
         crate::managed_agents::resolve_effective_model_provider(record, personas, global);
-    let provider_env_var =
-        known_acp_runtime(&descriptor.command).and_then(|meta| meta.provider_env_var);
+    let provider_env_var = descriptor
+        .known_runtime()
+        .and_then(|metadata| metadata.provider_env_var);
 
     Ok(AgentModelDiscoveryConfig {
         command: descriptor.command,

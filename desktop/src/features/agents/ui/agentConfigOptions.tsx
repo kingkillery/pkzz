@@ -2,6 +2,7 @@ import type {
   AcpRuntimeCatalogEntry,
   GlobalAgentConfig,
 } from "@/shared/api/types";
+import { getPersonaRuntimePreferenceRank } from "../lib/resolvePersonaRuntime";
 import { BUZZ_AGENT_THINKING_EFFORT } from "./buzzAgentConfig";
 import type { RuntimeFileConfigSubset } from "@/shared/api/tauri";
 // Dialogs import getDefaultPersonaRuntime via this re-export; lib code imports
@@ -200,14 +201,18 @@ export function isMissingRequiredDropdownField(
   return field?.isRequired === true && value.trim().length === 0;
 }
 
-export function runtimeSupportsLlmProviderSelection(runtimeId: string) {
-  return runtimeId === "buzz-agent" || runtimeId === "goose";
+/** Catalog-projected capability: non-null/non-empty `providerEnvVar`. */
+export function runtimeSupportsLlmProviderSelection(
+  providerEnvVar: string | null | undefined,
+) {
+  return typeof providerEnvVar === "string" && providerEnvVar.trim().length > 0;
 }
 
 /** Clears values whose meaning or support changes with the selected harness. */
 export function resetConfigForHarnessChange(
   config: GlobalAgentConfig,
   runtimeId: string,
+  providerEnvVar?: string | null,
 ): GlobalAgentConfig {
   const nextEnvVars = { ...config.env_vars };
   delete nextEnvVars[BUZZ_AGENT_THINKING_EFFORT];
@@ -218,7 +223,7 @@ export function resetConfigForHarnessChange(
     model: null,
     preferred_runtime: runtimeId || null,
     provider:
-      runtimeSupportsLlmProviderSelection(runtimeId) &&
+      runtimeSupportsLlmProviderSelection(providerEnvVar) &&
       config.provider !== "relay-mesh"
         ? config.provider
         : null,
@@ -228,10 +233,11 @@ export function resetConfigForHarnessChange(
 function effectiveModelProviderForOptions(
   runtimeId: string,
   providerId: string | null | undefined,
+  providerEnvVar?: string | null,
 ) {
   if (
     runtimeId.trim().length > 0 &&
-    !runtimeSupportsLlmProviderSelection(runtimeId)
+    !runtimeSupportsLlmProviderSelection(providerEnvVar)
   ) {
     return "";
   }
@@ -242,11 +248,13 @@ function effectiveModelProviderForOptions(
 export function getPersonaModelOptions(
   runtimeId: string,
   providerId: string | null | undefined,
+  providerEnvVar?: string | null,
 ): readonly PersonaModelOption[] {
   const options = getRuntimePersonaModelOptions(runtimeId);
   const trimmedProvider = effectiveModelProviderForOptions(
     runtimeId,
     providerId,
+    providerEnvVar,
   );
   if (trimmedProvider.length === 0) {
     return options.filter((option) => option.id.length === 0);
@@ -451,14 +459,20 @@ export const CARD_MINT_KEY_ANNOTATIONS: Readonly<Record<string, string>> = {
 export function shouldClearKnownModelForSelectionScope({
   model,
   provider,
+  providerEnvVar,
   runtime,
 }: {
   model: string;
   provider: string | null | undefined;
+  providerEnvVar?: string | null;
   runtime: string;
 }) {
   const runtimeOptions = getRuntimePersonaModelOptions(runtime);
-  const scopedOptions = getPersonaModelOptions(runtime, provider);
+  const scopedOptions = getPersonaModelOptions(
+    runtime,
+    provider,
+    providerEnvVar,
+  );
   return (
     hasExactPersonaModelOption(runtimeOptions, model) &&
     !hasExactPersonaModelOption(scopedOptions, model)
@@ -477,6 +491,30 @@ export function formatRuntimeOptionLabel(runtime: AcpRuntimeCatalogEntry) {
             ? " (not installed)"
             : "";
   return `${runtime.label}${suffix}`;
+}
+
+/**
+ * A runtime can be newly persisted only when the catalog has both resolved a
+ * runnable command and confirmed that its required setup is complete.
+ */
+export function isRuntimeReadyForNewSelection(
+  runtime:
+    | Pick<AcpRuntimeCatalogEntry, "availability" | "runtimeReadiness">
+    | null
+    | undefined,
+) {
+  return (
+    runtime?.availability === "available" &&
+    runtime.runtimeReadiness === "ready"
+  );
+}
+
+/** Prevent a display-only fallback from becoming an implicit saved preference. */
+export function shouldPersistImplicitRuntimePreference(
+  preferredRuntimeId: string | null | undefined,
+  runtime: AcpRuntimeCatalogEntry | null | undefined,
+) {
+  return !preferredRuntimeId && isRuntimeReadyForNewSelection(runtime);
 }
 
 export function buildPersonaRuntimeDropdownOptions({
@@ -511,9 +549,12 @@ export function buildPersonaRuntimeDropdownOptions({
       : []),
     ...sortPersonaRuntimes(runtimes).map((candidate) => ({
       disabled:
-        isCreateMode &&
-        defaultRuntimeId !== undefined &&
-        candidate.availability !== "available",
+        (isCreateMode &&
+          defaultRuntimeId !== undefined &&
+          candidate.availability !== "available") ||
+        ((isCreateMode || candidate.id !== runtime.trim()) &&
+          candidate.availability === "available" &&
+          !isRuntimeReadyForNewSelection(candidate)),
       label: `${formatRuntimeOptionLabel(candidate)}${
         isCreateMode && candidate.id === defaultRuntimeId ? " (default)" : ""
       }`,
@@ -550,17 +591,6 @@ function runtimeAvailabilitySortRank(
   }
 }
 
-function runtimePreferenceSortRank(runtimeId: string) {
-  switch (runtimeId) {
-    case "buzz-agent":
-      return 0;
-    case "goose":
-      return 1;
-    default:
-      return 2;
-  }
-}
-
 export function sortPersonaRuntimes(
   runtimes: readonly AcpRuntimeCatalogEntry[],
 ) {
@@ -573,7 +603,8 @@ export function sortPersonaRuntimes(
     }
 
     const preferenceDelta =
-      runtimePreferenceSortRank(left.id) - runtimePreferenceSortRank(right.id);
+      getPersonaRuntimePreferenceRank(left.id) -
+      getPersonaRuntimePreferenceRank(right.id);
     if (preferenceDelta !== 0) {
       return preferenceDelta;
     }
@@ -660,6 +691,7 @@ export function computeLocalModeGate({
   model,
   provider,
   runtimeId,
+  providerEnvVar,
   runtimeFileConfig,
 }: {
   /** Optional baked build env key names (Block-internal builds only).
@@ -687,6 +719,8 @@ export function computeLocalModeGate({
   model: string;
   provider: string;
   runtimeId: string;
+  /** Catalog-projected provider env var for the selected runtime. */
+  providerEnvVar?: string | null;
   /** Optional file-layer config for the runtime (e.g. goose config.yaml).
    *  When provided, requirements already satisfied there are silenced. */
   runtimeFileConfig?: RuntimeFileConfigSubset | null;
@@ -724,7 +758,8 @@ export function computeLocalModeGate({
     };
   }
 
-  const needsProviderSelection = runtimeSupportsLlmProviderSelection(runtimeId);
+  const needsProviderSelection =
+    runtimeSupportsLlmProviderSelection(providerEnvVar);
 
   // File-layer values for goose-style runtimes. These silence requirements
   // when the runtime config file provides the value — the file layer is the

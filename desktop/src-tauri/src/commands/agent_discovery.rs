@@ -11,49 +11,16 @@ use crate::{
     relay::query_relay,
 };
 
+mod adapter_install;
 mod post_install_verification;
+
+pub(crate) use adapter_install::plan_adapter_install;
 
 fn active_installs() -> &'static std::sync::Mutex<std::collections::HashSet<String>> {
     use std::collections::HashSet;
     use std::sync::{Mutex, OnceLock};
     static ACTIVE: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
     ACTIVE.get_or_init(|| Mutex::new(HashSet::new()))
-}
-
-/// Returns the adapter install commands that `install_acp_runtime_blocking` would
-/// run for `runtime_id` given a resolved adapter binary at `adapter_path` (or `None` if not found).
-/// Returns `None` when no install is needed; `Some(cmds)` when adapter is missing or outdated.
-///
-/// For the codex **outdated** case, returns a two-step reinstall: uninstall `@zed-industries/codex-acp`
-/// then install `@agentclientprotocol/codex-acp` (npm ≥7 refuses to overwrite a bin from another pkg).
-/// For the **missing** case, catalog's `adapter_install_commands` are used as-is.
-/// Pure planning function: never spawns a process. Tests use it to assert commands without real npm.
-pub(crate) fn plan_adapter_install<'c>(
-    runtime_id: &str,
-    adapter_path: Option<&std::path::Path>,
-    adapter_install_commands: &'c [&'c str],
-    adapter_probe_path: Option<&str>,
-) -> Option<Vec<&'c str>> {
-    match adapter_path {
-        // Adapter present and current — no install needed.
-        Some(_) if runtime_id != "codex" => None,
-        Some(path)
-            if !crate::managed_agents::codex_adapter_is_outdated_with_path(
-                path,
-                adapter_probe_path,
-            ) =>
-        {
-            None
-        }
-        // Codex adapter is outdated: uninstall the old package first so npm
-        // doesn't hit EEXIST on the shared `codex-acp` bin-link, then install.
-        Some(_) => Some(vec![
-            "npm uninstall -g @zed-industries/codex-acp",
-            "npm install -g @agentclientprotocol/codex-acp",
-        ]),
-        // Adapter missing: use the catalog's install commands directly.
-        None => Some(adapter_install_commands.to_vec()),
-    }
 }
 
 #[tauri::command]
@@ -69,7 +36,10 @@ pub async fn discover_acp_providers(
             .app_data_dir()
             .ok()
             .map(|d| d.join("custom_harnesses"));
-        crate::managed_agents::discover_acp_runtimes_from(custom_dir.as_deref())
+        let mut entries = crate::managed_agents::discover_acp_runtimes_from(custom_dir.as_deref());
+        let global = crate::managed_agents::load_global_agent_config(&app).unwrap_or_default();
+        crate::managed_agents::refresh_catalog_runtime_readiness(&mut entries, &global);
+        entries
     })
     .await
     .map_err(|e| format!("spawn_blocking failed: {e}"))
@@ -97,7 +67,7 @@ pub async fn save_custom_harness(
     app: tauri::AppHandle,
 ) -> Result<AcpRuntimeCatalogEntry, String> {
     use crate::managed_agents::{
-        custom_harnesses, AcpAvailabilityStatus, AuthStatus, HarnessSource,
+        custom_harnesses, AcpAvailabilityStatus, AuthStatus, HarnessSource, RuntimeReadinessStatus,
     };
     use tauri::Manager;
 
@@ -151,6 +121,12 @@ pub async fn save_custom_harness(
 
     let default_args =
         crate::managed_agents::normalize_agent_args(&definition.command, definition.args.clone());
+    let runtime_readiness = if availability == AcpAvailabilityStatus::Available {
+        RuntimeReadinessStatus::Ready
+    } else {
+        RuntimeReadinessStatus::Unknown
+    };
+    crate::managed_agents::invalidate_runtime_readiness();
 
     Ok(AcpRuntimeCatalogEntry {
         id: definition.id,
@@ -174,6 +150,8 @@ pub async fn save_custom_harness(
         underlying_cli_path: None,
         node_required: false,
         auth_status: AuthStatus::NotApplicable,
+        runtime_readiness,
+        can_connect_account: false,
         login_hint: None,
         source: HarnessSource::Custom,
         definition_env: definition.env,
@@ -210,6 +188,7 @@ pub async fn delete_custom_harness(id: String, app: tauri::AppHandle) -> Result<
     // `delete_and_warm` holds the persist mutex for the delete + registry-warm
     // pair so concurrent save/delete calls never produce a stale snapshot (B-6).
     custom_harnesses::delete_and_warm(&custom_dir, &id)?;
+    crate::managed_agents::invalidate_runtime_readiness();
 
     Ok(())
 }

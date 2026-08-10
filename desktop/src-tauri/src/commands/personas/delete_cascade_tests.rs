@@ -70,6 +70,8 @@ fn make_agent(
         definition_respond_to: None,
         definition_respond_to_allowlist: vec![],
         definition_parallelism: None,
+        launch_runtime_id: None,
+        raw_command_explicit: false,
     }
 }
 

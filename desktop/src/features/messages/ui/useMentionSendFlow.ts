@@ -9,7 +9,10 @@ import {
   useProvisionChannelManagedAgentMutation,
   useStartManagedAgentMutation,
 } from "@/features/agents/hooks";
-import { resolvePersonaRuntime } from "@/features/agents/lib/resolvePersonaRuntime";
+import {
+  getDefaultPersonaRuntime,
+  resolvePersonaRuntime,
+} from "@/features/agents/lib/resolvePersonaRuntime";
 import {
   useAddChannelMembersMutation,
   useCanAddChannelMembers,
@@ -33,6 +36,7 @@ import type { UseMentionsResult } from "@/features/messages/lib/useMentions";
 import type { UseRichTextEditorResult } from "@/features/messages/lib/useRichTextEditor";
 import type { UseDraftsResult } from "@/features/messages/lib/useDrafts";
 import { invokeTauri } from "@/shared/api/tauri";
+import { getGlobalAgentConfig } from "@/shared/api/tauriGlobalAgentConfig";
 import type { CustomEmoji } from "@/shared/lib/remarkCustomEmoji";
 import type { AcpRuntime, ChannelType, ManagedAgent } from "@/shared/api/types";
 import { normalizePubkey, truncatePubkey } from "@/shared/lib/pubkey";
@@ -187,7 +191,6 @@ export function useMentionSendFlow({
           pubkeys: [] as string[],
         };
       }
-
       const managedAgentsByPubkey = await getManagedAgentsByPubkey();
       for (const agent of preparedManagedAgents) {
         managedAgentsByPubkey.set(normalizePubkey(agent.pubkey), agent);
@@ -198,13 +201,11 @@ export function useMentionSendFlow({
       ]);
       const errors: string[] = [];
       const pubkeys: string[] = [];
-
       for (const pubkey of uniqueNormalizedPubkeys(mentionPubkeys)) {
         const agent = managedAgentsByPubkey.get(pubkey);
         if (!agent) {
           continue;
         }
-
         try {
           if (participantPubkeys.has(pubkey)) {
             if (isProviderBackedAgent(agent)) {
@@ -231,7 +232,6 @@ export function useMentionSendFlow({
           );
         }
       }
-
       return {
         errors,
         pubkeys: uniqueNormalizedPubkeys(pubkeys),
@@ -244,7 +244,6 @@ export function useMentionSendFlow({
       startAgentMutation,
     ],
   );
-
   const createMentionedPersonaAgents = React.useCallback(
     async (trimmed: string, capturedChannelId: string) => {
       const personaMentions = mentions.extractMentionPersonas(trimmed);
@@ -255,16 +254,18 @@ export function useMentionSendFlow({
           pubkeys: [] as string[],
         };
       }
-
-      const runtimes = await getAvailableRuntimes();
-      const defaultRuntime = runtimes[0] ?? null;
+      const [runtimes, { preferred_runtime: preferredRuntimeId }] =
+        await Promise.all([getAvailableRuntimes(), getGlobalAgentConfig()]);
+      const defaultRuntime = getDefaultPersonaRuntime(
+        runtimes,
+        preferredRuntimeId,
+      );
       const errors: string[] = [];
       const agents: ManagedAgent[] = [];
       const pubkeys: string[] = [];
       const seenPersonaIds = new Set<string>();
       const shouldProvisionForDm =
         channelType === "dm" && Boolean(onPrepareSendChannel);
-
       for (const { displayName, persona } of personaMentions) {
         if (seenPersonaIds.has(persona.id)) {
           continue;
@@ -289,6 +290,7 @@ export function useMentionSendFlow({
             runtime,
             name: persona.displayName,
             personaId: persona.id,
+            harnessOverride: false,
             systemPrompt: persona.systemPrompt,
             avatarUrl: persona.avatarUrl ?? undefined,
             model: persona.model ?? undefined,

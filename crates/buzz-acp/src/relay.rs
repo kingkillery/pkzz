@@ -237,7 +237,9 @@ pub struct RestClient {
     pub http: reqwest::Client,
     pub base_url: String,
     pub keys: Keys,
-    /// Optional NIP-OA auth tag JSON for `x-auth-tag` header (relay membership delegation).
+    /// Optional NIP-OA auth tag injected into every authored event.
+    pub auth_tag: Option<Tag>,
+    /// Optional serialized NIP-OA auth tag for the `x-auth-tag` HTTP header.
     pub auth_tag_json: Option<String>,
 }
 
@@ -262,6 +264,34 @@ fn unix_now_secs() -> u64 {
 }
 
 impl RestClient {
+    /// Sign an authored event, injecting the configured NIP-OA delegation once.
+    ///
+    /// Callers must not add `auth` tags to the builder: all authored events
+    /// carry exactly the configured delegation, or none when the harness has
+    /// no delegation. This mirrors the CLI's signing invariant so a durable
+    /// event is not authenticated only at the HTTP transport layer.
+    pub fn sign_event(&self, builder: EventBuilder) -> Result<Event, RelayError> {
+        let builder = match &self.auth_tag {
+            Some(tag) => builder.tags([tag.clone()]),
+            None => builder,
+        };
+        let event = builder
+            .sign_with_keys(&self.keys)
+            .map_err(|error| RelayError::AuthFailed(format!("event signing failed: {error}")))?;
+        let auth_count = event
+            .tags
+            .iter()
+            .filter(|tag| tag.as_slice().first().map(String::as_str) == Some("auth"))
+            .count();
+        let expected = usize::from(self.auth_tag.is_some());
+        if auth_count != expected {
+            return Err(RelayError::AuthFailed(format!(
+                "auth tag injection invariant failed: event has {auth_count} auth tags, expected {expected}"
+            )));
+        }
+        Ok(event)
+    }
+
     /// Sign a NIP-98 HTTP Auth event (kind:27235) for the given method/URL/body.
     ///
     /// Returns the `Authorization: Nostr <base64>` header value (without the
@@ -421,13 +451,13 @@ impl RestClient {
             .map_err(|e| RelayError::Http(e.to_string()))
     }
 
-    /// Submit a signed event via the HTTP bridge: `POST /events` with NIP-98 auth.
+    /// Submit already serialized event JSON via the HTTP bridge: `POST /events`.
     ///
-    /// The event must already be signed. Returns the relay response JSON.
-    pub async fn submit_event(&self, event: &Event) -> Result<Value, RelayError> {
-        let body_bytes = serde_json::to_vec(event)
-            .map_err(|e| RelayError::Http(format!("event serialize error: {e}")))?;
-        let resp = self.bridge_post("/events", &body_bytes).await?;
+    /// The bytes are passed through unchanged. This is the durable host-final
+    /// retry seam: a retry regenerates request authentication but never
+    /// reserializes the signed content event.
+    pub(crate) async fn submit_event_bytes(&self, body_bytes: &[u8]) -> Result<Value, RelayError> {
+        let resp = self.bridge_post("/events", body_bytes).await?;
         let text = resp
             .text()
             .await
@@ -436,6 +466,38 @@ impl RestClient {
             return Ok(Value::Null);
         }
         serde_json::from_str(&text).map_err(|e| RelayError::Http(e.to_string()))
+    }
+
+    /// Submit a signed event via the HTTP bridge: `POST /events` with NIP-98 auth.
+    ///
+    /// The event must already be signed. Returns the relay response JSON.
+    pub async fn submit_event(&self, event: &Event) -> Result<Value, RelayError> {
+        let body_bytes = serde_json::to_vec(event)
+            .map_err(|e| RelayError::Http(format!("event serialize error: {e}")))?;
+        self.submit_event_bytes(&body_bytes).await
+    }
+
+    /// Submit exact pre-signed JSON bytes and require an acceptance receipt for
+    /// the supplied event ID. Callers use this for durable delivery retries.
+    pub(crate) async fn submit_event_bytes_accepted(
+        &self,
+        body_bytes: &[u8],
+        expected_event_id: &nostr::EventId,
+    ) -> Result<(), RelayError> {
+        let response = self.submit_event_bytes(body_bytes).await?;
+        validate_event_submission_receipt(&response, expected_event_id)
+    }
+
+    // Retained event-object convenience API; durable host-final delivery uses
+    // the raw-body variant above to preserve its original serialization.
+    #[allow(dead_code)]
+    /// Submit a pre-signed event and require the bridge's durable acceptance
+    /// receipt to name that exact local event ID.
+    pub async fn submit_event_accepted(&self, event: &Event) -> Result<(), RelayError> {
+        let body_bytes = serde_json::to_vec(event)
+            .map_err(|e| RelayError::Http(format!("event serialize error: {e}")))?;
+        self.submit_event_bytes_accepted(&body_bytes, &event.id)
+            .await
     }
 }
 
@@ -472,6 +534,9 @@ pub enum RelayError {
     #[error("HTTP error: {0}")]
     Http(String),
 
+    #[error("Event delivery was not accepted: {0}")]
+    Delivery(String),
+
     #[error("Unexpected message: {0}")]
     UnexpectedMessage(String),
 }
@@ -480,6 +545,24 @@ impl From<nostr::event::builder::Error> for RelayError {
     fn from(e: nostr::event::builder::Error) -> Self {
         RelayError::AuthFailed(e.to_string())
     }
+}
+
+/// Validate the only response shape that proves a signed REST event was
+/// accepted. A 2xx status, a JSON body, or `accepted: true` for another event
+/// is intentionally insufficient.
+pub(crate) fn validate_event_submission_receipt(
+    response: &Value,
+    expected_event_id: &nostr::EventId,
+) -> Result<(), RelayError> {
+    let accepted = response.get("accepted").and_then(Value::as_bool);
+    let event_id = response.get("event_id").and_then(Value::as_str);
+    if accepted == Some(true) && event_id == Some(&expected_event_id.to_hex()) {
+        return Ok(());
+    }
+    Err(RelayError::Delivery(format!(
+        "expected {{event_id:{}, accepted:true}}, got {response}",
+        expected_event_id.to_hex()
+    )))
 }
 
 /// A parsed NIP-01 relay message.
@@ -737,6 +820,7 @@ impl HarnessRelay {
             http: self.http.clone(),
             base_url: relay_ws_to_http(&self.relay_url),
             keys: self.keys.clone(),
+            auth_tag: self.auth_tag.clone(),
             auth_tag_json: self
                 .auth_tag
                 .as_ref()
@@ -3672,7 +3756,10 @@ pub(crate) fn parse_relay_message(text: &str) -> Result<RelayMessage, RelayError
 /// - `NoAuthChallenge`, `ConnectionClosed`, `Timeout` — timing/link noise.
 fn is_terminal_connect_error(err: &RelayError) -> bool {
     match err {
-        RelayError::Http(_) | RelayError::Json(_) | RelayError::UnexpectedMessage(_) => true,
+        RelayError::Http(_)
+        | RelayError::Json(_)
+        | RelayError::Delivery(_)
+        | RelayError::UnexpectedMessage(_) => true,
         RelayError::WebSocket(e) => is_terminal_ws_error(e.as_ref()),
         RelayError::AuthFailed(message) => is_terminal_auth_failure(message),
         RelayError::NoAuthChallenge | RelayError::ConnectionClosed | RelayError::Timeout => false,
@@ -4010,7 +4097,146 @@ async fn wait_for_any_ok(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
+    #[test]
+    fn rest_client_sign_event_injects_one_configured_auth_tag() {
+        let keys = Keys::generate();
+        let auth_tag = Tag::parse(["auth", "owner", "kind=9", "signature"]).expect("auth tag");
+        let client = RestClient {
+            http: reqwest::Client::new(),
+            base_url: "http://127.0.0.1:0".to_string(),
+            keys,
+            auth_tag: Some(auth_tag.clone()),
+            auth_tag_json: Some(
+                serde_json::to_string(auth_tag.as_slice()).expect("auth tag serialization"),
+            ),
+        };
+
+        let event = client
+            .sign_event(EventBuilder::new(Kind::TextNote, "host final reply"))
+            .expect("host event signs");
+        let auth_tags: Vec<_> = event
+            .tags
+            .iter()
+            .filter(|tag| tag.as_slice().first().map(String::as_str) == Some("auth"))
+            .collect();
+        assert_eq!(auth_tags, vec![&auth_tag]);
+    }
+
+    #[test]
+    fn rest_client_sign_event_rejects_preexisting_auth_tag() {
+        let keys = Keys::generate();
+        let auth_tag = Tag::parse(["auth", "owner", "kind=9", "signature"]).expect("auth tag");
+        let client = RestClient {
+            http: reqwest::Client::new(),
+            base_url: "http://127.0.0.1:0".to_string(),
+            keys,
+            auth_tag: Some(auth_tag.clone()),
+            auth_tag_json: None,
+        };
+
+        let builder = EventBuilder::new(Kind::TextNote, "host final reply").tags([auth_tag]);
+        assert!(matches!(
+            client.sign_event(builder),
+            Err(RelayError::AuthFailed(message))
+                if message.contains("auth tag injection invariant")
+        ));
+    }
+
+    #[test]
+    fn event_submission_receipt_requires_accepted_matching_local_id() {
+        let expected = nostr::EventId::from_hex(&"1".repeat(64)).unwrap();
+        assert!(validate_event_submission_receipt(
+            &serde_json::json!({
+                "event_id": expected.to_hex(),
+                "accepted": true,
+            }),
+            &expected,
+        )
+        .is_ok());
+
+        for response in [
+            serde_json::json!({}),
+            serde_json::json!({ "event_id": expected.to_hex(), "accepted": false }),
+            serde_json::json!({ "event_id": "2".repeat(64), "accepted": true }),
+        ] {
+            assert!(matches!(
+                validate_event_submission_receipt(&response, &expected),
+                Err(RelayError::Delivery(_))
+            ));
+        }
+    }
+
+    #[tokio::test]
+    async fn raw_accepted_submission_preserves_exact_body_bytes() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind test HTTP listener");
+        let address = listener.local_addr().expect("read test listener address");
+        let expected = nostr::EventId::from_hex(&"3".repeat(64)).expect("valid test event id");
+        let expected_for_server = expected;
+        let expected_body = br#"{"signed":"original bytes"}"#.to_vec();
+        let server = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.expect("accept test HTTP client");
+            let mut received = Vec::new();
+            let mut scratch = [0_u8; 1024];
+            let (header_end, content_length) = loop {
+                let read = stream
+                    .read(&mut scratch)
+                    .await
+                    .expect("read test HTTP request");
+                assert!(read > 0, "client closed test HTTP request early");
+                received.extend_from_slice(&scratch[..read]);
+                let Some(header_end) = received
+                    .windows(4)
+                    .position(|window| window == b"\r\n\r\n")
+                    .map(|position| position + 4)
+                else {
+                    continue;
+                };
+                let headers = std::str::from_utf8(&received[..header_end])
+                    .expect("test HTTP request headers are UTF-8");
+                let content_length = headers
+                    .lines()
+                    .find_map(|line| {
+                        line.split_once(':').and_then(|(name, value)| {
+                            name.eq_ignore_ascii_case("content-length")
+                                .then(|| value.trim().parse::<usize>().ok())
+                                .flatten()
+                        })
+                    })
+                    .expect("test HTTP request has content length");
+                if received.len() >= header_end + content_length {
+                    break (header_end, content_length);
+                }
+            };
+            let body = received[header_end..header_end + content_length].to_vec();
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{{\"event_id\":\"{}\",\"accepted\":true}}",
+                expected_for_server.to_hex().len() + 31,
+                expected_for_server.to_hex(),
+            );
+            stream
+                .write_all(response.as_bytes())
+                .await
+                .expect("write test HTTP response");
+            body
+        });
+        let client = RestClient {
+            http: reqwest::Client::new(),
+            base_url: format!("http://{address}"),
+            keys: Keys::generate(),
+            auth_tag: None,
+            auth_tag_json: None,
+        };
+
+        client
+            .submit_event_bytes_accepted(&expected_body, &expected)
+            .await
+            .expect("accepted receipt");
+        assert_eq!(server.await.expect("join test HTTP server"), expected_body);
+    }
     #[test]
     fn relay_ws_to_http_plain() {
         assert_eq!(

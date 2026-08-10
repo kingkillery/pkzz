@@ -53,17 +53,57 @@ describe("isEditableEntry", () => {
 // ── countAgentsReferencingHarness ─────────────────────────────────────────────
 
 describe("countAgentsReferencingHarness", () => {
-  it("counts direct record-level runtime pins", () => {
+  it("counts direct effective runtime identities", () => {
     const agents = [
-      { runtime: "my-harness", personaId: null },
-      { runtime: "other", personaId: null },
-      { runtime: "my-harness", personaId: "p1" },
+      {
+        runtime: "my-harness",
+        personaId: null,
+        agentCommandOverride: null,
+      },
+      { runtime: "other", personaId: null, agentCommandOverride: null },
+      {
+        runtime: "my-harness",
+        personaId: "p1",
+        agentCommandOverride: "my-command",
+      },
     ];
     assert.equal(countAgentsReferencingHarness("my-harness", agents, []), 2);
   });
 
-  it("counts persona-inherited references when record runtime is null", () => {
-    const agents = [{ runtime: null, personaId: "p1" }];
+  it("fallback agents reference effective and unpinned persona-source identities", () => {
+    const agents = [
+      { runtime: "ompk", personaId: "p1", agentCommandOverride: null },
+    ];
+    const personas = [{ id: "p1", runtime: "custom-source" }];
+
+    assert.equal(countAgentsReferencingHarness("ompk", agents, personas), 1);
+    assert.equal(
+      countAgentsReferencingHarness("custom-source", agents, personas),
+      1,
+    );
+  });
+
+  it("explicit overrides do not reference an unrelated persona source", () => {
+    const agents = [
+      {
+        runtime: "ompk",
+        personaId: "p1",
+        agentCommandOverride: "ompk",
+      },
+    ];
+    const personas = [{ id: "p1", runtime: "custom-source" }];
+
+    assert.equal(countAgentsReferencingHarness("ompk", agents, personas), 1);
+    assert.equal(
+      countAgentsReferencingHarness("custom-source", agents, personas),
+      0,
+    );
+  });
+
+  it("runtime-less inherited agents reference their persona source", () => {
+    const agents = [
+      { runtime: null, personaId: "p1", agentCommandOverride: null },
+    ];
     const personas = [{ id: "p1", runtime: "my-harness" }];
     assert.equal(
       countAgentsReferencingHarness("my-harness", agents, personas),
@@ -71,29 +111,19 @@ describe("countAgentsReferencingHarness", () => {
     );
   });
 
-  it("record-level pin shadows persona runtime (no double counting, pin wins)", () => {
-    // Agent pinned to "other" whose persona uses "my-harness" does NOT count:
-    // the effective harness is the pin.
-    const agents = [{ runtime: "other", personaId: "p1" }];
-    const personas = [{ id: "p1", runtime: "my-harness" }];
-    assert.equal(
-      countAgentsReferencingHarness("my-harness", agents, personas),
-      0,
-    );
+  it("runtime-less implicit OMPK counts its effective identity exactly once", () => {
+    const agents = [
+      { runtime: "ompk", personaId: "p1", agentCommandOverride: null },
+    ];
+    const personas = [{ id: "p1", runtime: null }];
+    assert.equal(countAgentsReferencingHarness("ompk", agents, personas), 1);
   });
 
-  it("agents with no runtime and no persona do not count", () => {
-    const agents = [{ runtime: null, personaId: null }];
+  it("agents with no selected or source runtime do not count", () => {
+    const agents = [
+      { runtime: null, personaId: null, agentCommandOverride: null },
+    ];
     assert.equal(countAgentsReferencingHarness("my-harness", agents, []), 0);
-  });
-
-  it("persona reference to a different harness does not count", () => {
-    const agents = [{ runtime: null, personaId: "p1" }];
-    const personas = [{ id: "p1", runtime: "other" }];
-    assert.equal(
-      countAgentsReferencingHarness("my-harness", agents, personas),
-      0,
-    );
   });
 });
 
@@ -156,8 +186,8 @@ describe("deleteConfirmState", () => {
 
   it("settled queries produce the counted warning and enable confirm", () => {
     const agents = settled([
-      { runtime: "h1", personaId: null },
-      { runtime: null, personaId: "p1" },
+      { runtime: "h1", personaId: null, agentCommandOverride: null },
+      { runtime: null, personaId: "p1", agentCommandOverride: null },
     ]);
     const personas = settled([{ id: "p1", runtime: "h1" }]);
     const state = deleteConfirmState("h1", "My Harness", agents, personas);

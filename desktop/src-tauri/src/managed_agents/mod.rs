@@ -32,6 +32,7 @@ mod restore;
 pub mod retention;
 mod runtime;
 mod runtime_commands;
+mod runtime_readiness;
 mod runtime_types;
 pub(crate) mod snapshot_avatar;
 pub(crate) mod spawn_snapshot;
@@ -78,6 +79,10 @@ pub use repos::{
 pub use restore::*;
 pub use runtime::*;
 pub use runtime_commands::*;
+pub(crate) use runtime_readiness::{
+    cache_agent_models_result, force_descriptor_readiness, invalidate_runtime_readiness,
+    normalize_agent_models, refresh_catalog_runtime_readiness, run_agent_models_process,
+};
 pub use runtime_types::*;
 pub use storage::*;
 pub use teams::*;

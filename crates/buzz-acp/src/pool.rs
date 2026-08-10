@@ -32,13 +32,14 @@ use uuid::Uuid;
 use crate::acp::{
     extract_model_config_options, extract_model_state, model_in_catalog,
     resolve_model_switch_method, AcpClient, AcpError, EnvVar, McpServer, ModelSwitchMethod,
-    StopReason, SystemPromptTransport,
+    PromptCompletion, StopReason, SystemPromptTransport,
 };
 use crate::config::{compose_session_title, DedupMode, PermissionMode};
+use crate::final_delivery::{finalize_host_final_reply, HostFinalDeliveryOutbox};
 use crate::observer;
 use crate::queue::{
-    CancelReason, ContextMessage, ConversationContext, FlushBatch, PromptChannelInfo,
-    PromptProfile, PromptProfileLookup, ThreadTags,
+    CancelReason, ContextMessage, ConversationContext, FinalReplyTarget, FlushBatch,
+    PromptChannelInfo, PromptProfile, PromptProfileLookup, ThreadTags,
 };
 use crate::relay::{ChannelInfo, RestClient};
 
@@ -65,8 +66,9 @@ pub struct TaskMeta {
     /// in which case the caller must fall back to the universal
     /// `ControlSignal::Steer` cancel+merge path. `None` for heartbeat
     /// tasks only — all prompt tasks install a steer channel regardless
-    /// of the agent's name.
-    pub steer_tx: Option<tokio::sync::mpsc::Sender<SteerRequest>>,
+    /// of the agent's name. The sender also owns the per-turn replay-fence
+    /// accumulator shared with `run_prompt_task`.
+    pub steer_tx: Option<SteerSender>,
 }
 
 /// Agent-level model capabilities. Populated on first session creation.
@@ -178,6 +180,16 @@ pub struct OwnedAgent {
 /// `@zed-industries/claude-code-acp` → `@agentclientprotocol/claude-agent-acp`
 /// rename, so the new name is a reliable capability gate.
 const CLAUDE_AGENT_ACP_NAME: &str = "@agentclientprotocol/claude-agent-acp";
+
+/// Prompt instruction enabled only after the adapter acknowledges the v1
+/// host-final capability. The host, not a tool command, owns the fixed-route
+/// ordinary answer; deliberate additional or destination-changing sends remain
+/// on the existing permissioned CLI path.
+const HOST_FINAL_REPLY_PROMPT: &str = "[Host Final Reply]\n\
+Your normal final assistant response for this channel turn is delivered by the host. \
+Do not run `buzz messages send` for that same answer. Use explicit messaging only \
+for an intentional additional, proactive, or different-destination message; those \
+actions remain permissioned.";
 
 fn has_system_prompt_support(
     protocol_version: u32,
@@ -333,12 +345,43 @@ pub enum ControlSignal {
 /// `pool::send_steer` time because the request was rejected before any
 /// write, so the watcher only needs to release nothing and fall back to the
 /// universal `ControlSignal::Steer` cancel+merge path.
+/// Source event IDs successfully delivered through one task's native steer
+/// transport. The ACP read loop records an ID before it acknowledges success,
+/// and the task snapshots it immediately before durable final delivery.
+pub(crate) type NativeSteerSourceEventIds = Arc<tokio::sync::Mutex<Vec<nostr::EventId>>>;
+
+/// Sender and replay-fence accumulator for one prompt task's steer channel.
+pub struct SteerSender {
+    tx: mpsc::Sender<SteerRequest>,
+    source_event_ids: NativeSteerSourceEventIds,
+}
+
+impl SteerSender {
+    pub fn new(
+        tx: mpsc::Sender<SteerRequest>,
+        source_event_ids: NativeSteerSourceEventIds,
+    ) -> Self {
+        Self {
+            tx,
+            source_event_ids,
+        }
+    }
+}
+
 pub struct SteerRequest {
     /// Prompt body text blocks. Each entry becomes one `text` content
     /// block in `params.prompt`. Built by the main loop via
     /// `queue::native_steer_framing()` + `queue::format_event_block` so
     /// the wording cannot drift from the cancel+merge fallback path.
     pub prompt_blocks: Vec<String>,
+    /// Event injected into the live agent turn. Every successful native steer
+    /// must add this to the durable final-delivery replay fence.
+    pub source_event_id: nostr::EventId,
+    /// Per-turn replay-fence accumulator. `AgentPool::send_steer` replaces
+    /// this with the task's accumulator just before the request enters the
+    /// ACP read loop, so a positive steer response is fenced before the task
+    /// can process prompt completion.
+    pub source_event_ids: NativeSteerSourceEventIds,
     /// Oneshot for the read loop to report the outcome.
     pub ack_tx: tokio::sync::oneshot::Sender<SteerAck>,
 }
@@ -436,7 +479,7 @@ pub enum TimeoutKind {
 /// Outcome of a prompt task.
 #[allow(dead_code)]
 pub enum PromptOutcome {
-    Ok(StopReason),
+    Ok(PromptCompletion),
     Error(AcpError),
     AgentExited,
     Timeout(TimeoutKind),
@@ -537,6 +580,9 @@ pub struct PromptContext {
     pub cwd: String,
     /// REST client for pre-prompt context fetches (thread/DM history).
     pub rest_client: RestClient,
+    /// Durable, pair-scoped final-reply outbox. It owns delivery retries so a
+    /// post-completion transport failure can never re-enter ACP/model work.
+    pub host_final_outbox: Arc<HostFinalDeliveryOutbox>,
     /// Shared channel metadata for startup-known and dynamically joined channels.
     pub channel_info: ChannelInfoResolver,
     /// Max messages to include in thread/DM context. 0 = disabled.
@@ -681,18 +727,21 @@ impl AgentPool {
     pub fn send_steer(
         &mut self,
         channel_id: Uuid,
-        request: SteerRequest,
+        mut request: SteerRequest,
     ) -> Result<(), SteerError> {
         let meta = self
             .task_map
             .values_mut()
             .find(|m| m.channel_id == Some(channel_id))
             .ok_or(SteerError::PromptCompleted)?;
-        let tx = meta
+        let steer = meta
             .steer_tx
             .as_ref()
             .ok_or_else(|| SteerError::Transport("steer_tx not installed".into()))?;
-        tx.try_send(request)
+        request.source_event_ids = Arc::clone(&steer.source_event_ids);
+        steer
+            .tx
+            .try_send(request)
             .map_err(|e| SteerError::Transport(e.to_string()))
     }
 
@@ -901,7 +950,10 @@ async fn create_session_and_apply_model(
     let combined_system_prompt = with_canvas(
         with_core(
             with_team(
-                framed_system_prompt(&ctx.cwd, ctx.base_prompt, ctx.system_prompt.as_deref()),
+                with_host_final_reply(
+                    framed_system_prompt(&ctx.cwd, ctx.base_prompt, ctx.system_prompt.as_deref()),
+                    agent.acp.host_final_reply_supported(),
+                ),
                 ctx.team_instructions.as_deref(),
             ),
             agent_core,
@@ -1282,6 +1334,17 @@ fn framed_system_prompt(
     }
 }
 
+/// Append the host-final policy only for a capability-acknowledged adapter.
+fn with_host_final_reply(prompt: Option<String>, enabled: bool) -> Option<String> {
+    if !enabled {
+        return prompt;
+    }
+    Some(match prompt {
+        Some(prompt) => format!("{prompt}\n\n{HOST_FINAL_REPLY_PROMPT}"),
+        None => HOST_FINAL_REPLY_PROMPT.to_string(),
+    })
+}
+
 /// Render the `[Workspace]` grounding section, or `None` when `cwd` is unusable.
 ///
 /// Skips relative paths and the `/` fallback (`std::env::current_dir()` resolves
@@ -1394,6 +1457,7 @@ pub async fn run_prompt_task(
     ctx: Arc<PromptContext>,
     result_tx: mpsc::UnboundedSender<PromptResult>,
     control_rx: Option<tokio::sync::oneshot::Receiver<ControlSignal>>,
+    native_steer_source_event_ids: NativeSteerSourceEventIds,
     turn_id: String,
 ) {
     // Is this a channel prompt or a heartbeat?
@@ -1415,6 +1479,17 @@ pub async fn run_prompt_task(
     let triggering_event_ids: Vec<String> = batch
         .as_ref()
         .map(|b| b.events.iter().map(|be| be.event.id.to_hex()).collect())
+        .unwrap_or_default();
+    let base_host_final_source_event_ids: Vec<nostr::EventId> = batch
+        .as_ref()
+        .map(|batch| {
+            batch
+                .events
+                .iter()
+                .chain(batch.cancelled_events.iter())
+                .map(|batch_event| batch_event.event.id)
+                .collect()
+        })
         .unwrap_or_default();
     agent.acp.observe(
         "turn_started",
@@ -1861,7 +1936,7 @@ pub async fn run_prompt_task(
     // (`prompt[0].text.startsWith("/")`) fires; the wrapped Pkzz context
     // follows as a second block.
     let mut slash_command: Option<String> = None;
-    let prompt_sections: Vec<String> = if let Some(text) = prompt_text {
+    let mut prompt_sections: Vec<String> = if let Some(text) = prompt_text {
         // Heartbeats create their session before this point, so a Goose method-not-found
         // probe has already selected the correct framing for this process.
         let text = prepend_base_for_legacy(
@@ -1931,6 +2006,26 @@ pub async fn run_prompt_task(
             None,
         );
         return;
+    };
+
+    // Session-prompt capable adapters received this policy in session/new. A
+    // legacy user-message transport (including Goose after a rejected custom
+    // system-prompt request) needs the same policy on the actual channel turn,
+    // not on initial setup or heartbeat traffic.
+    if batch.is_some()
+        && !agent.has_system_prompt_support()
+        && agent.acp.host_final_reply_supported()
+    {
+        prompt_sections.insert(0, HOST_FINAL_REPLY_PROMPT.to_string());
+    }
+
+    // Capture the route before issuing the prompt. It is derived from the
+    // immutable admitted event, never from rendered context or model output.
+    // Failure leaves the turn usable but makes automatic publication ineligible.
+    let host_final_target = if agent.acp.host_final_reply_supported() {
+        batch.as_ref().map(FinalReplyTarget::from_batch)
+    } else {
+        None
     };
 
     // 💬 — fire-and-forget so the prompt fires immediately.
@@ -2110,6 +2205,49 @@ pub async fn run_prompt_task(
                             &source,
                             &control_signal,
                         );
+                        let completion = match agent.acp.take_prompt_completion() {
+                            Some(completion) => completion,
+                            None => {
+                                let error = AcpError::Protocol(
+                                    "completed prompt had no sealed completion".into(),
+                                );
+                                let usage = agent.acp.take_turn_usage();
+                                publish_agent_turn_metric(
+                                    &ctx,
+                                    usage,
+                                    observer_channel_id,
+                                    &session_id,
+                                    &turn_id,
+                                    Some(buzz_core::agent_turn_metric::StopReason::Error),
+                                )
+                                .await;
+                                send_prompt_result(
+                                    &result_tx,
+                                    &turn_id,
+                                    agent,
+                                    source,
+                                    PromptOutcome::Error(error),
+                                    requeue_batch_if_queue(&ctx, batch),
+                                );
+                                return;
+                            }
+                        };
+                        log_stop_reason(&source, &completion.stop_reason);
+                        let host_final_source_event_ids = collect_host_final_source_event_ids(
+                            &base_host_final_source_event_ids,
+                            &native_steer_source_event_ids,
+                        )
+                        .await;
+                        finalize_host_final_reply(
+                            &agent.acp,
+                            &ctx.rest_client,
+                            &ctx.host_final_outbox,
+                            host_final_target.as_ref(),
+                            &completion,
+                            &host_final_source_event_ids,
+                        )
+                        .await;
+                        let core_stop = acp_stop_to_core(&completion.stop_reason);
                         let usage = agent.acp.take_turn_usage();
                         publish_agent_turn_metric(
                             &ctx,
@@ -2117,7 +2255,7 @@ pub async fn run_prompt_task(
                             observer_channel_id,
                             &session_id,
                             &turn_id,
-                            Some(buzz_core::agent_turn_metric::StopReason::EndTurn),
+                            Some(core_stop),
                         )
                         .await;
                         send_prompt_result(
@@ -2125,7 +2263,7 @@ pub async fn run_prompt_task(
                             &turn_id,
                             agent,
                             source,
-                            PromptOutcome::Ok(StopReason::EndTurn),
+                            PromptOutcome::Ok(completion),
                             None, // turn succeeded — batch was processed, no requeue
                         );
                         return;
@@ -2137,10 +2275,63 @@ pub async fn run_prompt_task(
 
     match prompt_result {
         Ok(stop_reason) => {
-            log_stop_reason(&source, &stop_reason);
+            let completion = match agent.acp.take_prompt_completion() {
+                Some(completion) if completion.stop_reason == stop_reason => completion,
+                Some(completion) => {
+                    let error = AcpError::Protocol(format!(
+                        "sealed prompt completion {:?} mismatched returned stop reason {stop_reason:?}",
+                        completion.stop_reason
+                    ));
+                    agent.state.invalidate(&source);
+                    let usage = agent.acp.take_turn_usage();
+                    publish_agent_turn_metric(
+                        &ctx,
+                        usage,
+                        observer_channel_id,
+                        &session_id,
+                        &turn_id,
+                        Some(buzz_core::agent_turn_metric::StopReason::Error),
+                    )
+                    .await;
+                    send_prompt_result(
+                        &result_tx,
+                        &turn_id,
+                        agent,
+                        source,
+                        PromptOutcome::Error(error),
+                        requeue_batch_if_queue(&ctx, batch),
+                    );
+                    return;
+                }
+                None => {
+                    let error =
+                        AcpError::Protocol("successful prompt had no sealed completion".into());
+                    agent.state.invalidate(&source);
+                    let usage = agent.acp.take_turn_usage();
+                    publish_agent_turn_metric(
+                        &ctx,
+                        usage,
+                        observer_channel_id,
+                        &session_id,
+                        &turn_id,
+                        Some(buzz_core::agent_turn_metric::StopReason::Error),
+                    )
+                    .await;
+                    send_prompt_result(
+                        &result_tx,
+                        &turn_id,
+                        agent,
+                        source,
+                        PromptOutcome::Error(error),
+                        requeue_batch_if_queue(&ctx, batch),
+                    );
+                    return;
+                }
+            };
+            log_stop_reason(&source, &completion.stop_reason);
 
             let should_rotate = matches!(
-                stop_reason,
+                completion.stop_reason,
                 StopReason::MaxTokens | StopReason::MaxTurnRequests
             );
 
@@ -2166,12 +2357,32 @@ pub async fn run_prompt_task(
             if should_rotate {
                 tracing::info!(
                     target: "pool::session",
-                    "rotating session for {source:?} after {stop_reason:?}",
+                    "rotating session for {source:?} after {:?}",
+                    completion.stop_reason,
                 );
                 agent.state.invalidate(&source);
             }
+            // A capable channel turn publishes exactly once from its sealed
+            // semantic completion, before this task reports completion and the
+            // queue can admit the next batch. The source fence is collected at
+            // this last safe point so a native steer acknowledgement cannot
+            // race immediately followed prompt completion.
+            let host_final_source_event_ids = collect_host_final_source_event_ids(
+                &base_host_final_source_event_ids,
+                &native_steer_source_event_ids,
+            )
+            .await;
+            finalize_host_final_reply(
+                &agent.acp,
+                &ctx.rest_client,
+                &ctx.host_final_outbox,
+                host_final_target.as_ref(),
+                &completion,
+                &host_final_source_event_ids,
+            )
+            .await;
 
-            let core_stop = acp_stop_to_core(&stop_reason);
+            let core_stop = acp_stop_to_core(&completion.stop_reason);
             let usage = agent.acp.take_turn_usage();
             publish_agent_turn_metric(
                 &ctx,
@@ -2188,7 +2399,7 @@ pub async fn run_prompt_task(
                 &turn_id,
                 agent,
                 source,
-                PromptOutcome::Ok(stop_reason),
+                PromptOutcome::Ok(completion),
                 None,
             );
         }
@@ -2357,6 +2568,23 @@ pub async fn run_prompt_task(
         }
     }
     // _reaction_guard drops here → spawns clear_reactions for all exit paths.
+}
+
+/// Combine the batch's original inputs with events durably delivered through
+/// native steering. The read loop appends only after a positive steer response,
+/// before it acknowledges the main loop or reads another prompt frame.
+async fn collect_host_final_source_event_ids(
+    base_source_event_ids: &[nostr::EventId],
+    native_steer_source_event_ids: &NativeSteerSourceEventIds,
+) -> Vec<nostr::EventId> {
+    let native_steer_source_event_ids = native_steer_source_event_ids.lock().await;
+    let mut source_event_ids = base_source_event_ids.to_vec();
+    for event_id in native_steer_source_event_ids.iter() {
+        if !source_event_ids.contains(event_id) {
+            source_event_ids.push(*event_id);
+        }
+    }
+    source_event_ids
 }
 
 /// Retry wrapper for context fetches: one retry with `CONTEXT_FETCH_RETRY_DELAY`
@@ -6092,7 +6320,10 @@ mod tests {
             "test-turn-id",
             agent,
             source,
-            PromptOutcome::Ok(StopReason::EndTurn),
+            PromptOutcome::Ok(PromptCompletion {
+                stop_reason: StopReason::EndTurn,
+                final_reply: None,
+            }),
             None,
         );
 
@@ -6523,14 +6754,24 @@ mod tests {
                 http: reqwest::Client::new(),
                 base_url: "http://127.0.0.1:0".to_string(),
                 keys: agent_keys.clone(),
+                auth_tag: None,
                 auth_tag_json: None,
             },
+            host_final_outbox: Arc::new(
+                HostFinalDeliveryOutbox::open(
+                    std::env::temp_dir().join("buzz-acp-pool-context-outbox"),
+                    "ws://127.0.0.1:3000",
+                    &agent_keys.public_key(),
+                )
+                .expect("test outbox opens"),
+            ),
             channel_info: ChannelInfoResolver::new(
                 std::collections::HashMap::new(),
                 RestClient {
                     http: reqwest::Client::new(),
                     base_url: "http://127.0.0.1:0".to_string(),
                     keys: agent_keys.clone(),
+                    auth_tag: None,
                     auth_tag_json: None,
                 },
             ),
@@ -6893,6 +7134,7 @@ mod tests {
             http: reqwest::Client::new(),
             base_url,
             keys: nostr::Keys::generate(),
+            auth_tag: None,
             auth_tag_json: None,
         };
         (

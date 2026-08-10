@@ -55,10 +55,10 @@ pub(super) fn build_launch_block(
     owner_pubkey: &str,
 ) -> serde_json::Value {
     use crate::managed_agents::{
-        known_acp_runtime, resolve_session_title, DISPLAY_NAME_ENV_VAR, SESSION_TITLE_ENV_VAR,
+        resolve_session_title, DISPLAY_NAME_ENV_VAR, SESSION_TITLE_ENV_VAR,
     };
 
-    let runtime = known_acp_runtime(&descriptor.command);
+    let runtime = descriptor.known_runtime();
     let mut policy_env = BTreeMap::new();
 
     if let Some(runtime) = runtime {
@@ -255,6 +255,7 @@ mod tests {
                 ("GOOSE_MODE".into(), "custom".into()),
                 ("SECRET_FROM_PERSONA".into(), "secret".into()),
             ]),
+            runtime_id: None,
         };
         let teams: Vec<TeamRecord> = serde_json::from_value(serde_json::json!([{
             "id": "team-1", "name": "Team", "instructions": "Coordinate", "persona_ids": [], "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"
@@ -303,6 +304,7 @@ mod tests {
             command: "openclaw".into(),
             args: vec![],
             env: BTreeMap::new(),
+            runtime_id: None,
         };
 
         let launch = build_launch_block(&record, &descriptor, &[], None, None, "owner-hex");
@@ -325,6 +327,7 @@ mod tests {
             command: "goose".into(),
             args: vec![],
             env: BTreeMap::new(),
+            runtime_id: None,
         };
 
         let launch = build_launch_block(&record, &descriptor, &[], None, None, "owner-hex");
@@ -354,6 +357,7 @@ mod tests {
             command: "openclaw".into(),
             args: vec![],
             env: BTreeMap::new(),
+            runtime_id: None,
         };
         let cap = crate::managed_agents::parallelism::OPENCLAW_MAX_PARALLELISM;
 
@@ -400,6 +404,7 @@ mod tests {
             command: "goose".into(),
             args: vec![],
             env: BTreeMap::new(),
+            runtime_id: None,
         };
 
         let launch = build_launch_block(&record, &descriptor, &[], None, None, "owner-hex");
@@ -445,6 +450,7 @@ mod tests {
             command: "openclaw".into(),
             args: vec![],
             env: BTreeMap::new(),
+            runtime_id: None,
         };
         let cap = crate::managed_agents::parallelism::OPENCLAW_MAX_PARALLELISM;
 

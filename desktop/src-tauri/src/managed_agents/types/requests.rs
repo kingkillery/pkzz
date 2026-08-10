@@ -139,6 +139,15 @@ pub struct CreateManagedAgentRequest {
     pub relay_url: Option<String>,
     pub acp_command: Option<String>,
     pub agent_command: Option<String>,
+    /// Tri-state launch identity at creation:
+    /// - absent: legacy command fallback;
+    /// - string: select that Rust catalog runtime;
+    /// - null: explicitly select the supplied raw command.
+    ///
+    /// Retaining null separately from absence lets the record preserve raw
+    /// command semantics without disabling recovery for existing records.
+    #[serde(default, deserialize_with = "crate::util::double_option")]
+    pub runtime_id: Option<Option<String>>,
     /// True when `agent_command` is a runtime command the user deliberately
     /// picked for a linked persona. Distinguishes a real selection, including an
     /// installed alias, from a missing-runtime fallback so a persona-backed
@@ -226,6 +235,12 @@ pub struct UpdateManagedAgentRequest {
     pub acp_command: Option<String>,
     #[serde(default)]
     pub agent_command: Option<String>,
+    /// Tri-state launch identity patch:
+    /// - absent: do not edit harness identity;
+    /// - string: select that Rust catalog runtime;
+    /// - null: clear catalog identity for a raw custom command.
+    #[serde(default, deserialize_with = "crate::util::double_option")]
+    pub runtime_id: Option<Option<String>>,
     /// True when the accompanying `agent_command` is a runtime/Custom command
     /// the user deliberately picked for a linked persona (i.e. the dialog is
     /// not inheriting). Distinguishes a real pin — including one that maps to
@@ -466,5 +481,48 @@ mod tests {
         )
         .expect("a create payload without provenance should deserialize");
         assert_eq!(request.catalog_source, None);
+    }
+
+    #[test]
+    fn create_runtime_id_deserializes_from_camel_case() {
+        let request: CreateManagedAgentRequest =
+            serde_json::from_str(r#"{"name":"ompk-agent","runtimeId":"ompk","agentArgs":[]}"#)
+                .expect("catalog-backed create request should deserialize");
+
+        assert_eq!(request.runtime_id, Some(Some("ompk".to_string())));
+        assert!(request.agent_args.is_empty());
+    }
+
+    #[test]
+    fn create_runtime_id_null_selects_raw_custom_command() {
+        let request: CreateManagedAgentRequest = serde_json::from_str(
+            r#"{"name":"raw-agent","runtimeId":null,"agentCommand":"/opt/raw"}"#,
+        )
+        .expect("raw-custom create request should deserialize");
+
+        assert_eq!(request.runtime_id, Some(None));
+    }
+
+    #[test]
+    fn update_runtime_id_absent_means_no_identity_edit() {
+        let request: UpdateManagedAgentRequest =
+            serde_json::from_str(r#"{"pubkey":"abc"}"#).expect("minimal update should deserialize");
+        assert_eq!(request.runtime_id, None);
+    }
+
+    #[test]
+    fn update_runtime_id_string_selects_catalog_identity() {
+        let request: UpdateManagedAgentRequest =
+            serde_json::from_str(r#"{"pubkey":"abc","runtimeId":"ompk"}"#)
+                .expect("catalog identity update should deserialize");
+        assert_eq!(request.runtime_id, Some(Some("ompk".to_string())));
+    }
+
+    #[test]
+    fn update_runtime_id_null_selects_raw_custom_command() {
+        let request: UpdateManagedAgentRequest =
+            serde_json::from_str(r#"{"pubkey":"abc","runtimeId":null}"#)
+                .expect("raw custom identity update should deserialize");
+        assert_eq!(request.runtime_id, Some(None));
     }
 }

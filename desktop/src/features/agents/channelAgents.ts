@@ -1,5 +1,4 @@
 import {
-  commandsMatch,
   findReusableGenericAgent,
   findReusablePersonaAgent,
   pickPreferredManagedAgent,
@@ -23,10 +22,7 @@ import type {
   RespondToMode,
 } from "@/shared/api/types";
 
-type ChannelAgentRuntime = Pick<
-  AcpRuntime,
-  "id" | "label" | "command" | "defaultArgs" | "mcpCommand"
->;
+type ChannelAgentRuntime = Pick<AcpRuntime, "id" | "label" | "command">;
 
 export type AttachManagedAgentToChannelInput = {
   agent: ManagedAgent;
@@ -49,7 +45,7 @@ export type EnsureChannelAgentPresetInput = {
 export type EnsureChannelAgentPresetResult =
   AttachManagedAgentToChannelResult & {
     created: boolean;
-    runtimeId: string;
+    runtimeId: string | null;
   };
 
 export type CreateChannelManagedAgentInput = {
@@ -83,13 +79,13 @@ export type CreateChannelManagedAgentInput = {
 export type CreateChannelManagedAgentResult =
   AttachManagedAgentToChannelResult & {
     created: boolean;
-    runtimeId: string;
+    runtimeId: string | null;
   };
 
 export type ProvisionChannelManagedAgentResult = {
   agent: ManagedAgent;
   created: boolean;
-  runtimeId: string;
+  runtimeId: string | null;
 };
 
 export type CreateChannelManagedAgentBatchFailure = {
@@ -171,13 +167,13 @@ function buildChannelAgentName(runtimeId: string, runtimeLabel: string) {
 function pickPreferredChannelPresetAgent(
   agents: ManagedAgent[],
   memberPubkeys: ReadonlySet<string>,
-  runtimeCommand: string,
+  runtimeId: string,
   expectedName: string,
 ) {
   const inChannelAgent = pickPreferredManagedAgent(
     agents.filter(
       (agent) =>
-        commandsMatch(agent.agentCommand, runtimeCommand) &&
+        agent.runtime === runtimeId &&
         memberPubkeys.has(normalizePubkey(agent.pubkey)),
     ),
   );
@@ -188,7 +184,7 @@ function pickPreferredChannelPresetAgent(
   return pickPreferredManagedAgent(
     agents.filter(
       (agent) =>
-        commandsMatch(agent.agentCommand, runtimeCommand) &&
+        agent.runtime === runtimeId &&
         agent.name.trim().toLowerCase() === expectedName.trim().toLowerCase(),
     ),
   );
@@ -212,7 +208,7 @@ export async function ensureChannelAgentPresetInChannel(
   const existingAgent = pickPreferredChannelPresetAgent(
     managedAgents,
     memberPubkeys,
-    input.runtime.command,
+    input.runtime.id,
     expectedName,
   );
 
@@ -225,7 +221,7 @@ export async function ensureChannelAgentPresetInChannel(
     return {
       ...attached,
       created: false,
-      runtimeId: input.runtime.id,
+      runtimeId: attached.agent.runtime,
     };
   }
 
@@ -233,10 +229,8 @@ export async function ensureChannelAgentPresetInChannel(
     name: expectedName,
     acpCommand: "buzz-acp",
     agentCommand: input.runtime.command,
-    // Do NOT seed agentArgs from runtime.defaultArgs (see instanceInputForDefinition.ts
-    // for the rationale — empty args let spawn resolve definition args live).
+    runtimeId: input.runtime.id,
     agentArgs: [],
-    mcpCommand: input.runtime.mcpCommand ?? "",
     spawnAfterCreate: false,
   });
   const attached = await attachManagedAgentToChannel(channelId, {
@@ -248,7 +242,7 @@ export async function ensureChannelAgentPresetInChannel(
   return {
     ...attached,
     created: true,
-    runtimeId: input.runtime.id,
+    runtimeId: attached.agent.runtime,
   };
 }
 
@@ -277,6 +271,7 @@ export async function provisionChannelManagedAgent(
       context.managedAgents,
       input.personaId,
       context.channelMemberPubkeys,
+      input.harnessOverride ? input.runtime.id : undefined,
     );
     if (reusable) {
       // Apply the caller's respondTo settings so the user's permission
@@ -299,7 +294,7 @@ export async function provisionChannelManagedAgent(
       return {
         agent: updatedAgent,
         created: false,
-        runtimeId: input.runtime.id,
+        runtimeId: updatedAgent.runtime,
       };
     }
   }
@@ -317,6 +312,7 @@ export async function provisionChannelManagedAgent(
       context.managedAgents,
       input.runtime.command,
       context.channelMemberPubkeys,
+      input.runtime.id,
     );
     if (reusable) {
       const needsRespondToUpdate =
@@ -337,7 +333,7 @@ export async function provisionChannelManagedAgent(
       return {
         agent: updatedAgent,
         created: false,
-        runtimeId: input.runtime.id,
+        runtimeId: updatedAgent.runtime,
       };
     }
   }
@@ -355,11 +351,9 @@ export async function provisionChannelManagedAgent(
     name: trimmedName,
     acpCommand: "buzz-acp",
     agentCommand: input.runtime.command,
+    runtimeId: input.runtime.id,
     harnessOverride: input.harnessOverride ?? false,
-    // Do NOT seed agentArgs from runtime.defaultArgs (see instanceInputForDefinition.ts
-    // for the rationale — empty args let spawn resolve definition args live).
     agentArgs: [],
-    mcpCommand: input.runtime.mcpCommand ?? "",
     personaId: input.personaId ?? undefined,
     teamId: input.teamId ?? undefined,
     systemPrompt: input.systemPrompt?.trim() || undefined,
@@ -380,7 +374,7 @@ export async function provisionChannelManagedAgent(
   return {
     agent: created.agent,
     created: true,
-    runtimeId: input.runtime.id,
+    runtimeId: created.agent.runtime,
   };
 }
 

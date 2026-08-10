@@ -42,6 +42,27 @@ pub fn managed_agents_base_dir(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(dir)
 }
 
+/// Pair-scoped durable outbox for host-owned final replies. This stays under
+/// app data rather than the user-authored nest or the replaceable-event
+/// retention database: kind-9 delivery recovery is keyed by signed event ID.
+pub fn host_final_outbox_dir(
+    app: &AppHandle,
+    key: &ManagedAgentRuntimeKey,
+) -> Result<PathBuf, String> {
+    let dir = managed_agents_base_dir(app)?
+        .join("host-final-outbox")
+        .join(key.runtime_id());
+    fs::create_dir_all(&dir)
+        .map_err(|error| format!("failed to create host-final outbox dir: {error}"))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&dir, fs::Permissions::from_mode(0o700))
+            .map_err(|error| format!("failed to restrict host-final outbox dir: {error}"))?;
+    }
+    Ok(dir)
+}
+
 pub(crate) fn managed_agents_store_path(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(managed_agents_base_dir(app)?.join("managed-agents.json"))
 }

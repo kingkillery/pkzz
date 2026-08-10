@@ -44,9 +44,15 @@ import {
 
 // ── Core predicate: provider-selection support ─────────────────────────────
 
+function providerEnvVarForRuntime(runtimeId) {
+  if (runtimeId === "buzz-agent") return "BUZZ_AGENT_PROVIDER";
+  if (runtimeId === "goose") return "GOOSE_PROVIDER";
+  return null;
+}
+
 test("localMode_buzzAgent_supportsProviderSelection", () => {
   assert.equal(
-    runtimeSupportsLlmProviderSelection("buzz-agent"),
+    runtimeSupportsLlmProviderSelection("BUZZ_AGENT_PROVIDER"),
     true,
     "buzz-agent must support LLM provider selection",
   );
@@ -54,7 +60,7 @@ test("localMode_buzzAgent_supportsProviderSelection", () => {
 
 test("localMode_goose_supportsProviderSelection", () => {
   assert.equal(
-    runtimeSupportsLlmProviderSelection("goose"),
+    runtimeSupportsLlmProviderSelection("GOOSE_PROVIDER"),
     true,
     "goose must support LLM provider selection",
   );
@@ -62,7 +68,7 @@ test("localMode_goose_supportsProviderSelection", () => {
 
 test("localMode_claude_doesNotSupportProviderSelection", () => {
   assert.equal(
-    runtimeSupportsLlmProviderSelection("claude"),
+    runtimeSupportsLlmProviderSelection(null),
     false,
     "claude must NOT support LLM provider selection (CLI-login runtime)",
   );
@@ -70,7 +76,7 @@ test("localMode_claude_doesNotSupportProviderSelection", () => {
 
 test("localMode_custom_doesNotSupportProviderSelection", () => {
   assert.equal(
-    runtimeSupportsLlmProviderSelection("custom"),
+    runtimeSupportsLlmProviderSelection(null),
     false,
     "custom runtime must NOT support LLM provider selection",
   );
@@ -89,6 +95,7 @@ test("localMode_buzzAgent_emptyProvider_notSatisfied", () => {
     model: "claude-3-5-sonnet-20241022",
     provider: "",
     runtimeId: "buzz-agent",
+    providerEnvVar: providerEnvVarForRuntime("buzz-agent"),
   });
 
   assert.ok(
@@ -112,6 +119,7 @@ test("localMode_buzzAgent_emptyModel_notSatisfied", () => {
     model: "",
     provider: "anthropic",
     runtimeId: "buzz-agent",
+    providerEnvVar: providerEnvVarForRuntime("buzz-agent"),
   });
 
   assert.ok(
@@ -137,6 +145,7 @@ test("localMode_buzzAgent_anthropic_missingKey_notSatisfied", () => {
     model: "claude-3-5-sonnet-20241022",
     provider: "anthropic",
     runtimeId: "buzz-agent",
+    providerEnvVar: providerEnvVarForRuntime("buzz-agent"),
   });
 
   assert.ok(
@@ -158,6 +167,7 @@ test("localMode_buzzAgent_anthropic_allRequired_present_allowed", () => {
     model: "claude-3-5-sonnet-20241022",
     provider: "anthropic",
     runtimeId: "buzz-agent",
+    providerEnvVar: providerEnvVarForRuntime("buzz-agent"),
   });
 
   assert.deepEqual(
@@ -189,6 +199,7 @@ test("localMode_claude_noRequiredFields_notBlocked", () => {
     model: "",
     provider: "",
     runtimeId: "claude",
+    providerEnvVar: providerEnvVarForRuntime("claude"),
   });
 
   assert.deepEqual(
@@ -218,6 +229,7 @@ test("localMode_gate_bypassed_for_providerMode", () => {
     model: "",
     provider: "",
     runtimeId: "buzz-agent",
+    providerEnvVar: providerEnvVarForRuntime("buzz-agent"),
   });
 
   assert.equal(
@@ -249,6 +261,7 @@ test("localMode_requiredEnvKeys_gate_and_envVarsEditor_share_same_key_set", () =
     model: "claude-3-5-sonnet-20241022",
     provider: "anthropic",
     runtimeId: "buzz-agent",
+    providerEnvVar: providerEnvVarForRuntime("buzz-agent"),
   });
   const fullKeys = requiredCredentialEnvKeys("buzz-agent", "anthropic");
 
@@ -270,6 +283,7 @@ test("localMode_providerSelection_drives_requiredKey", () => {
     model: "claude-3-5-sonnet-20241022",
     provider: "anthropic",
     runtimeId: "buzz-agent",
+    providerEnvVar: providerEnvVarForRuntime("buzz-agent"),
   });
   const databricksGate = computeLocalModeGate({
     envVars: {},
@@ -277,6 +291,7 @@ test("localMode_providerSelection_drives_requiredKey", () => {
     model: "databricks-meta-llama",
     provider: "databricks",
     runtimeId: "buzz-agent",
+    providerEnvVar: providerEnvVarForRuntime("buzz-agent"),
   });
 
   assert.ok(
@@ -310,6 +325,7 @@ test("localMode_goose_databricksHost_satisfiedByFileConfig_notRequired", () => {
     model: "goose-claude-4-6-opus",
     provider: "databricks_v2",
     runtimeId: "goose",
+    providerEnvVar: providerEnvVarForRuntime("goose"),
     runtimeFileConfig: fileConfig,
   });
 
@@ -337,6 +353,7 @@ test("localMode_goose_databricksHost_noFileConfig_stillRequired", () => {
     model: "some-model",
     provider: "databricks_v2",
     runtimeId: "goose",
+    providerEnvVar: providerEnvVarForRuntime("goose"),
     runtimeFileConfig: null,
   });
 
@@ -365,6 +382,7 @@ test("localMode_goose_providerSatisfiedByFileConfig_noNormalizedFieldRequired", 
     model: "",
     provider: "",
     runtimeId: "goose",
+    providerEnvVar: providerEnvVarForRuntime("goose"),
     runtimeFileConfig: fileConfig,
   });
 
@@ -384,6 +402,7 @@ test("localMode_goose_envPlusFileConfig_bothEmpty_stillRequired", () => {
     model: "",
     provider: "",
     runtimeId: "goose",
+    providerEnvVar: providerEnvVarForRuntime("goose"),
     runtimeFileConfig: null,
   });
 
@@ -410,6 +429,7 @@ test("baked_databricksHost_silencesRequirement", () => {
     model: "some-model",
     provider: "databricks_v2",
     runtimeId: "goose",
+    providerEnvVar: providerEnvVarForRuntime("goose"),
     runtimeFileConfig: null,
   });
 
@@ -435,6 +455,7 @@ test("baked_databricksHost_andAgentLocal_agentLocalWins_keyNotRequired", () => {
     model: "some-model",
     provider: "databricks_v2",
     runtimeId: "goose",
+    providerEnvVar: providerEnvVarForRuntime("goose"),
     runtimeFileConfig: null,
   });
 
@@ -454,6 +475,7 @@ test("baked_emptyOrUndefined_behaviorUnchanged", () => {
     model: "some-model",
     provider: "databricks_v2",
     runtimeId: "goose",
+    providerEnvVar: providerEnvVarForRuntime("goose"),
     runtimeFileConfig: null,
   });
   const resultEmpty = computeLocalModeGate({
@@ -463,6 +485,7 @@ test("baked_emptyOrUndefined_behaviorUnchanged", () => {
     model: "some-model",
     provider: "databricks_v2",
     runtimeId: "goose",
+    providerEnvVar: providerEnvVarForRuntime("goose"),
     runtimeFileConfig: null,
   });
 
@@ -496,6 +519,7 @@ test("baked_satisfiedKey_doesNotCountAsMissing_noSaveBlock", () => {
     model: "some-model",
     provider: "databricks_v2",
     runtimeId: "goose",
+    providerEnvVar: providerEnvVarForRuntime("goose"),
     runtimeFileConfig: null,
   });
 
@@ -641,6 +665,7 @@ test("localMode_globalEnvVars_satisfies_missing_env_key", () => {
     model: "claude-3-5-sonnet-20241022",
     provider: "anthropic",
     runtimeId: "buzz-agent",
+    providerEnvVar: providerEnvVarForRuntime("buzz-agent"),
   });
 
   assert.equal(
@@ -665,6 +690,7 @@ test("localMode_perAgentEnvVar_wins_over_globalEnvVars_for_gate", () => {
     model: "claude-3-5-sonnet-20241022",
     provider: "anthropic",
     runtimeId: "buzz-agent",
+    providerEnvVar: providerEnvVarForRuntime("buzz-agent"),
   });
 
   assert.equal(
@@ -683,6 +709,7 @@ test("localMode_globalEnvVars_empty_still_fails_gate", () => {
     model: "claude-3-5-sonnet-20241022",
     provider: "anthropic",
     runtimeId: "buzz-agent",
+    providerEnvVar: providerEnvVarForRuntime("buzz-agent"),
   });
 
   assert.equal(
@@ -719,6 +746,7 @@ test("localMode_globalProvider_inherited_no_key_surfacesAsRequired", () => {
     model: "claude-3-5-sonnet-20241022",
     provider: "",
     runtimeId: "buzz-agent",
+    providerEnvVar: providerEnvVarForRuntime("buzz-agent"),
   });
 
   assert.equal(
@@ -743,6 +771,7 @@ test("localMode_globalProvider_inherited_globalEnv_satisfies_key", () => {
     model: "claude-3-5-sonnet-20241022",
     provider: "",
     runtimeId: "buzz-agent",
+    providerEnvVar: providerEnvVarForRuntime("buzz-agent"),
   });
 
   assert.equal(
@@ -776,6 +805,7 @@ test("localMode_requiredKey_stays_in_requiredEnvKeys_when_locally_filled", () =>
     model: "claude-3-5-sonnet-20241022",
     provider: "",
     runtimeId: "buzz-agent",
+    providerEnvVar: providerEnvVarForRuntime("buzz-agent"),
   });
 
   assert.ok(
@@ -796,6 +826,7 @@ test("localMode_requiredKey_stays_in_requiredEnvKeys_when_locally_filled", () =>
     model: "claude-3-5-sonnet-20241022",
     provider: "",
     runtimeId: "buzz-agent",
+    providerEnvVar: providerEnvVarForRuntime("buzz-agent"),
   });
 
   assert.equal(
@@ -1041,6 +1072,7 @@ test("globalAwareGate_globalProviderSet_requiredKeyAppearsWhenMissing", () => {
     model: "",
     provider: "",
     runtimeId: "buzz-agent",
+    providerEnvVar: providerEnvVarForRuntime("buzz-agent"),
     runtimeFileConfig: undefined,
   });
   assert.ok(
@@ -1059,6 +1091,7 @@ test("globalAwareGate_globalProviderAndKeySet_requiredKeyAbsent", () => {
     model: "",
     provider: "",
     runtimeId: "buzz-agent",
+    providerEnvVar: providerEnvVarForRuntime("buzz-agent"),
     runtimeFileConfig: undefined,
   });
   assert.equal(
@@ -1090,6 +1123,7 @@ test("f3_templateDialog_localAnthropicWithGlobalModel_modelNotRequired", () => {
     model: "",
     provider: "anthropic",
     runtimeId: "buzz-agent",
+    providerEnvVar: providerEnvVarForRuntime("buzz-agent"),
   });
 
   assert.equal(
@@ -1118,6 +1152,7 @@ test("f3_templateDialog_localProviderBlankGlobalAnthropicNoModel_saveBlocked", (
     model: "",
     provider: "",
     runtimeId: "buzz-agent",
+    providerEnvVar: providerEnvVarForRuntime("buzz-agent"),
   });
 
   assert.ok(
@@ -1165,7 +1200,11 @@ test("f3b_buildTemplateModelDropdownOptions_anthropicGlobalModelSet_containsInhe
   // Case 1: explicit-model provider (anthropic) + global model set.
   // getPersonaModelOptions filters out the zero-value option for anthropic.
   // buildTemplateModelDropdownOptions must prepend it from globalModel.
-  const staticOptions = getPersonaModelOptions("buzz-agent", "anthropic");
+  const staticOptions = getPersonaModelOptions(
+    "buzz-agent",
+    "anthropic",
+    "BUZZ_AGENT_PROVIDER",
+  );
   const result = buildTemplateModelDropdownOptions(
     staticOptions,
     "claude-opus-4-5",
@@ -1185,7 +1224,11 @@ test("f3b_buildTemplateModelDropdownOptions_anthropicGlobalModelSet_containsInhe
 test("f3b_buildTemplateModelDropdownOptions_anthropicNoGlobalModel_noZeroValueEntry", () => {
   // Case 2: explicit-model provider (anthropic) + NO global model.
   // No zero-value option must be seeded — model remains required, Save stays blocked.
-  const staticOptions = getPersonaModelOptions("buzz-agent", "anthropic");
+  const staticOptions = getPersonaModelOptions(
+    "buzz-agent",
+    "anthropic",
+    "BUZZ_AGENT_PROVIDER",
+  );
   const result = buildTemplateModelDropdownOptions(staticOptions, "");
   const inheritEntry = result.find((o) => o.value === "__auto_model__");
   assert.equal(
@@ -1199,7 +1242,11 @@ test("f3b_buildTemplateModelDropdownOptions_blankProviderGlobalModelSet_noDouble
   // Case 3: provider that does NOT require an explicit model (blank string).
   // getPersonaModelOptions returns a zero-value option; the helper must not
   // prepend a second one.
-  const staticOptions = getPersonaModelOptions("buzz-agent", "");
+  const staticOptions = getPersonaModelOptions(
+    "buzz-agent",
+    "",
+    "BUZZ_AGENT_PROVIDER",
+  );
   const hasExisting = staticOptions.some((o) => o.id === "");
   assert.ok(
     hasExisting,
@@ -1346,6 +1393,7 @@ test("localMode_globalEnvSatisfied_agentLocalExplicitlyEmpty_stillRequired", () 
     model: "claude-3-5-sonnet-20241022",
     provider: "anthropic",
     runtimeId: "buzz-agent",
+    providerEnvVar: providerEnvVarForRuntime("buzz-agent"),
   });
 
   assert.ok(
@@ -1374,6 +1422,7 @@ test("localMode_globalEnvSatisfied_agentLocalKeyAbsent_silenced", () => {
     model: "claude-3-5-sonnet-20241022",
     provider: "anthropic",
     runtimeId: "buzz-agent",
+    providerEnvVar: providerEnvVarForRuntime("buzz-agent"),
   });
 
   assert.equal(

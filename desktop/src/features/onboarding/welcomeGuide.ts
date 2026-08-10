@@ -235,15 +235,15 @@ export function welcomeStarterRuntimeUpdate(
   existing: ManagedAgent,
   desired: CreateManagedAgentInput,
 ) {
-  if (!desired.agentCommand) return null;
+  if (!desired.runtimeId) return null;
 
-  const desiredArgs = desired.agentArgs ?? [];
+  const desiredArgs: string[] = [];
   const desiredModel = desired.model ?? null;
   const desiredProvider = desired.provider ?? null;
   const desiredMcpCommand = desired.mcpCommand ?? "";
   if (
-    existing.agentCommand === desired.agentCommand &&
-    existing.agentArgs.join(",") === desiredArgs.join(",") &&
+    existing.runtime === desired.runtimeId &&
+    existing.agentArgs.length === 0 &&
     existing.model === desiredModel &&
     existing.provider === desiredProvider &&
     existing.mcpCommand === desiredMcpCommand
@@ -254,7 +254,8 @@ export function welcomeStarterRuntimeUpdate(
   return {
     pubkey: existing.pubkey,
     agentCommand: desired.agentCommand,
-    harnessOverride: true,
+    runtimeId: desired.runtimeId,
+    harnessOverride: false,
     agentArgs: desiredArgs,
     mcpCommand: desiredMcpCommand,
     model: desiredModel,

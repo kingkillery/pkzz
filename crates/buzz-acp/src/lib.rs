@@ -4,7 +4,9 @@ mod acp;
 mod config;
 mod engram_fetch;
 mod filter;
+mod final_delivery;
 mod observer;
+mod permission;
 mod pool;
 mod pool_lifecycle;
 mod queue;
@@ -21,12 +23,12 @@ use std::time::Duration;
 use acp::{AcpClient, EnvVar, McpServer};
 use anyhow::Result;
 use buzz_core::kind::{
-    KIND_MEMBER_ADDED_NOTIFICATION, KIND_MEMBER_REMOVED_NOTIFICATION, KIND_STREAM_MESSAGE,
-    KIND_STREAM_REMINDER, KIND_WORKFLOW_APPROVAL_REQUESTED,
+    KIND_AGENT_OBSERVER_FRAME, KIND_MEMBER_ADDED_NOTIFICATION, KIND_MEMBER_REMOVED_NOTIFICATION,
+    KIND_STREAM_MESSAGE, KIND_STREAM_REMINDER, KIND_WORKFLOW_APPROVAL_REQUESTED,
 };
 use buzz_core::observer::{
-    decrypt_observer_payload, encrypt_observer_payload, OBSERVER_FRAME_TELEMETRY,
-    OBSERVER_MAX_PLAINTEXT_LEN,
+    decrypt_observer_payload, encrypt_observer_payload, OBSERVER_AGENT_TAG, OBSERVER_FRAME_CONTROL,
+    OBSERVER_FRAME_TAG, OBSERVER_FRAME_TELEMETRY, OBSERVER_MAX_PLAINTEXT_LEN,
 };
 use clap::Parser;
 use config::{
@@ -36,6 +38,7 @@ use config::{
 use filter::SubscriptionRule;
 use futures_util::FutureExt;
 use nostr::{PublicKey, ToBech32};
+use permission::{OwnerPermissionDecision, PermissionBinding, PermissionDispatchStatus};
 use pool::{
     AgentPool, ControlSignal, IdleSwitchResult, OwnedAgent, PromptContext, PromptOutcome,
     PromptResult, PromptSource, SessionState, TimeoutKind,
@@ -401,6 +404,22 @@ const OBSERVER_PENDING_QUEUE_MAX_BYTES: usize = 4 * 1024 * 1024;
 /// exactly as they would unbatched ones. Single pending events are published
 /// unwrapped, so the envelope only appears when there is something to batch.
 const OBSERVER_BATCH_KIND: &str = "batch";
+fn is_priority_observer_event(event: &observer::ObserverEvent) -> bool {
+    matches!(
+        event.kind.as_str(),
+        "permission_requested" | "permission_resolved"
+    ) || (event.kind == "control_result"
+        && event
+            .payload
+            .get("type")
+            .and_then(serde_json::Value::as_str)
+            == Some("control_result")
+        && event
+            .payload
+            .get("command")
+            .and_then(serde_json::Value::as_str)
+            == Some("permission_decision"))
+}
 
 /// Collects observer events awaiting a publish slot.
 ///
@@ -467,23 +486,30 @@ impl ObserverPublishQueue {
         self.pending_bytes + self.coalescer.pending_bytes
     }
 
-    /// Enforce [`OBSERVER_PENDING_QUEUE_MAX_BYTES`] over the total, dropping
-    /// OLDEST items first with accounting in SOURCE-event units. Global age
-    /// order across the two stores is structural: every enqueue path flushes
-    /// the coalescer first, so every pending coalescer entry is strictly newer
-    /// than every queued event — eviction is queue front, then coalescer
-    /// front. The `> 1` guard never drops the sole remaining item (any single
-    /// fitted event or pre-flush-capped chunk entry is far under the budget).
+    /// Enforce [`OBSERVER_PENDING_QUEUE_MAX_BYTES`] over the total. Ordinary
+    /// events are evicted before security-significant permission telemetry;
+    /// within each class, the oldest retained entry is removed first. The
+    /// `> 1` guard never drops the sole remaining fitted item.
     fn enforce_byte_budget(&mut self) {
         let mut dropped = 0u64;
         while self.total_pending_bytes() > OBSERVER_PENDING_QUEUE_MAX_BYTES
             && self.events.len() + self.coalescer.pending.len() > 1
         {
-            if let Some((bytes, source_events, _)) = self.events.pop_front() {
+            if let Some(index) = self
+                .events
+                .iter()
+                .position(|(_, _, event)| !is_priority_observer_event(event))
+            {
+                let (bytes, source_events, _) = self.events.remove(index).expect("position exists");
                 self.pending_bytes -= bytes;
                 dropped += source_events;
-            } else {
-                dropped += self.coalescer.drop_oldest().expect("guard ensures an item");
+            } else if !self.coalescer.pending.is_empty() {
+                // Coalesced ACP chunks are always ordinary telemetry.
+                dropped += self.coalescer.drop_oldest().expect("checked nonempty");
+            } else if let Some((bytes, source_events, _)) = self.events.pop_front() {
+                // A pathological priority-only flood must remain bounded too.
+                self.pending_bytes -= bytes;
+                dropped += source_events;
             }
         }
         if dropped > 0 {
@@ -534,6 +560,9 @@ impl ObserverPublishQueue {
         for (source_events, ready) in self.coalescer.flush() {
             self.enqueue(source_events, ready);
         }
+        if let Some(priority_index) = self.next_priority_index() {
+            return self.take_priority_frame(priority_index);
+        }
         let channel = self.events.front()?.2.channel_id.clone();
 
         let mut picked: Vec<observer::ObserverEvent> = Vec::new();
@@ -565,6 +594,67 @@ impl ObserverPublishQueue {
         }
         self.events = kept;
         Some(seal_batch(picked))
+    }
+
+    /// Find the oldest priority event that may advance without crossing a
+    /// null-channel causal barrier.
+    fn next_priority_index(&self) -> Option<usize> {
+        let index = self
+            .events
+            .iter()
+            .position(|(_, _, event)| is_priority_observer_event(event))?;
+        let channel = self.events.get(index)?.2.channel_id.as_ref();
+        if channel.is_none()
+            || self
+                .events
+                .iter()
+                .take(index)
+                .any(|(_, _, event)| event.channel_id.is_none())
+        {
+            (index == 0).then_some(index)
+        } else {
+            Some(index)
+        }
+    }
+
+    /// Publish priority events from one channel ahead of ordinary backlog.
+    /// Ordinary events are never packed ahead of the permission prompt, so a
+    /// large same-channel ACP batch cannot hide it for another tick.
+    fn take_priority_frame(&mut self, priority_index: usize) -> Option<observer::ObserverEvent> {
+        let channel = self.events.get(priority_index)?.2.channel_id.clone();
+        let mut picked = Vec::new();
+        let mut kept = VecDeque::with_capacity(self.events.len());
+        let mut gathering = true;
+        let mut index = 0usize;
+        while let Some((bytes, source_events, event)) = self.events.pop_front() {
+            let selectable = index >= priority_index
+                && gathering
+                && event.channel_id == channel
+                && is_priority_observer_event(&event);
+            if selectable {
+                picked.push(event);
+                if picked.len() > 1
+                    && serialized_len(&batch_envelope(&picked)) > OBSERVER_MAX_PLAINTEXT_LEN
+                {
+                    let overflow = picked.pop().expect("len > 1");
+                    kept.push_back((bytes, source_events, overflow));
+                    gathering = false;
+                } else {
+                    self.pending_bytes -= bytes;
+                }
+            } else {
+                if index >= priority_index
+                    && gathering
+                    && (channel.is_none() || event.channel_id.is_none())
+                {
+                    gathering = false;
+                }
+                kept.push_back((bytes, source_events, event));
+            }
+            index += 1;
+        }
+        self.events = kept;
+        (!picked.is_empty()).then(|| seal_batch(picked))
     }
 }
 
@@ -1071,32 +1161,19 @@ fn handle_relay_observer_control_event(
     pool: &mut AgentPool,
     observer: Option<&observer::ObserverHandle>,
     owner_pubkey_hex: &str,
+    agent_pubkey_hex: &str,
+    relay_url: &str,
 ) {
-    // Defense-in-depth: verify signature even though the relay already checked.
-    if let Err(e) = buzz_core::verify_event(&event) {
-        tracing::warn!(error = %e, "observer control frame failed signature verification");
+    if !validate_observer_control_envelope(&event, owner_pubkey_hex, agent_pubkey_hex) {
         return;
     }
 
-    // Defense-in-depth: verify the sender is the resolved owner.
-    if event.pubkey.to_hex() != owner_pubkey_hex {
-        tracing::warn!(
-            sender = %event.pubkey,
-            expected = %owner_pubkey_hex,
-            "observer control frame from non-owner — dropping"
-        );
-        return;
-    }
-
-    // Freshness: reject stale/replayed frames outside ±5 minute window.
+    // Freshness is a coarse transport replay bound. Permission replay defense
+    // remains the broker's exact single-use UUID binding.
     let now = chrono::Utc::now().timestamp();
     let event_ts = event.created_at.as_secs() as i64;
     if (event_ts - now).unsigned_abs() > OBSERVER_CONTROL_FRESHNESS_SECS as u64 {
-        tracing::warn!(
-            event_ts,
-            now,
-            "observer control frame outside freshness window — dropping"
-        );
+        tracing::warn!("observer control frame outside freshness window — dropping");
         return;
     }
 
@@ -1108,18 +1185,131 @@ fn handle_relay_observer_control_event(
         }
     };
 
-    let command_type = payload.get("type").and_then(|value| value.as_str());
-    match command_type {
-        Some("cancel_turn") => {
-            handle_cancel_turn_control(&payload, pool, observer);
-        }
-        Some("switch_model") => {
-            handle_switch_model_control(&payload, pool, observer);
+    match payload.get("type").and_then(serde_json::Value::as_str) {
+        Some("cancel_turn") => handle_cancel_turn_control(&payload, pool, observer),
+        Some("switch_model") => handle_switch_model_control(&payload, pool, observer),
+        Some("permission_decision") => {
+            handle_permission_decision_control(&payload, observer, agent_pubkey_hex, relay_url);
         }
         _ => {
-            tracing::debug!(payload = %payload, "ignoring unknown observer control frame");
+            // Never log a decrypted control payload: future commands may carry
+            // authorization decisions or other sensitive data.
+            tracing::debug!("ignoring unknown observer control command");
         }
     }
+}
+
+fn validate_observer_control_envelope(
+    event: &nostr::Event,
+    owner_pubkey_hex: &str,
+    agent_pubkey_hex: &str,
+) -> bool {
+    if event.kind.as_u16() as u32 != KIND_AGENT_OBSERVER_FRAME
+        || !event_has_exact_tag(event, OBSERVER_FRAME_TAG, OBSERVER_FRAME_CONTROL)
+        || !event_has_exact_tag(event, OBSERVER_AGENT_TAG, agent_pubkey_hex)
+        || !event_has_exact_tag(event, "p", agent_pubkey_hex)
+    {
+        tracing::warn!("observer control frame has invalid kind or routing tags");
+        return false;
+    }
+    if let Err(error) = buzz_core::verify_event(event) {
+        tracing::warn!(%error, "observer control frame failed signature verification");
+        return false;
+    }
+    if event.pubkey.to_hex() != owner_pubkey_hex {
+        tracing::warn!("observer control frame from non-owner — dropping");
+        return false;
+    }
+    true
+}
+
+fn event_has_exact_tag(event: &nostr::Event, name: &str, expected: &str) -> bool {
+    let mut matches = event.tags.iter().filter_map(|tag| {
+        let fields = tag.as_slice();
+        (fields.first().map(|field| field.as_str()) == Some(name)).then_some(fields)
+    });
+    let Some(fields) = matches.next() else {
+        return false;
+    };
+    fields.len() == 2
+        && fields.get(1).map(|field| field.as_str()) == Some(expected)
+        && matches.next().is_none()
+}
+
+fn handle_permission_decision_control(
+    payload: &serde_json::Value,
+    observer: Option<&observer::ObserverHandle>,
+    agent_pubkey_hex: &str,
+    relay_url: &str,
+) {
+    let Some(observer) = observer else {
+        return;
+    };
+    let Some(agent_pubkey) = payload
+        .get("agentPubkey")
+        .and_then(serde_json::Value::as_str)
+    else {
+        return;
+    };
+    let Some(payload_relay) = payload.get("relayUrl").and_then(serde_json::Value::as_str) else {
+        return;
+    };
+    let Some(session_id) = payload
+        .get("sessionId")
+        .and_then(serde_json::Value::as_str)
+        .filter(|value| !value.is_empty())
+    else {
+        return;
+    };
+    let Some(request_id_text) = payload.get("requestId").and_then(serde_json::Value::as_str) else {
+        return;
+    };
+    let Some(request_id) = Uuid::parse_str(request_id_text)
+        .ok()
+        .filter(|id| id.to_string() == request_id_text)
+    else {
+        return;
+    };
+    let binding = PermissionBinding {
+        agent_pubkey: agent_pubkey.to_owned(),
+        relay_url: payload_relay.to_owned(),
+        session_id: session_id.to_owned(),
+        request_id,
+    };
+    let decision = match payload.get("decision").and_then(serde_json::Value::as_str) {
+        Some("approve_once") => Some(OwnerPermissionDecision::ApproveOnce),
+        Some("reject") => Some(OwnerPermissionDecision::Reject),
+        _ => None,
+    };
+
+    let status = match decision {
+        Some(decision) if agent_pubkey == agent_pubkey_hex && payload_relay == relay_url => {
+            match observer.resolve_permission(&binding, decision) {
+                PermissionDispatchStatus::Delivered => "delivered",
+                PermissionDispatchStatus::NotPending => "not_pending",
+            }
+        }
+        _ => "invalid",
+    };
+    observer.emit(
+        "control_result",
+        None,
+        &observer::ObserverContext {
+            channel_id: None,
+            session_id: Some(session_id.to_owned()),
+            turn_id: None,
+            started_at: None,
+        },
+        serde_json::json!({
+            "type": "control_result",
+            "command": "permission_decision",
+            "agentPubkey": agent_pubkey,
+            "relayUrl": payload_relay,
+            "sessionId": session_id,
+            "requestId": request_id_text,
+            "status": status,
+        }),
+    );
 }
 
 /// Handle a `cancel_turn` control frame: signal the in-flight task to cancel.
@@ -1137,6 +1327,11 @@ fn handle_cancel_turn_control(
         return;
     };
 
+    if let Some(observer) = observer {
+        // Permission waits are closed before the destructive turn signal so
+        // the ACP loop cannot observe a late owner approval during cleanup.
+        observer.cancel_permissions_for_channel(&channel_id.to_string());
+    }
     let fired = signal_in_flight_task(pool, channel_id, ControlSignal::Cancel);
     let status = if fired { "sent" } else { "no_active_turn" };
     if let Some(observer) = observer {
@@ -1615,6 +1810,14 @@ async fn tokio_main() -> Result<()> {
         .as_secs();
 
     let pubkey_hex = config.keys.public_key().to_hex();
+    let host_final_outbox = Arc::new(
+        final_delivery::HostFinalDeliveryOutbox::open(
+            &config.host_final_outbox_dir,
+            &config.relay_url,
+            &config.keys.public_key(),
+        )
+        .map_err(|reason| anyhow::anyhow!("host-final delivery outbox unavailable: {reason}"))?,
+    );
 
     // Parse BUZZ_AUTH_TAG into a nostr::Tag for NIP-OA relay membership delegation.
     let relay_auth_tag: Option<nostr::Tag> = std::env::var("BUZZ_AUTH_TAG")
@@ -1626,6 +1829,17 @@ async fn tokio_main() -> Result<()> {
         HarnessRelay::connect(&config.relay_url, &config.keys, &pubkey_hex, relay_auth_tag)
             .await
             .map_err(|e| anyhow::anyhow!("relay connect error: {e}"))?;
+
+    // Recovery has no ACP client or prompt input: it can only submit durable
+    // bytes already signed by this host under the same pair-scoped identity.
+    let recovery_outbox = Arc::clone(&host_final_outbox);
+    let recovery_rest = relay.rest_client();
+    let recovery_observer = observer.clone();
+    let host_final_recovery_task = tokio::spawn(async move {
+        recovery_outbox
+            .resume_pending(&recovery_rest, recovery_observer.as_ref())
+            .await;
+    });
 
     // Tell the relay background task the watermark so it can use
     // `since = watermark - 5s` on the first REQ instead of `since=now`.
@@ -1684,7 +1898,7 @@ async fn tokio_main() -> Result<()> {
             match PublicKey::from_hex(&owner_pubkey_hex) {
                 Ok(owner_pubkey) => {
                     relay_observer_publisher = Some((
-                        observer,
+                        observer.clone(),
                         relay.event_publisher(),
                         config.keys.clone(),
                         pubkey_hex.clone(),
@@ -1696,7 +1910,20 @@ async fn tokio_main() -> Result<()> {
                         .await
                         .map_err(|e| anyhow::anyhow!("observer control subscribe error: {e}"))?;
                     relay_observer_control_rx = relay.take_observer_control_rx();
-                    tracing::info!("relay observer enabled");
+                    if relay_observer_control_rx.is_some() {
+                        match observer.enable_permission_bridge(&pubkey_hex, &config.relay_url) {
+                            Ok(()) => {
+                                tracing::info!("relay observer and permission bridge enabled")
+                            }
+                            Err(error) => tracing::warn!(
+                                "owner permission bridge disabled: invalid process scope: {error}"
+                            ),
+                        }
+                    } else {
+                        tracing::warn!(
+                            "observer control subscription returned no receiver; permission bridge disabled"
+                        );
+                    }
                 }
                 Err(error) => {
                     tracing::warn!("relay observer disabled: invalid owner pubkey: {error}");
@@ -1832,6 +2059,7 @@ async fn tokio_main() -> Result<()> {
             .to_string_lossy()
             .to_string(),
         rest_client: relay.rest_client(),
+        host_final_outbox: Arc::clone(&host_final_outbox),
         channel_info: pool::ChannelInfoResolver::new(channel_info_map, relay.rest_client()),
         context_message_limit: config.context_message_limit,
         max_turns_per_session: config.max_turns_per_session,
@@ -2191,12 +2419,23 @@ async fn tokio_main() -> Result<()> {
                     match control_event {
                         Some(event) => {
                             if let Some(ref owner_hex) = owner_cache.pubkey {
-                                handle_relay_observer_control_event(&config.keys, event, &mut pool, observer.as_ref(), owner_hex);
+                                handle_relay_observer_control_event(
+                                    &config.keys,
+                                    event,
+                                    &mut pool,
+                                    observer.as_ref(),
+                                    owner_hex,
+                                    &pubkey_hex,
+                                    &config.relay_url,
+                                );
                             } else {
                                 tracing::warn!("observer control frame received but no owner resolved — dropping");
                             }
                         }
                         None => {
+                            if let Some(observer) = observer.as_ref() {
+                                observer.disable_permission_bridge();
+                            }
                             relay_observer_control_rx = None;
                             tracing::warn!("relay observer control channel closed");
                         }
@@ -2481,6 +2720,31 @@ async fn tokio_main() -> Result<()> {
                                     continue;
                                 }
                             };
+                            if host_final_outbox.contains_source_event(&buzz_event.event.id) {
+                                tracing::info!(
+                                    channel_id = %buzz_event.channel_id,
+                                    event_id = %buzz_event.event.id,
+                                    "suppressing replay claimed by durable host-final delivery"
+                                );
+                                if let Some(observer) = &observer {
+                                    let context = observer::context_for(
+                                        Some(buzz_event.channel_id),
+                                        None,
+                                        None,
+                                    );
+                                    observer.emit(
+                                        "reply_delivery_source_suppressed",
+                                        None,
+                                        &context,
+                                        serde_json::json!({
+                                            "eventId": buzz_event.event.id.to_hex(),
+                                            "channelId": buzz_event.channel_id.to_string(),
+                                        }),
+                                    );
+                                }
+                                continue;
+                            }
+
                             // Capture author pubkey before queue.push() moves
                             // buzz_event.event (needed for mode gate below).
                             let author_hex = buzz_event.event.pubkey.to_hex();
@@ -2929,6 +3193,12 @@ async fn tokio_main() -> Result<()> {
         }
     }
 
+    if let Some(observer) = observer.as_ref() {
+        // Shutdown revokes every outstanding authorization before waiting for
+        // prompt tasks to drain.
+        observer.disable_permission_bridge();
+    }
+
     // Drain wake tasks gracefully rather than aborting: an in-flight
     // initialize_agent_pool observes the shutdown watch at its biased per-slot
     // select and reaps its partially-spawned agents itself. `shutdown()` here
@@ -3040,6 +3310,10 @@ async fn tokio_main() -> Result<()> {
             Err(_) => tracing::warn!("offline presence timed out"),
         }
     }
+
+    // Recovery state is already durable. Do not wait for an HTTP retry during
+    // shutdown; the next process resumes the same bytes and event ID.
+    host_final_recovery_task.abort();
 
     if let Some(handle) = relay_observer_publisher_task.take() {
         handle.abort();
@@ -3173,7 +3447,8 @@ fn try_native_steer(
     // duplicating it here would defeat the point of non-cancelling
     // steering (which is to inject only what's new).
     let (header, closing) = queue::native_steer_framing();
-    let event_id_hex = event.id.to_hex();
+    let source_event_id = event.id;
+    let event_id_hex = source_event_id.to_hex();
     let be = queue::BatchEvent {
         event,
         prompt_tag: prompt_tag.clone(),
@@ -3185,6 +3460,8 @@ fn try_native_steer(
     let (ack_tx, ack_rx) = tokio::sync::oneshot::channel::<pool::SteerAck>();
     let request = pool::SteerRequest {
         prompt_blocks: vec![body],
+        source_event_id,
+        source_event_ids: Arc::new(tokio::sync::Mutex::new(Vec::new())),
         ack_tx,
     };
 
@@ -3288,7 +3565,11 @@ fn dispatch_pending(
         // `ExpectedRunIdMissing` (→ cancel+merge) when it has neither.
         let (tx, rx) = tokio::sync::mpsc::channel::<pool::SteerRequest>(1);
         agent.acp.install_steer_rx(rx);
-        let steer_tx = Some(tx);
+        let native_steer_source_event_ids = Arc::new(tokio::sync::Mutex::new(Vec::new()));
+        let steer_tx = Some(pool::SteerSender::new(
+            tx,
+            Arc::clone(&native_steer_source_event_ids),
+        ));
 
         // Prompt text is now built inside run_prompt_task (needs async for
         // context fetching). Pass None for prompt_text; batch carries the data.
@@ -3304,6 +3585,7 @@ fn dispatch_pending(
                 ctx_clone,
                 result_tx,
                 Some(control_rx),
+                native_steer_source_event_ids,
                 task_turn_id,
             )
             .await;
@@ -3909,6 +4191,7 @@ fn dispatch_heartbeat(
     let agent_index = agent.index;
     let turn_id = Uuid::new_v4().to_string();
     let task_turn_id = turn_id.clone();
+    let native_steer_source_event_ids = Arc::new(tokio::sync::Mutex::new(Vec::new()));
 
     let abort_handle = pool.join_set.spawn(async move {
         pool::run_prompt_task(
@@ -3918,6 +4201,7 @@ fn dispatch_heartbeat(
             ctx_clone,
             result_tx,
             None,
+            native_steer_source_event_ids,
             task_turn_id,
         )
         .await;
@@ -4760,6 +5044,7 @@ mod author_gate_tests {
             http: reqwest::Client::new(),
             base_url: "http://localhost:0".into(),
             keys: nostr::Keys::generate(),
+            auth_tag: None,
             auth_tag_json: None,
         }
     }
@@ -5058,6 +5343,7 @@ mod author_gate_tests {
             http: reqwest::Client::new(),
             base_url,
             keys: nostr::Keys::generate(),
+            auth_tag: None,
             auth_tag_json: None,
         };
         (
@@ -6192,6 +6478,7 @@ mod build_mcp_servers_tests {
             channels_override: None,
             no_mention_filter: false,
             config_path: std::path::PathBuf::from("./buzz-acp.toml"),
+            host_final_outbox_dir: std::path::PathBuf::from("./host-final-outbox"),
             context_message_limit: 12,
             max_turns_per_session: 0,
             presence_enabled: true,
@@ -6414,6 +6701,7 @@ mod error_outcome_emission_tests {
             channels_override: None,
             no_mention_filter: false,
             config_path: std::path::PathBuf::from("./buzz-acp.toml"),
+            host_final_outbox_dir: std::path::PathBuf::from("./host-final-outbox"),
             context_message_limit: 12,
             max_turns_per_session: 0,
             presence_enabled: true,

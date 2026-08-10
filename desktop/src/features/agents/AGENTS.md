@@ -79,17 +79,19 @@ with a TypeScript lookup table or an id comparison in a component.
 7. **Onboarding setup detects readiness; it does not select defaults.** The
    setup page derives visible and ready harnesses from the runtime catalog and
    only offers install or sign-in actions. The following defaults page is the
-   sole onboarding surface that chooses `preferred_runtime`. Its complete draft
-   lives in machine-onboarding session state, so Back performs no write and
-   restores even incomplete edits when the user returns. Skip abandons that
-   draft and advances with zero config writes. Next is the only persistence
-   boundary: it consumes the shared renderer's `onValidityChange` signal,
-   disables editing while awaiting `set_global_agent_config`, advances only on
-   success, and leaves the draft in place with a retryable inline error on
-   failure. A harness selection alone does not enable Next when the harness
-   requires provider/model/credential config (e.g. buzz-agent with no
-   provider). Baked build env and runtime-file config satisfy the gate. Drafts
-   intentionally do not survive an app restart.
+   sole onboarding surface that chooses `preferred_runtime`: when no available
+   saved preference exists, it stages the same OMPK-first fallback used by
+   agent creation and deployment (`ompk` → `buzz-agent` → `goose` → first
+   available). Its complete draft lives in machine-onboarding session state, so
+   Back performs no write and restores even incomplete edits when the user
+   returns. Skip abandons that draft and advances with zero config writes. Next
+   is the only persistence boundary: it consumes the shared renderer's
+   `onValidityChange` signal, disables editing while awaiting
+   `set_global_agent_config`, advances only on success, and leaves the draft in
+   place with a retryable inline error on failure. A harness selection alone
+   does not enable Next when the harness requires provider/model/credential
+   config (e.g. buzz-agent with no provider). Baked build env and runtime-file
+   config satisfy the gate. Drafts intentionally do not survive an app restart.
    `onboarding-agent-defaults.spec.ts` is the acceptance gate for anything
    touching this flow or the shared renderer.
 8. **Omit the Model control only after a confirmed successful empty
@@ -104,12 +106,14 @@ with a TypeScript lookup table or an id comparison in a component.
    harness has empty discovery` (and the failed-discovery counterpart) in
    `onboarding-agent-defaults.spec.ts`.
 9. **The defaults modal is progressively disclosed.** An unset global config
-   starts on the Pkzz Agent-first deployment fallback and carries that visible
-   harness into the next saved edit. The `progressive-defaults` disclosure
-   preset therefore begins at Provider for Pkzz Agent, then reveals Model,
-   Effort, and Advanced only after a provider is configured. Harnesses whose
-   runtime metadata has no provider field skip that gate. Reveals animate their
-   height through Motion and become immediate when reduced motion is requested.
+   starts on the OMPK-first deployment fallback and carries that visible
+   harness into the next saved edit. An explicit available saved harness always
+   wins; this fallback never migrates or overwrites user choice. The
+   `progressive-defaults` disclosure preset begins at Provider only when the
+   fallback reaches Pkzz Agent, then reveals Model, Effort, and Advanced after a
+   provider is configured. Harnesses whose runtime metadata has no provider
+   field—including the OMPK preset—skip that gate. Reveals animate their height
+   through Motion and become immediate when reduced motion is requested.
    Once the Advanced toggle is visible, its expanded state is exclusively
    user-controlled: provider, harness, and required-env changes must never
    open it automatically in defaults, create, or edit flows. In Create mode,

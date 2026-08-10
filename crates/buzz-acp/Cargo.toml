@@ -43,6 +43,9 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 
 # IDs
+
+# Crash-safe, cross-platform durable final-delivery record replacement.
+atomic-write-file = "0.3"
 uuid = { workspace = true }
 chrono = { workspace = true }
 

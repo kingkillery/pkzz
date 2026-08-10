@@ -123,30 +123,15 @@ fn preset_entry_without_login_hint_stays_silent() {
     assert!(entry.login_hint.is_none());
 }
 
-/// The Oh My PK preset must probe `ompk`, not `omp`: the two ACP harnesses
-/// coexist, and upstream oh-my-pi owns `omp`, so probing it would report the
-/// fork-specific harness as installed for an unrelated CLI.
+/// OMPK is a rich runtime-catalog entry so it can advertise verified account
+/// and readiness capabilities. The flat preset table keeps upstream OMP
+/// separately available for users who explicitly select it.
 #[test]
-fn ompk_preset_probes_the_fork_specific_binary_and_documents_sign_in() {
-    let preset = PRESET_HARNESSES
-        .iter()
-        .find(|p| p.id == "ompk")
-        .expect("ompk preset present");
-    assert_eq!(preset.command, "ompk");
-    assert_eq!(preset.args, &["acp"]);
-
-    let hint = preset.login_hint.expect("ompk documents its sign-in path");
-    for provider in ["anthropic", "cursor", "openai-codex"] {
-        assert!(
-            hint.contains(provider),
-            "sign-in hint must name the {provider} provider id"
-        );
-    }
-
+fn upstream_omp_preset_remains_available_alongside_the_rich_ompk_runtime() {
     let upstream_omp = PRESET_HARNESSES
         .iter()
         .find(|p| p.id == "omp")
-        .expect("upstream omp preset remains available alongside ompk");
+        .expect("upstream omp preset remains available");
     assert_eq!(upstream_omp.command, "omp");
     assert_eq!(upstream_omp.args, &["acp"]);
 }

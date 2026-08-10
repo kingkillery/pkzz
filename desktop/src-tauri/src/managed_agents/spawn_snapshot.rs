@@ -32,7 +32,7 @@ use serde::Serialize;
 
 use super::{
     effective_config::{resolve_effective_config, EffectiveConfigResult},
-    known_acp_runtime, normalize_agent_args,
+    normalize_agent_args,
     persona_events::preview_prospective_persona_snapshot,
     readiness::EffectiveHarnessDescriptor,
     runtime::{resolve_session_title, SESSION_TITLE_ENV_VAR},
@@ -92,6 +92,9 @@ pub(crate) struct SpawnConfigInputs<'a> {
 /// [`ManagedAgentProcess`]: super::ManagedAgentProcess
 #[derive(Clone, Serialize)]
 pub(crate) struct SpawnConfigSnapshot {
+    /// Effective local catalog identity. A launch-ID edit is restart-relevant
+    /// even when two definitions currently share the same command.
+    pub runtime_id: Option<String>,
     /// The ACP harness binary the desktop launches (`buzz-acp`).
     pub acp_command: String,
     /// The effective agent command the harness drives.
@@ -138,10 +141,12 @@ impl SpawnConfigSnapshot {
             provider,
         } = inputs;
         Self {
+            runtime_id: descriptor.runtime_id.clone(),
             acp_command: record.acp_command.clone(),
             command: descriptor.command.clone(),
             args: descriptor.args.clone(),
-            mcp_command: known_acp_runtime(&descriptor.command)
+            mcp_command: descriptor
+                .known_runtime()
                 .and_then(|runtime| runtime.mcp_command)
                 .unwrap_or("")
                 .to_string(),
@@ -233,6 +238,10 @@ pub(crate) fn prospective_spawn_config_snapshot(
                 let command = crate::managed_agents::record_agent_command(record, personas);
                 let args = normalize_agent_args(&command, record.agent_args.clone());
                 EffectiveHarnessDescriptor {
+                    runtime_id: record
+                        .launch_runtime_id
+                        .clone()
+                        .or_else(|| record.runtime.clone()),
                     command,
                     args,
                     env: Default::default(),

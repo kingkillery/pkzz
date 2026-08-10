@@ -141,6 +141,8 @@ impl AgentDefinition {
             display_name: Some(self.display_name),
             slug: Some(self.id),
             runtime: self.runtime,
+            launch_runtime_id: None,
+            raw_command_explicit: false,
             name_pool: self.name_pool,
             is_builtin: self.is_builtin,
             is_active: self.is_active,
@@ -362,21 +364,34 @@ pub struct ManagedAgentRecord {
     /// agents created directly (never persona-backed).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub slug: Option<String>,
-    /// Absorbed from `AgentDefinition.runtime` — the preferred ACP runtime ID
-    /// (e.g. 'goose', 'claude'). Record-first command resolution reads this
-    /// before falling back to legacy persona lookup; populated by the store
-    /// migration and at create time, and re-mirrored from the linked
-    /// definition at every snapshot apply (`apply_persona_snapshot`).
-    ///
-    /// `None` means "inherit from the linked definition" (the Inherit sentinel
-    /// clears it). Serialization then omits the key, so boot-time
-    /// `materialize_agent_runtimes` re-inserts a mirror of the definition's
-    /// current runtime on the next launch — behaviorally identical, because
-    /// every apply site re-mirrors the live definition anyway. A literal
-    /// `"runtime": null` in the store (key present, e.g. hand-edited) is
-    /// honored: materialization skips it and it deserializes to `None`.
+    /// Snapshot of the linked definition's configured/source runtime ID
+    /// (e.g. `"goose"` or `"claude"`). This is portable definition state,
+    /// not necessarily the catalog runtime that this machine selected to
+    /// launch the instance. `apply_persona_snapshot` keeps it mirrored from
+    /// the live definition.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub runtime: Option<String>,
+    /// Machine-local catalog identity selected to launch this instance.
+    ///
+    /// This is deliberately separate from `runtime`: an unavailable persona
+    /// runtime may be preserved as the source fact while the instance launches
+    /// a different catalog fallback. New ID-backed create/update paths persist
+    /// this value; records written before the field existed deserialize as
+    /// `None` and retain the legacy command/runtime fallback ladder.
+    ///
+    /// Portable definition and relay projections must continue to use
+    /// `runtime`, never this local launch selection.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub launch_runtime_id: Option<String>,
+    /// Durable provenance for an intentional raw command selection.
+    ///
+    /// `false` preserves the pre-identity legacy record semantics: a unique
+    /// catalog identity may be recovered from an explicit command. `true`
+    /// means the caller explicitly selected a raw command (`runtimeId: null`);
+    /// its command and args must remain verbatim and must never select a
+    /// catalog launch spec by command matching.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub raw_command_explicit: bool,
     /// Pool of short thematic names for clones of this agent. Absorbed from
     /// `AgentDefinition.name_pool`; feeds clone naming.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -614,65 +629,6 @@ pub enum AuthStatus {
     Unknown,
 }
 
-/// Origin of an ACP runtime catalog entry. Serializes as a lowercase string so the TypeScript consumer can switch on it without numeric comparisons.
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum HarnessSource {
-    /// Compiled into the app — one of the four first-class runtimes.
-    Builtin,
-    /// Static preset entry with bundled logo, PATH-probed, not editable/deletable.
-    Preset,
-    /// Loaded at runtime from the user's `custom_harnesses/` directory.
-    Custom,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct AcpRuntimeCatalogEntry {
-    pub id: String,
-    pub label: String,
-    pub avatar_url: String,
-    pub availability: AcpAvailabilityStatus,
-    pub command: Option<String>,
-    pub binary_path: Option<String>,
-    pub default_args: Vec<String>,
-    pub mcp_command: Option<String>,
-    /// Environment variable used to apply the initial model, when supported.
-    pub model_env_var: Option<String>,
-    /// Environment variable used to apply the selected LLM provider, when supported.
-    pub provider_env_var: Option<String>,
-    /// Environment variable used to apply thinking effort, when supported.
-    pub thinking_env_var: Option<String>,
-    pub max_tokens_env_var: Option<String>,
-    pub context_limit_env_var: Option<String>,
-    pub max_rounds_env_var: Option<String>,
-    pub install_hint: String,
-    pub install_instructions_url: String,
-    /// true when at least one automated install step is available
-    pub can_auto_install: bool,
-    /// true when this runtime depends on a separately installed vendor CLI.
-    pub requires_external_cli: bool,
-    pub underlying_cli_path: Option<String>,
-    /// true when an npm adapter step is pending but Node.js / npm is absent.
-    /// The UI hides the Install button and shows a Node.js install callout.
-    pub node_required: bool,
-    /// Login/authentication status for CLI-based runtimes.
-    pub auth_status: AuthStatus,
-    /// Hint for completing authentication, shown when `auth_status` is not `logged_in`.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub login_hint: Option<String>,
-    /// Whether this entry came from the compiled-in catalog or a user-supplied
-    /// JSON file in `custom_harnesses/`. The UI uses this to decide editability.
-    pub source: HarnessSource,
-    /// Definition-level env vars for `source: custom` entries; populated from
-    /// `HarnessDefinition.env` so saves don't silently erase existing vars.
-    /// Absent for builtin/preset entries. Skipped when empty in serialization.
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub definition_env: BTreeMap<String, String>,
-    /// Spawn-time parallelism cap; absent for uncapped harnesses.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub max_parallelism: Option<u32>,
-}
-
 /// Result of a single install step (CLI or adapter).
 #[derive(Debug, Clone, Serialize)]
 pub struct InstallStepResult {
@@ -825,6 +781,10 @@ fn default_auto_restart_on_config_change() -> bool {
 
 fn default_record_active() -> bool {
     true
+}
+
+fn is_false(value: &bool) -> bool {
+    !*value
 }
 
 // ── Inbound author gate ──────────────────────────────────────────────────────
@@ -992,6 +952,12 @@ mod catalog_source;
 pub use catalog_source::CatalogSource;
 mod requests;
 pub use requests::*;
+mod runtime_catalog;
+pub use runtime_catalog::{AcpRuntimeCatalogEntry, HarnessSource, RuntimeReadinessStatus};
+
+#[cfg(test)]
+#[path = "types/wave0_foundation_tests.rs"]
+mod wave0_foundation_tests;
 
 #[cfg(test)]
 mod tests;

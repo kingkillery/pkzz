@@ -516,17 +516,55 @@ export function subscribeAgentObserverStore(listener: () => void) {
   };
 }
 
-function isControlResultFrame(payload: unknown): payload is ControlResultFrame {
-  return (
-    typeof payload === "object" &&
-    payload !== null &&
-    typeof (payload as { type?: unknown }).type === "string" &&
-    typeof (payload as { status?: unknown }).status === "string"
-  );
+export function isControlResultFrame(
+  payload: unknown,
+): payload is ControlResultFrame {
+  if (typeof payload !== "object" || payload === null) {
+    return false;
+  }
+  const frame = payload as Record<string, unknown>;
+  if (frame.type === "cancel_turn") {
+    return frame.status === "sent" || frame.status === "no_active_turn";
+  }
+  if (frame.type === "switch_model") {
+    return (
+      typeof frame.modelId === "string" &&
+      [
+        "sent",
+        "turn_ending",
+        "switched",
+        "unsupported_model",
+        "no_active_turn",
+      ].includes(String(frame.status))
+    );
+  }
+  if (
+    frame.type === "control_result" &&
+    frame.command === "permission_decision"
+  ) {
+    return (
+      typeof frame.agentPubkey === "string" &&
+      /^[0-9a-f]{64}$/.test(frame.agentPubkey) &&
+      typeof frame.relayUrl === "string" &&
+      frame.relayUrl.length > 0 &&
+      typeof frame.sessionId === "string" &&
+      frame.sessionId.length > 0 &&
+      typeof frame.requestId === "string" &&
+      frame.requestId.length > 0 &&
+      ["delivered", "not_pending", "invalid"].includes(String(frame.status))
+    );
+  }
+  return false;
 }
 
 function dispatchControlResult(agentPubkey: string, payload: unknown) {
   if (!isControlResultFrame(payload)) {
+    return;
+  }
+  if (
+    payload.type === "control_result" &&
+    normalizePubkey(payload.agentPubkey) !== normalizePubkey(agentPubkey)
+  ) {
     return;
   }
   const subscribers = controlResultListeners.get(normalizePubkey(agentPubkey));
@@ -570,6 +608,13 @@ export function subscribeControlResults(
       controlResultListeners.delete(key);
     }
   };
+}
+/** Test-only seam for validating decrypted control-result dispatch. */
+export function _testDispatchControlResult(
+  agentPubkey: string,
+  payload: unknown,
+) {
+  dispatchControlResult(agentPubkey, payload);
 }
 
 export function getAgentObserverSnapshot(
@@ -749,6 +794,9 @@ export function injectObserverEventsForE2E(
   events: ObserverEvent[],
 ) {
   for (const event of events) {
+    if (event.kind === "control_result") {
+      dispatchControlResult(agentPubkey, event.payload);
+    }
     appendAgentEvent(agentPubkey, event);
   }
   notifyListeners();
@@ -782,6 +830,7 @@ export function resetAgentObserverStore() {
   pendingUnknownAgentFrames.length = 0;
   latestLiveSessionByAgentChannel.clear();
   agentManagementListeners.clear();
+  controlResultListeners.clear();
   onSessionConfigCaptured = null;
   connectionState = "idle";
   errorMessage = null;

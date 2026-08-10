@@ -4,8 +4,13 @@ import {
   useAvailableAcpRuntimes,
   useCreateChannelManagedAgentMutation,
 } from "@/features/agents/hooks";
-import { resolvePersonaRuntime } from "@/features/agents/lib/resolvePersonaRuntime";
+import {
+  getDefaultPersonaRuntime,
+  resolvePersonaRuntime,
+} from "@/features/agents/lib/resolvePersonaRuntime";
+import { availableRuntimesForStart } from "@/features/agents/lib/instanceInputForDefinition";
 import type { AgentPersona } from "@/shared/api/types";
+import { getGlobalAgentConfig } from "@/shared/api/tauriGlobalAgentConfig";
 
 type QuickBotDropState = {
   pending: boolean;
@@ -23,9 +28,6 @@ export function useQuickBotDrop(channelId: string | null) {
     error: null,
   });
 
-  const providers = providersQuery.data ?? [];
-  const defaultProvider = providers[0] ?? null;
-
   const addBot = React.useCallback(
     async (persona: AgentPersona, instanceName: string) => {
       if (state.pending || !channelId) return;
@@ -33,6 +35,14 @@ export function useQuickBotDrop(channelId: string | null) {
       setState({ pending: true, error: null });
 
       try {
+        const [providers, persistedConfig] = await Promise.all([
+          availableRuntimesForStart(providersQuery),
+          getGlobalAgentConfig(),
+        ]);
+        const defaultProvider = getDefaultPersonaRuntime(
+          providers,
+          persistedConfig.preferred_runtime,
+        );
         const { runtime } = resolvePersonaRuntime(
           persona.runtime,
           providers,
@@ -53,6 +63,7 @@ export function useQuickBotDrop(channelId: string | null) {
           systemPrompt: persona.systemPrompt,
           avatarUrl: persona.avatarUrl ?? undefined,
           personaId: persona.id,
+          harnessOverride: false,
           model: persona.model ?? undefined,
         });
 
@@ -64,7 +75,7 @@ export function useQuickBotDrop(channelId: string | null) {
         });
       }
     },
-    [channelId, createMutation, defaultProvider, providers, state.pending],
+    [channelId, createMutation, providersQuery, state.pending],
   );
 
   return { ...state, addBot };

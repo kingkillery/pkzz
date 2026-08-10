@@ -14,6 +14,9 @@ use tokio::process::{Child, ChildStdin, ChildStdout};
 use tokio_util::codec::{FramedRead, LinesCodec, LinesCodecError};
 
 use crate::observer::{ObserverContext, ObserverHandle};
+use crate::permission::{
+    OwnerPermissionDecision, PermissionBinding, PermissionWaitOutcome, PERMISSION_DECISION_TIMEOUT,
+};
 use crate::usage::{TurnUsage, UsageTracker};
 
 /// Maximum allowed size of a single NDJSON line from the agent's stdout.
@@ -71,6 +74,22 @@ impl StopReason {
             "refusal" => Some(Self::Refusal),
             _ => None,
         }
+    }
+}
+/// Sealed terminal result of a matching `session/prompt` request.
+///
+/// The final reply is deliberately supplied only by the acknowledged
+/// host-final extension on that request's result. It is never reconstructed
+/// from streamed updates, tool arguments, thoughts, or permission data.
+#[derive(Debug, Clone, PartialEq)]
+pub struct PromptCompletion {
+    pub stop_reason: StopReason,
+    pub final_reply: Option<String>,
+}
+
+impl PromptCompletion {
+    pub fn is_publishable_terminal(&self) -> bool {
+        matches!(self.stop_reason, StopReason::EndTurn | StopReason::Refusal)
     }
 }
 
@@ -158,6 +177,8 @@ pub struct AcpClient {
     /// Guards against double-response if a timeout fires after the rejection
     /// response was written but before `pending_permission_id` was cleared.
     permission_responded: bool,
+    /// Complete bridge binding for the pending permission request.
+    pending_permission_binding: Option<PermissionBinding>,
     /// The JSON-RPC id of the most recently sent `session/prompt` request.
     /// Used by [`cancel_with_cleanup`] to drain the correct response.
     /// Set in [`session_prompt_with_idle_timeout`]; consumed in [`cancel_with_cleanup`].
@@ -211,6 +232,13 @@ pub struct AcpClient {
     /// deltas. Both goose and buzz-agent emit this notification; goose gates
     /// on client capability advertisement, buzz-agent emits unconditionally.
     goose_usage: UsageTracker,
+    /// Whether initialize acknowledged Pkzz's fixed-route host-final reply
+    /// contract. This gate is independent from the owner-permission bridge.
+    host_final_reply_supported: bool,
+    /// The semantic completion for the most recently completed prompt. It is
+    /// sealed before `last_prompt_id` is cleared, so a control signal that wins
+    /// immediately afterward can recover the actual terminal result.
+    sealed_prompt_completion: Option<PromptCompletion>,
 }
 
 /// Recursively merge `overlay` into `base`, with `overlay` winning on scalar/shape
@@ -387,6 +415,11 @@ enum SteerTransport {
     AcpExtension,
 }
 
+const OWNER_PERMISSION_BRIDGE_VERSION: u64 = 1;
+const OWNER_PERMISSION_BRIDGE_POLICY: &str = "write_exec_always_ask";
+const OWNER_PERMISSION_TOOL_CALL_MAX_BYTES: usize = 32 * 1024;
+const HOST_FINAL_REPLY_VERSION: u64 = 1;
+
 fn build_client_capabilities() -> serde_json::Value {
     serde_json::json!({
         // Signal to ACP adapters that Pkzz can hand users to terminal-native
@@ -402,12 +435,61 @@ fn build_client_capabilities() -> serde_json::Value {
             "goose": {
                 "customNotifications": true
             },
+            "pkzz": {
+                "ownerPermissionBridge": {
+                    "version": OWNER_PERMISSION_BRIDGE_VERSION
+                },
+                "hostFinalReply": {
+                    "version": HOST_FINAL_REPLY_VERSION
+                }
+            },
             // Non-standard extension used by claude-agent-acp to advertise the
             // exact terminal login argv for subscription auth. Unknown `_meta`
             // keys are ignored by other adapters.
             "terminal-auth": true
         }
     })
+}
+
+fn is_oh_my_pk_identity(result: &serde_json::Value) -> bool {
+    ["/agentInfo/name", "/serverInfo/name"]
+        .into_iter()
+        .filter_map(|pointer| result.pointer(pointer))
+        .filter_map(serde_json::Value::as_str)
+        .map(str::trim)
+        .any(|name| name.eq_ignore_ascii_case("oh-my-pk"))
+}
+
+fn validate_owner_permission_handshake(result: &serde_json::Value) -> Result<(), AcpError> {
+    if !is_oh_my_pk_identity(result) {
+        return Ok(());
+    }
+
+    let version = result
+        .pointer("/_meta/pkzz/ownerPermissionBridge/version")
+        .and_then(serde_json::Value::as_u64);
+    let policy = result
+        .pointer("/_meta/pkzz/ownerPermissionBridge/policy")
+        .and_then(serde_json::Value::as_str);
+    if version != Some(OWNER_PERMISSION_BRIDGE_VERSION)
+        || policy != Some(OWNER_PERMISSION_BRIDGE_POLICY)
+    {
+        return Err(AcpError::Protocol(format!(
+            "oh-my-pk did not acknowledge owner permission bridge v{OWNER_PERMISSION_BRIDGE_VERSION} \
+             policy {OWNER_PERMISSION_BRIDGE_POLICY:?}"
+        )));
+    }
+    Ok(())
+}
+
+/// Host-final acknowledgement is intentionally independent from the mandatory
+/// OMPK owner-permission bridge handshake. Legacy and other ACP adapters may
+/// omit it and retain their existing publication behavior.
+fn host_final_reply_acknowledged(result: &serde_json::Value) -> bool {
+    result
+        .pointer("/_meta/pkzz/hostFinalReply/version")
+        .and_then(serde_json::Value::as_u64)
+        == Some(HOST_FINAL_REPLY_VERSION)
 }
 
 impl AcpClient {
@@ -541,6 +623,7 @@ impl AcpClient {
             next_id: 0,
             pending_permission_id: None,
             permission_responded: false,
+            pending_permission_binding: None,
             last_prompt_id: None,
             current_hard_deadline: None,
             observer: None,
@@ -550,6 +633,8 @@ impl AcpClient {
             steering_supported: false,
             steer_rx: None,
             goose_usage: UsageTracker::default(),
+            host_final_reply_supported: false,
+            sealed_prompt_completion: None,
         })
     }
 
@@ -600,10 +685,12 @@ impl AcpClient {
         // on ACP v2 ahead of the upstream ACP RFD. Revisit when that RFD merges.
         let params = build_initialize_params();
         let result = self.send_request("initialize", params).await?;
+        validate_owner_permission_handshake(&result)?;
         self.steering_supported = result
             .pointer("/_meta/steering/supported")
             .and_then(|v| v.as_bool())
             .unwrap_or(false);
+        self.host_final_reply_supported = host_final_reply_acknowledged(&result);
         tracing::debug!(target: "acp::init", "initialize response: {result}");
         Ok(result)
     }
@@ -768,6 +855,10 @@ impl AcpClient {
         idle_timeout: std::time::Duration,
         max_duration: std::time::Duration,
     ) -> Result<StopReason, AcpError> {
+        // A completion must never survive into a new request. In particular,
+        // output from session setup or a cancelled prior turn cannot become a
+        // candidate for this prompt.
+        self.sealed_prompt_completion = None;
         let params = build_prompt_params(session_id, prompt_blocks);
         let hard_deadline = tokio::time::Instant::now() + max_duration;
         self.current_hard_deadline = Some(hard_deadline);
@@ -805,23 +896,33 @@ impl AcpClient {
             )
             .await;
 
-        // On timeout errors, leave current_hard_deadline set so cancel_with_cleanup
-        // can inherit the remaining budget. Clear it on all other outcomes.
-        match &result {
-            Ok(_) => {
+        match result {
+            Ok(response) => {
+                // Seal before exposing the completed request to the pool's
+                // control-race branch. The outer select may drop this future
+                // after these assignments, but the client-owned completion
+                // remains available to take exactly once.
+                let completion = self.parse_prompt_completion(&response)?;
+                let stop_reason = completion.stop_reason.clone();
+                self.sealed_prompt_completion = Some(completion);
                 self.last_prompt_id = None;
                 self.current_hard_deadline = None;
+                Ok(stop_reason)
             }
-            Err(AcpError::IdleTimeout(_) | AcpError::HardTimeout { .. }) => {
-                // Leave last_prompt_id and current_hard_deadline set —
-                // caller will invoke cancel_with_cleanup.
-            }
-            Err(_) => {
-                self.last_prompt_id = None;
-                self.current_hard_deadline = None;
+            Err(error) => {
+                self.sealed_prompt_completion = None;
+                // On timeout errors, leave current_hard_deadline set so
+                // cancel_with_cleanup can inherit the remaining budget.
+                if !matches!(
+                    error,
+                    AcpError::IdleTimeout(_) | AcpError::HardTimeout { .. }
+                ) {
+                    self.last_prompt_id = None;
+                    self.current_hard_deadline = None;
+                }
+                Err(error)
             }
         }
-        self.parse_stop_reason(&result?)
     }
 
     /// Send a `session/cancel` **notification** (no `id` field, no response expected).
@@ -865,6 +966,20 @@ impl AcpClient {
     /// for the supervisor's post-initialize log line.
     pub fn steering_supported(&self) -> bool {
         self.steering_supported
+    }
+
+    /// Whether this ACP process explicitly acknowledged host-final reply v1.
+    pub fn host_final_reply_supported(&self) -> bool {
+        self.host_final_reply_supported
+    }
+
+    /// Consume the sealed completion for the most recently finished prompt.
+    ///
+    /// This is intentionally a take, not a borrow: one ACP prompt may produce
+    /// at most one automatic host reply, and a future prompt clears any stale
+    /// completion before it is sent.
+    pub fn take_prompt_completion(&mut self) -> Option<PromptCompletion> {
+        self.sealed_prompt_completion.take()
     }
 
     /// Consume and return the per-turn usage record computed from the most
@@ -996,6 +1111,9 @@ impl AcpClient {
         session_id: &str,
         hard_deadline: tokio::time::Instant,
     ) -> Result<StopReason, AcpError> {
+        // A cancellation response is never a publishable completion, even if a
+        // rogue adapter includes extension metadata while draining.
+        self.sealed_prompt_completion = None;
         // Validate precondition before any side effects — fail fast if there's
         // no in-flight prompt (prevents writing permission responses or cancel
         // notifications to the agent when no prompt is active).
@@ -1003,18 +1121,30 @@ impl AcpClient {
             AcpError::Protocol("cancel_with_cleanup called with no in-flight prompt".into())
         })?;
 
-        // Step 1: respond to any pending permission request with "cancelled",
-        // but only if we haven't already responded (guards against double-response race).
+        // Step 1: unregister and answer any pending permission before sending
+        // `session/cancel`. Dropping the prompt future normally removes the
+        // waiter via RAII; this explicit cancellation closes the remaining
+        // state before any wire-side cleanup.
+        if let Some(binding) = self.pending_permission_binding.clone() {
+            if let Some(observer) = &self.observer {
+                let _ = observer.cancel_permission(&binding);
+            }
+        }
         if let Some(perm_id) = self.pending_permission_id.clone() {
             if !self.permission_responded {
                 let response = permission_response_cancelled(&perm_id);
                 self.write_ndjson(&response).await?;
+                self.permission_responded = true;
+                if let Some(binding) = self.pending_permission_binding.as_ref() {
+                    self.emit_permission_resolved(binding, &perm_id, "cancelled");
+                }
                 tracing::debug!(
                     target: "acp::cancel",
-                    "responded cancelled to pending permission id={perm_id}"
+                    "responded cancelled to pending permission request"
                 );
             }
             self.pending_permission_id = None;
+            self.pending_permission_binding = None;
             self.permission_responded = false;
         }
 
@@ -1195,9 +1325,6 @@ impl AcpClient {
                 continue;
             }
 
-            // Only log and reset idle after we have a valid non-empty line.
-            tracing::debug!(target: "acp::wire", "← {trimmed}");
-
             let msg: serde_json::Value = match serde_json::from_str(trimmed) {
                 Ok(v) => v,
                 Err(e) => {
@@ -1215,6 +1342,7 @@ impl AcpClient {
                     continue;
                 }
             };
+            trace_acp_inbound(&msg, trimmed);
             self.observe("acp_read", msg.clone());
 
             // Check if this is a response to our expected request (has matching id
@@ -1239,7 +1367,7 @@ impl AcpClient {
                         self.handle_goose_usage_update(&msg);
                     }
                     "session/request_permission" => {
-                        self.handle_permission_request(&msg).await?;
+                        self.handle_permission_request(&msg, None).await?;
                     }
                     other => {
                         // If the unknown message has an id, it's a request expecting a reply.
@@ -1309,18 +1437,16 @@ impl AcpClient {
         // so the ack_tx oneshot is never leaked silently).
         let mut steer_rx = self.steer_rx.take();
 
-        // Tracks the in-flight steer write: `(request_id, transport, ack_tx)`.
+        // Tracks the in-flight steer write: `(request_id, transport, request)`.
         // While `Some`, the steer arm is gated off so we don't stack writes,
-        // and a response matching `id` is routed to the ack_tx instead
-        // of being treated as the prompt result. `transport` records which
-        // method was written so the response arm decodes the result shape
-        // that method actually returns. Drained on every return path with
+        // and a response matching `id` is routed to the request's ack_tx
+        // instead of being treated as the prompt result. `transport` records
+        // which method was written so the response arm decodes the result
+        // shape that method actually returns. Keeping the request here also
+        // makes its source-event replay fence available before a consecutive
+        // prompt response can be read. Drained on every return path with
         // `PromptCompletedNeutral` so callers are never left hanging.
-        let mut pending_steer: Option<(
-            u64,
-            SteerTransport,
-            tokio::sync::oneshot::Sender<crate::pool::SteerAck>,
-        )> = None;
+        let mut pending_steer: Option<(u64, SteerTransport, crate::pool::SteerRequest)> = None;
 
         let now = Instant::now();
         let mut idle_deadline = now + idle_timeout;
@@ -1345,12 +1471,14 @@ impl AcpClient {
             // exists). Check the classified deadline here so a steady-
             // stream agent is still bounded.
             if Instant::now() >= next_deadline {
-                if let Some((_, _, ack_tx)) = pending_steer.take() {
+                if let Some((_, _, request)) = pending_steer.take() {
                     // Prompt is timing out — release the withheld event via
                     // PromptCompletedNeutral (no fallback signal: there is
                     // no in-flight turn to signal once we return, and
                     // normal dispatch handles redelivery).
-                    let _ = ack_tx.send(crate::pool::SteerAck::PromptCompletedNeutral);
+                    let _ = request
+                        .ack_tx
+                        .send(crate::pool::SteerAck::PromptCompletedNeutral);
                 }
                 if idle_fires_first {
                     tracing::warn!("idle timeout ({idle_timeout:?}) — no agent activity");
@@ -1447,7 +1575,7 @@ impl AcpClient {
                             );
                             match self.write_ndjson(&msg).await {
                                 Ok(()) => {
-                                    pending_steer = Some((id, transport, req.ack_tx));
+                                    pending_steer = Some((id, transport, req));
                                 }
                                 Err(e) => {
                                     tracing::warn!(
@@ -1470,8 +1598,10 @@ impl AcpClient {
                     // would catch this anyway, but firing the deadline arm
                     // here makes the wakeup immediate (no extra reader poll
                     // round-trip when stdout is idle).
-                    if let Some((_, _, ack_tx)) = pending_steer.take() {
-                        let _ = ack_tx.send(crate::pool::SteerAck::PromptCompletedNeutral);
+                    if let Some((_, _, request)) = pending_steer.take() {
+                        let _ = request
+                            .ack_tx
+                            .send(crate::pool::SteerAck::PromptCompletedNeutral);
                     }
                     if idle_fires_first {
                         tracing::warn!("idle timeout ({idle_timeout:?}) — no agent activity");
@@ -1494,22 +1624,28 @@ impl AcpClient {
 
             match read_result {
                 None => {
-                    if let Some((_, _, ack_tx)) = pending_steer.take() {
-                        let _ = ack_tx.send(crate::pool::SteerAck::PromptCompletedNeutral);
+                    if let Some((_, _, request)) = pending_steer.take() {
+                        let _ = request
+                            .ack_tx
+                            .send(crate::pool::SteerAck::PromptCompletedNeutral);
                     }
                     return Err(AcpError::AgentExited);
                 }
                 Some(Err(LinesCodecError::MaxLineLengthExceeded)) => {
-                    if let Some((_, _, ack_tx)) = pending_steer.take() {
-                        let _ = ack_tx.send(crate::pool::SteerAck::PromptCompletedNeutral);
+                    if let Some((_, _, request)) = pending_steer.take() {
+                        let _ = request
+                            .ack_tx
+                            .send(crate::pool::SteerAck::PromptCompletedNeutral);
                     }
                     return Err(AcpError::Protocol(
                         "agent stdout line exceeded 10MB limit".into(),
                     ));
                 }
                 Some(Err(e)) => {
-                    if let Some((_, _, ack_tx)) = pending_steer.take() {
-                        let _ = ack_tx.send(crate::pool::SteerAck::PromptCompletedNeutral);
+                    if let Some((_, _, request)) = pending_steer.take() {
+                        let _ = request
+                            .ack_tx
+                            .send(crate::pool::SteerAck::PromptCompletedNeutral);
                     }
                     return Err(AcpError::Io(std::io::Error::other(e)));
                 }
@@ -1518,8 +1654,6 @@ impl AcpClient {
                     if trimmed.is_empty() {
                         continue;
                     }
-
-                    tracing::debug!(target: "acp::wire", "← {trimmed}");
 
                     let msg: serde_json::Value = match serde_json::from_str(trimmed) {
                         Ok(v) => v,
@@ -1538,6 +1672,7 @@ impl AcpClient {
                             continue;
                         }
                     };
+                    trace_acp_inbound(&msg, trimmed);
                     self.observe("acp_read", msg.clone());
 
                     let activity_now = Instant::now();
@@ -1553,11 +1688,11 @@ impl AcpClient {
                         if msg.get("method").is_none() {
                             if let Some((steer_id, _, _)) = pending_steer.as_ref() {
                                 if *id == serde_json::json!(*steer_id) {
-                                    // Take the ack_tx out and route the
+                                    // Take the request out and route the
                                     // response. We do not return — keep
                                     // reading until the prompt response
                                     // arrives.
-                                    let (_, transport, ack_tx) =
+                                    let (_, transport, request) =
                                         pending_steer.take().expect("just checked");
                                     let ack = if let Some(error) = msg.get("error") {
                                         let code = error
@@ -1647,21 +1782,31 @@ impl AcpClient {
                                             }
                                         }
                                     };
-                                    let _ = ack_tx.send(ack);
+                                    if matches!(&ack, crate::pool::SteerAck::Success) {
+                                        let source_event_id = request.source_event_id;
+                                        let mut source_event_ids =
+                                            request.source_event_ids.lock().await;
+                                        if !source_event_ids.contains(&source_event_id) {
+                                            source_event_ids.push(source_event_id);
+                                        }
+                                    }
+                                    let _ = request.ack_tx.send(ack);
                                     continue;
                                 }
                             }
                             if *id == serde_json::json!(expected_id) {
                                 if let Some(error) = msg.get("error") {
-                                    if let Some((_, _, ack_tx)) = pending_steer.take() {
-                                        let _ = ack_tx
+                                    if let Some((_, _, request)) = pending_steer.take() {
+                                        let _ = request
+                                            .ack_tx
                                             .send(crate::pool::SteerAck::PromptCompletedNeutral);
                                     }
                                     return Err(agent_error_from_json(error));
                                 }
-                                if let Some((_, _, ack_tx)) = pending_steer.take() {
-                                    let _ =
-                                        ack_tx.send(crate::pool::SteerAck::PromptCompletedNeutral);
+                                if let Some((_, _, request)) = pending_steer.take() {
+                                    let _ = request
+                                        .ack_tx
+                                        .send(crate::pool::SteerAck::PromptCompletedNeutral);
                                 }
                                 return Ok(msg["result"].clone());
                             }
@@ -1683,7 +1828,15 @@ impl AcpClient {
                                 self.handle_goose_usage_update(&msg);
                             }
                             "session/request_permission" => {
-                                self.handle_permission_request(&msg).await?;
+                                self.handle_permission_request(&msg, Some(hard_deadline))
+                                    .await?;
+                                // The agent is synchronously blocked on its ACP
+                                // client response while the owner decides. Pause
+                                // the idle clock for that wait, but never move the
+                                // absolute hard turn deadline.
+                                let resumed_at = Instant::now();
+                                idle_deadline = resumed_at + idle_timeout;
+                                last_activity_at = resumed_at;
                             }
                             other => {
                                 // If the unknown message has an id, it's a request expecting a reply.
@@ -1871,57 +2024,237 @@ impl AcpClient {
         }
     }
 
-    /// Reject a `session/request_permission` request from the agent.
-    ///
-    /// Pkzz has no human permission prompt in this harness, so selecting
-    /// `allow_once` would turn any admitted prompt into an implicit approval.
-    /// Find `reject_once` by kind when the adapter offers it; otherwise use the
-    /// protocol's cancelled outcome, which is also fail-closed.
-    ///
-    /// The request `id` is stored as `serde_json::Value` to support both numeric
-    /// and string IDs per JSON-RPC 2.0.
-    async fn handle_permission_request(&mut self, msg: &serde_json::Value) -> Result<(), AcpError> {
-        // Extract id as a Value — JSON-RPC 2.0 allows both numeric and string IDs.
-        let id = msg
-            .get("id")
-            .cloned()
-            .ok_or_else(|| AcpError::Protocol("permission request missing id".into()))?;
+    /// Broker one `session/request_permission` through the authenticated owner
+    /// control channel. Every malformed, unavailable, cancelled, or expired
+    /// path writes a fail-closed response.
+    async fn handle_permission_request(
+        &mut self,
+        msg: &serde_json::Value,
+        hard_deadline: Option<tokio::time::Instant>,
+    ) -> Result<(), AcpError> {
+        let id = valid_permission_rpc_id(msg)?;
+        let options = msg
+            .pointer("/params/options")
+            .and_then(serde_json::Value::as_array)
+            .map(Vec::as_slice)
+            .unwrap_or(&[]);
+        let parsed_options = parse_permission_options(options);
+        let request_session = msg
+            .pointer("/params/sessionId")
+            .and_then(serde_json::Value::as_str)
+            .filter(|value| !value.is_empty());
+        let live_session = self.observer_context.session_id.as_deref();
+        let session_valid = request_session.is_some() && request_session == live_session;
+        let tool_call = project_permission_tool_call(msg.pointer("/params/toolCall"));
+        let request_valid = parsed_options.is_ok() && session_valid && tool_call.is_ok();
+        let deadline = permission_decision_deadline(hard_deadline);
 
-        // Store pending permission id so cancel_with_cleanup can respond to it.
         self.pending_permission_id = Some(id.clone());
-        // Mark as not yet responded — guards against double-response race.
+        self.pending_permission_binding = None;
         self.permission_responded = false;
 
-        let options = msg["params"]["options"]
-            .as_array()
-            .ok_or_else(|| AcpError::Protocol("permission request missing options".into()))?;
+        if !request_valid {
+            // Give a well-bound but non-actionable invalid request a fresh
+            // correlation UUID for truthful transcript resolution. It is
+            // removed before publishing, so it can never be approved.
+            let invalid_binding = if session_valid {
+                self.observer.as_ref().and_then(|observer| {
+                    observer
+                        .begin_permission(
+                            request_session.expect("session_valid"),
+                            self.observer_context.clone(),
+                            deadline,
+                        )
+                        .map(|waiter| {
+                            let binding = waiter.binding().clone();
+                            let expires_at = waiter.expires_at().to_owned();
+                            drop(waiter);
+                            (binding, expires_at)
+                        })
+                })
+            } else {
+                None
+            };
+            if let Some((binding, expires_at)) = invalid_binding.as_ref() {
+                self.pending_permission_binding = Some(binding.clone());
+                self.emit_permission_requested(
+                    binding,
+                    &id,
+                    expires_at,
+                    serde_json::Value::Null,
+                    false,
+                    false,
+                );
+            }
 
-        tracing::debug!(
-            target: "acp::permission",
-            "session/request_permission id={id}, {} options",
-            options.len()
-        );
+            let response = permission_response_cancelled(&id);
+            self.write_permission_response_until(&response, hard_deadline)
+                .await?;
+            self.permission_responded = true;
+            if let Some((binding, _)) = invalid_binding.as_ref() {
+                self.emit_permission_resolved(binding, &id, "invalid_request");
+            }
+            self.pending_permission_id = None;
+            self.pending_permission_binding = None;
+            return Ok(());
+        }
 
-        let response = permission_denial_response(&id, options)?;
+        let parsed_options = parsed_options.expect("request_valid");
+        let tool_call = tool_call.expect("request_valid");
+        let waiter = self.observer.as_ref().and_then(|observer| {
+            observer.begin_permission(
+                request_session.expect("request_valid"),
+                self.observer_context.clone(),
+                deadline,
+            )
+        });
+        let Some(waiter) = waiter else {
+            let response = permission_denial_response(&id, options)?;
+            self.write_permission_response_until(&response, hard_deadline)
+                .await?;
+            self.permission_responded = true;
+            self.pending_permission_id = None;
+            return Ok(());
+        };
 
-        // Write the response first, then mark as responded.
-        //
-        // Previous ordering (flag-before-write) was intended to guard against a
-        // double-response if a timeout fires between write and flag-set. However,
-        // the deadlock risk is worse: if write_ndjson fails (e.g. WriteTimeout),
-        // the flag would be true but no response was actually sent. Then
-        // cancel_with_cleanup would see permission_responded=true, skip sending
-        // the cancelled outcome, and the agent would hang waiting for a reply
-        // that never arrives — a guaranteed deadlock.
-        //
-        // The correct fix: set the flag AFTER a successful write. The double-
-        // response window (between write completion and flag-set) is negligibly
-        // small and bounded by a single memory store; the deadlock window was
-        // unbounded.
-        self.write_ndjson(&response).await?;
+        let binding = waiter.binding().clone();
+        self.pending_permission_binding = Some(binding.clone());
+        self.emit_permission_requested(&binding, &id, waiter.expires_at(), tool_call, true, true);
+
+        let (response, terminal_outcome) = match waiter.wait().await {
+            PermissionWaitOutcome::Decision(OwnerPermissionDecision::ApproveOnce) => (
+                permission_response_selected(&id, &parsed_options.allow_once),
+                "approved",
+            ),
+            PermissionWaitOutcome::Decision(OwnerPermissionDecision::Reject) => (
+                permission_reject_response(&id, parsed_options.reject_once.as_deref()),
+                "rejected",
+            ),
+            PermissionWaitOutcome::Expired => (
+                permission_reject_response(&id, parsed_options.reject_once.as_deref()),
+                "expired",
+            ),
+            PermissionWaitOutcome::Cancelled => (permission_response_cancelled(&id), "cancelled"),
+            PermissionWaitOutcome::Unavailable => (
+                permission_reject_response(&id, parsed_options.reject_once.as_deref()),
+                "unavailable",
+            ),
+        };
+
+        // The semantic terminal event is emitted only after the ACP response
+        // has been flushed successfully. A relay-delivered decision alone is
+        // never represented as execution approval.
+        self.write_permission_response_until(&response, hard_deadline)
+            .await?;
         self.permission_responded = true;
+        self.emit_permission_resolved(&binding, &id, terminal_outcome);
         self.pending_permission_id = None;
+        self.pending_permission_binding = None;
         Ok(())
+    }
+
+    async fn write_permission_response_until(
+        &mut self,
+        response: &serde_json::Value,
+        hard_deadline: Option<tokio::time::Instant>,
+    ) -> Result<(), AcpError> {
+        let Some(deadline) = hard_deadline else {
+            return self.write_ndjson(response).await;
+        };
+        if tokio::time::Instant::now() >= deadline {
+            return Err(AcpError::HardTimeout {
+                silence: std::time::Duration::ZERO,
+            });
+        }
+        match tokio::time::timeout_at(deadline, self.write_ndjson(response)).await {
+            Ok(result) => result,
+            Err(_) => Err(AcpError::HardTimeout {
+                silence: std::time::Duration::ZERO,
+            }),
+        }
+    }
+
+    fn emit_permission_requested(
+        &self,
+        binding: &PermissionBinding,
+        rpc_id: &serde_json::Value,
+        expires_at: &str,
+        tool_call: serde_json::Value,
+        details_complete: bool,
+        can_approve_once: bool,
+    ) {
+        self.observe(
+            "permission_requested",
+            serde_json::json!({
+                "requestId": binding.request_id,
+                "agentPubkey": binding.agent_pubkey,
+                "relayUrl": binding.relay_url,
+                "sessionId": binding.session_id,
+                "rpcId": rpc_id,
+                "expiresAt": expires_at,
+                "toolCall": tool_call,
+                "detailsComplete": details_complete,
+                "canApproveOnce": can_approve_once,
+            }),
+        );
+    }
+
+    fn emit_permission_resolved(
+        &self,
+        binding: &PermissionBinding,
+        rpc_id: &serde_json::Value,
+        outcome: &str,
+    ) {
+        self.observe(
+            "permission_resolved",
+            serde_json::json!({
+                "requestId": binding.request_id,
+                "agentPubkey": binding.agent_pubkey,
+                "relayUrl": binding.relay_url,
+                "sessionId": binding.session_id,
+                "rpcId": rpc_id,
+                "outcome": outcome,
+            }),
+        );
+    }
+
+    /// Parse the typed, capability-gated final reply from the matching prompt
+    /// response. Absent metadata is a valid legacy/no-final completion; once a
+    /// host-final adapter sends the metadata it must use the exact v1 shape.
+    fn parse_prompt_completion(
+        &self,
+        result: &serde_json::Value,
+    ) -> Result<PromptCompletion, AcpError> {
+        let stop_reason = self.parse_stop_reason(result)?;
+        if !self.host_final_reply_supported {
+            return Ok(PromptCompletion {
+                stop_reason,
+                final_reply: None,
+            });
+        }
+
+        let Some(meta) = result.pointer("/_meta/pkzz/hostFinalReply") else {
+            return Ok(PromptCompletion {
+                stop_reason,
+                final_reply: None,
+            });
+        };
+        let version = meta.get("version").and_then(serde_json::Value::as_u64);
+        let delivery_id = meta.get("deliveryId").and_then(serde_json::Value::as_str);
+        let content = meta.get("content").and_then(serde_json::Value::as_str);
+        if version != Some(HOST_FINAL_REPLY_VERSION)
+            || delivery_id != Some("final")
+            || content.is_none()
+        {
+            return Err(AcpError::Protocol(
+                "invalid _meta.pkzz.hostFinalReply prompt completion".into(),
+            ));
+        }
+
+        Ok(PromptCompletion {
+            stop_reason,
+            final_reply: content.map(str::to_owned),
+        })
     }
 
     /// Parse `stopReason` from a `session/prompt` result value.
@@ -2014,40 +2347,183 @@ fn permission_response_cancelled(id: &serde_json::Value) -> serde_json::Value {
     })
 }
 
-/// Choose the fail-closed response to a `session/request_permission` request.
-///
-/// Pkzz has no human permission prompt in this harness, so selecting
-/// `allow_once` would turn any admitted prompt into an implicit approval.
-/// Prefer the adapter's `reject_once` option — matched by `kind`, never by a
-/// hardcoded `optionId` — and fall back to the protocol's cancelled outcome for
-/// adapters that do not offer one. Both answers deny.
-///
-/// Kept free of the client so the decision is testable without an agent
-/// subprocess: `AcpClient` owns a real `Child` and its stdio pipes.
+fn permission_reject_response(
+    id: &serde_json::Value,
+    reject_once_id: Option<&str>,
+) -> serde_json::Value {
+    reject_once_id
+        .map(|option_id| permission_response_selected(id, option_id))
+        .unwrap_or_else(|| permission_response_cancelled(id))
+}
+
+/// Choose the fail-closed response by semantic option kind. A missing,
+/// malformed, or duplicated `reject_once` falls back to protocol cancellation.
 fn permission_denial_response(
     id: &serde_json::Value,
     options: &[serde_json::Value],
 ) -> Result<serde_json::Value, AcpError> {
-    let reject_once = options
+    let reject_ids = options
         .iter()
-        .find(|opt| opt.get("kind").and_then(|k| k.as_str()) == Some("reject_once"));
-
-    let Some(opt) = reject_once else {
-        tracing::warn!(
-            target: "acp::permission",
-            "no reject_once option found in permission request id={id}, cancelling"
-        );
-        return Ok(permission_response_cancelled(id));
+        .filter(|option| {
+            option
+                .get("kind")
+                .and_then(serde_json::Value::as_str)
+                .is_some_and(|kind| kind == "reject_once")
+        })
+        .map(|option| {
+            option
+                .get("optionId")
+                .and_then(serde_json::Value::as_str)
+                .map(str::trim)
+                .filter(|option_id| !option_id.is_empty())
+                .ok_or_else(|| {
+                    AcpError::Protocol("reject_once permission option missing optionId".into())
+                })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let reject_once_id = match reject_ids.as_slice() {
+        [] => None,
+        [option_id] => Some(*option_id),
+        _ => {
+            return Err(AcpError::Protocol(
+                "permission request contains duplicate reject_once options".into(),
+            ));
+        }
     };
+    Ok(permission_reject_response(id, reject_once_id))
+}
 
-    let option_id = opt["optionId"]
-        .as_str()
-        .ok_or_else(|| AcpError::Protocol("reject_once option missing optionId".into()))?;
-    tracing::info!(
-        target: "acp::permission",
-        "rejecting permission id={id} with reject_once optionId={option_id:?}"
-    );
-    Ok(permission_response_selected(id, option_id))
+#[derive(Debug, PartialEq, Eq)]
+struct PermissionOptionIds {
+    allow_once: String,
+    reject_once: Option<String>,
+}
+
+fn parse_permission_options(
+    options: &[serde_json::Value],
+) -> Result<PermissionOptionIds, &'static str> {
+    let mut allow_once = Vec::new();
+    let mut reject_once = Vec::new();
+    for option in options {
+        let object = option
+            .as_object()
+            .ok_or("permission option must be an object")?;
+        let option_id = object
+            .get("optionId")
+            .and_then(serde_json::Value::as_str)
+            .filter(|value| !value.is_empty())
+            .ok_or("permission option missing optionId")?;
+        object
+            .get("name")
+            .and_then(serde_json::Value::as_str)
+            .filter(|value| !value.is_empty())
+            .ok_or("permission option missing name")?;
+        let kind = object
+            .get("kind")
+            .and_then(serde_json::Value::as_str)
+            .ok_or("permission option missing kind")?;
+        match kind {
+            "allow_once" => allow_once.push(option_id.to_owned()),
+            "reject_once" => reject_once.push(option_id.to_owned()),
+            "allow_always" | "reject_always" => {}
+            _ => return Err("permission option has unknown kind"),
+        }
+    }
+    if allow_once.len() != 1 {
+        return Err("permission request must contain exactly one allow_once option");
+    }
+    if reject_once.len() > 1 {
+        return Err("permission request contains duplicate reject_once options");
+    }
+    Ok(PermissionOptionIds {
+        allow_once: allow_once.pop().expect("len == 1"),
+        reject_once: reject_once.pop(),
+    })
+}
+
+fn valid_permission_rpc_id(msg: &serde_json::Value) -> Result<serde_json::Value, AcpError> {
+    match msg.get("id") {
+        Some(id @ (serde_json::Value::String(_) | serde_json::Value::Number(_))) => Ok(id.clone()),
+        _ => Err(AcpError::Protocol(
+            "permission request id must be a JSON string or number".into(),
+        )),
+    }
+}
+
+fn permission_decision_deadline(
+    hard_deadline: Option<tokio::time::Instant>,
+) -> tokio::time::Instant {
+    let permission_deadline = tokio::time::Instant::now() + PERMISSION_DECISION_TIMEOUT;
+    hard_deadline
+        .map(|hard| hard.min(permission_deadline))
+        .unwrap_or(permission_deadline)
+}
+
+fn project_permission_tool_call(
+    tool_call: Option<&serde_json::Value>,
+) -> Result<serde_json::Value, &'static str> {
+    let object = tool_call
+        .and_then(serde_json::Value::as_object)
+        .ok_or("permission request missing toolCall")?;
+    let title = object
+        .get("title")
+        .and_then(serde_json::Value::as_str)
+        .filter(|value| !value.is_empty())
+        .ok_or("permission toolCall missing title")?;
+    let tool_call_id = object
+        .get("toolCallId")
+        .and_then(serde_json::Value::as_str)
+        .filter(|value| !value.is_empty())
+        .ok_or("permission toolCall missing toolCallId")?;
+    let raw_input = object
+        .get("rawInput")
+        .filter(|value| !value.is_null())
+        .ok_or("permission toolCall missing rawInput")?;
+
+    let mut projection = serde_json::Map::new();
+    projection.insert("title".into(), title.into());
+    projection.insert("toolCallId".into(), tool_call_id.into());
+    if let Some(kind) = object.get("kind") {
+        let kind = kind
+            .as_str()
+            .filter(|value| !value.is_empty())
+            .ok_or("permission toolCall kind must be a nonempty string")?;
+        projection.insert("kind".into(), kind.into());
+    }
+    projection.insert("rawInput".into(), raw_input.clone());
+    if let Some(content) = object.get("content") {
+        if !content.is_array() {
+            return Err("permission toolCall content must be an array");
+        }
+        projection.insert("content".into(), content.clone());
+    }
+    if let Some(locations) = object.get("locations") {
+        if !locations.is_array() {
+            return Err("permission toolCall locations must be an array");
+        }
+        projection.insert("locations".into(), locations.clone());
+    }
+
+    let projection = serde_json::Value::Object(projection);
+    if serde_json::to_vec(&projection)
+        .map_err(|_| "permission toolCall was not serializable")?
+        .len()
+        > OWNER_PERMISSION_TOOL_CALL_MAX_BYTES
+    {
+        return Err("permission toolCall exceeds semantic detail budget");
+    }
+    Ok(projection)
+}
+
+fn trace_acp_inbound(msg: &serde_json::Value, raw: &str) {
+    if msg.get("method").and_then(serde_json::Value::as_str) == Some("session/request_permission") {
+        tracing::debug!(
+            target: "acp::wire",
+            "← session/request_permission (operation details redacted)"
+        );
+    } else {
+        tracing::debug!(target: "acp::wire", "← {raw}");
+    }
 }
 
 /// Full `session/new` response — session ID plus the raw JSON result.
@@ -2460,6 +2936,208 @@ mod tests {
             Some(true),
             "goose customNotifications capability must be advertised"
         );
+        assert_eq!(
+            msg["params"]["clientCapabilities"]["_meta"]["pkzz"]["hostFinalReply"]["version"]
+                .as_u64(),
+            Some(HOST_FINAL_REPLY_VERSION),
+            "host-final v1 must be explicitly advertised"
+        );
+    }
+
+    #[test]
+    fn host_final_acknowledgement_requires_exact_v1() {
+        assert!(host_final_reply_acknowledged(&serde_json::json!({
+            "_meta": { "pkzz": { "hostFinalReply": { "version": 1 } } }
+        })));
+        for result in [
+            serde_json::json!({}),
+            serde_json::json!({ "_meta": { "pkzz": { "hostFinalReply": {} } } }),
+            serde_json::json!({ "_meta": { "pkzz": { "hostFinalReply": { "version": 2 } } } }),
+            serde_json::json!({ "_meta": { "pkzz": { "hostFinalReply": { "version": "1" } } } }),
+        ] {
+            assert!(
+                !host_final_reply_acknowledged(&result),
+                "only exact numeric v1 enables host-final replies: {result}"
+            );
+        }
+    }
+
+    #[test]
+    fn owner_permission_handshake_identity_and_bridge_contract() {
+        let bridge = serde_json::json!({
+            "_meta": {
+                "pkzz": {
+                    "ownerPermissionBridge": {
+                        "version": OWNER_PERMISSION_BRIDGE_VERSION,
+                        "policy": OWNER_PERMISSION_BRIDGE_POLICY
+                    }
+                }
+            }
+        });
+        let bridge_with_host_final = serde_json::json!({
+            "_meta": {
+                "pkzz": {
+                    "ownerPermissionBridge": {
+                        "version": OWNER_PERMISSION_BRIDGE_VERSION,
+                        "policy": OWNER_PERMISSION_BRIDGE_POLICY
+                    },
+                    "hostFinalReply": { "version": HOST_FINAL_REPLY_VERSION }
+                }
+            }
+        });
+
+        // serverInfo-only OMPK without bridge → reject
+        assert!(validate_owner_permission_handshake(&serde_json::json!({
+            "serverInfo": { "name": "oh-my-pk" }
+        }))
+        .is_err());
+
+        // both agentInfo+serverInfo OMPK without bridge → reject
+        assert!(validate_owner_permission_handshake(&serde_json::json!({
+            "agentInfo": { "name": "oh-my-pk" },
+            "serverInfo": { "name": "oh-my-pk" }
+        }))
+        .is_err());
+
+        // agentInfo OMPK with correct bridge → accept
+        let mut agent_ok = bridge.clone();
+        agent_ok["agentInfo"] = serde_json::json!({ "name": "oh-my-pk" });
+        assert!(validate_owner_permission_handshake(&agent_ok).is_ok());
+
+        // serverInfo-only OMPK with correct bridge → accept
+        let mut server_ok = bridge.clone();
+        server_ok["serverInfo"] = serde_json::json!({ "name": "Oh-My-Pk" });
+        assert!(validate_owner_permission_handshake(&server_ok).is_ok());
+
+        // non-OMPK without bridge → accept
+        assert!(validate_owner_permission_handshake(&serde_json::json!({
+            "agentInfo": { "name": "goose" }
+        }))
+        .is_ok());
+
+        // OMPK bridge version=1 but wrong/missing policy → reject
+        assert!(validate_owner_permission_handshake(&serde_json::json!({
+            "agentInfo": { "name": "oh-my-pk" },
+            "_meta": { "pkzz": { "ownerPermissionBridge": { "version": 1 } } }
+        }))
+        .is_err());
+        assert!(validate_owner_permission_handshake(&serde_json::json!({
+            "serverInfo": { "name": "oh-my-pk" },
+            "_meta": {
+                "pkzz": {
+                    "ownerPermissionBridge": {
+                        "version": 1,
+                        "policy": "not-the-contract"
+                    }
+                }
+            }
+        }))
+        .is_err());
+
+        // OMPK correct policy but version != 1 → reject
+        assert!(validate_owner_permission_handshake(&serde_json::json!({
+            "agentInfo": { "name": "oh-my-pk" },
+            "_meta": {
+                "pkzz": {
+                    "ownerPermissionBridge": {
+                        "version": 2,
+                        "policy": OWNER_PERMISSION_BRIDGE_POLICY
+                    }
+                }
+            }
+        }))
+        .is_err());
+
+        // missing hostFinalReply does not fail owner-permission validation
+        let mut no_host_final = bridge.clone();
+        no_host_final["agentInfo"] = serde_json::json!({ "name": "oh-my-pk" });
+        assert!(validate_owner_permission_handshake(&no_host_final).is_ok());
+        assert!(!host_final_reply_acknowledged(&no_host_final));
+
+        let mut both = bridge_with_host_final.clone();
+        both["serverInfo"] = serde_json::json!({ "name": "oh-my-pk" });
+        assert!(validate_owner_permission_handshake(&both).is_ok());
+        assert!(host_final_reply_acknowledged(&both));
+    }
+
+    /// Hermetic initialize acceptance: a shim returns the exact Pkzz bridge
+    /// metadata shape (`ownerPermissionBridge.version=1`,
+    /// `policy="write_exec_always_ask"`, plus host-final ack when advertised).
+    ///
+    /// Residual: `desktop/tests/e2e/observer-permission-bridge.spec.ts` remains
+    /// mock-based and does not exercise this real initialize ack path.
+    #[tokio::test]
+    async fn initialize_accepts_hermetic_ompk_bridge_ack_shape() {
+        let script = r#"
+read -r _req
+printf '%s\n' '{"jsonrpc":"2.0","id":0,"result":{"protocolVersion":1,"agentInfo":{"name":"oh-my-pk","title":"oh-my-pk","version":"fixture"},"_meta":{"pkzz":{"ownerPermissionBridge":{"version":1,"policy":"write_exec_always_ask"},"hostFinalReply":{"version":1}}},"agentCapabilities":{}}}'
+"#;
+        let mut client = spawn_script(script).await;
+        client
+            .initialize()
+            .await
+            .expect("hermetic OMPK bridge initialize must succeed");
+        assert!(
+            client.host_final_reply_supported(),
+            "host-final ack must be recorded from the hermetic initialize fixture"
+        );
+        client.shutdown().await;
+    }
+
+    /// Env-gated live probe against a real `ompk acp` binary.
+    ///
+    /// Required OMPK minimum behavior when this test runs:
+    /// - identify as oh-my-pk
+    /// - acknowledge `_meta.pkzz.ownerPermissionBridge = { version: 1, policy: "write_exec_always_ask" }`
+    /// - acknowledge `_meta.pkzz.hostFinalReply = { version: 1 }` when advertised
+    ///
+    /// Skips cleanly when neither `OMPK_BIN` nor PATH `ompk` is available.
+    #[tokio::test]
+    async fn initialize_live_ompk_bridge_probe_when_binary_available() {
+        let ompk_bin = std::env::var_os("OMPK_BIN")
+            .map(std::path::PathBuf::from)
+            .or_else(|| which_ompk_on_path());
+        let Some(ompk_bin) = ompk_bin else {
+            eprintln!("skipping live OMPK initialize probe: OMPK_BIN/PATH ompk unavailable");
+            return;
+        };
+        if !ompk_bin.is_file() {
+            eprintln!(
+                "skipping live OMPK initialize probe: binary missing at {}",
+                ompk_bin.display()
+            );
+            return;
+        }
+
+        let mut client = AcpClient::spawn(
+            ompk_bin.to_str().expect("OMPK_BIN must be UTF-8"),
+            &["acp".into()],
+            &[],
+            false,
+        )
+        .await
+        .expect("spawn live ompk acp");
+        client
+            .initialize()
+            .await
+            .expect("live ompk must acknowledge owner-permission bridge v1 write_exec_always_ask");
+        assert!(
+            client.host_final_reply_supported(),
+            "live ompk must acknowledge host-final reply v1"
+        );
+        client.shutdown().await;
+    }
+
+    fn which_ompk_on_path() -> Option<std::path::PathBuf> {
+        let path = std::env::var_os("PATH")?;
+        for dir in std::env::split_paths(&path) {
+            for candidate in [dir.join("ompk.exe"), dir.join("ompk"), dir.join("ompk.cmd")] {
+                if candidate.is_file() {
+                    return Some(candidate);
+                }
+            }
+        }
+        None
     }
 
     #[test]
@@ -2915,9 +3593,31 @@ mod tests {
             "HardTimeout display: {msg}"
         );
     }
+    fn test_shell() -> String {
+        if let Ok(shell) = std::env::var("BUZZ_ACP_TEST_SHELL") {
+            if !shell.trim().is_empty() {
+                return shell;
+            }
+        }
+        #[cfg(windows)]
+        {
+            if let Some(candidate) = std::env::var_os("ProgramFiles").map(|root| {
+                std::path::Path::new(&root)
+                    .join("Git")
+                    .join("bin")
+                    .join("bash.exe")
+            }) {
+                if candidate.is_file() {
+                    return candidate.to_string_lossy().into_owned();
+                }
+            }
+        }
+        "bash".to_string()
+    }
 
     async fn spawn_script(script: &str) -> AcpClient {
-        AcpClient::spawn("bash", &["-c".into(), script.into()], &[], false)
+        let shell = test_shell();
+        AcpClient::spawn(&shell, &["-c".into(), script.into()], &[], false)
             .await
             .expect("failed to spawn test script")
     }
@@ -3255,10 +3955,11 @@ mod tests {
 
     #[tokio::test]
     async fn keepalive_resets_idle_past_deadline() {
-        // Keepalive session/update lines every 50ms against a 100ms idle deadline.
-        // The turn should survive well past the 100ms deadline (proves the fix).
+        // Keepalive session/update lines every 50ms against a 500ms idle deadline.
+        // Windows subprocess scheduling can delay a 50ms shell sleep, but not
+        // enough to cross this deliberately generous threshold.
         let mut client = spawn_script(
-            r#"for i in $(seq 1 20); do echo '{"jsonrpc":"2.0","method":"session/update","params":{"update":{"sessionUpdate":"keepalive"}}}'; sleep 0.05; done; sleep 10"#,
+            r#"for i in $(seq 1 12); do echo '{"jsonrpc":"2.0","method":"session/update","params":{"update":{"sessionUpdate":"keepalive"}}}'; sleep 0.05; done; sleep 10"#,
         )
         .await;
         let max_dur = std::time::Duration::from_secs(10);
@@ -3268,16 +3969,16 @@ mod tests {
             .read_until_response_with_idle_timeout(
                 "test",
                 999,
-                std::time::Duration::from_millis(100),
+                std::time::Duration::from_millis(500),
                 hard_deadline,
                 max_dur,
             )
             .await;
         let elapsed = start.elapsed();
-        // 20 keepalives × 50ms = ~1000ms of activity, then idle fires after 100ms more.
-        // Must survive well past the 100ms deadline.
+        // 12 keepalives × 50ms = ~600ms of activity, then idle fires after 500ms.
+        // The turn must survive well past a single idle window.
         assert!(
-            elapsed >= std::time::Duration::from_millis(500),
+            elapsed >= std::time::Duration::from_millis(800),
             "keepalive should reset idle past the deadline; elapsed only {elapsed:?}"
         );
         assert!(elapsed < std::time::Duration::from_secs(5));
@@ -3591,6 +4292,85 @@ mod tests {
             .expect("spawn cat as inert client")
     }
 
+    #[tokio::test]
+    async fn host_final_completion_uses_only_matching_prompt_result_metadata() {
+        let mut client = spawn_inert_client().await;
+        client.host_final_reply_supported = true;
+        let response = serde_json::json!({
+            "stopReason": "end_turn",
+            "_meta": {
+                "pkzz": {
+                    "hostFinalReply": {
+                        "version": 1,
+                        "deliveryId": "final",
+                        "content": "The semantic final answer."
+                    }
+                }
+            }
+        });
+
+        let unsupported = spawn_inert_client().await;
+        let completion_without_ack = unsupported
+            .parse_prompt_completion(&response)
+            .expect("unacknowledged metadata is not a protocol error");
+        assert_eq!(completion_without_ack.final_reply, None);
+
+        let completion = client
+            .parse_prompt_completion(&response)
+            .expect("valid host-final completion");
+        assert_eq!(completion.stop_reason, StopReason::EndTurn);
+        assert_eq!(
+            completion.final_reply.as_deref(),
+            Some("The semantic final answer.")
+        );
+
+        // Reader-side chunks remain observer-only and cannot manufacture a
+        // sealed completion.
+        let chunk = serde_json::json!({
+            "method": "session/update",
+            "params": {
+                "update": {
+                    "sessionUpdate": "agent_message_chunk",
+                    "content": { "text": "untrusted chunk" }
+                }
+            }
+        });
+        let _ = client.handle_session_update(&chunk);
+        assert!(
+            client.take_prompt_completion().is_none(),
+            "a chunk must never become final-reply content"
+        );
+
+        client.sealed_prompt_completion = Some(completion.clone());
+        assert_eq!(client.take_prompt_completion(), Some(completion));
+        assert!(
+            client.take_prompt_completion().is_none(),
+            "sealed completion is a one-time take"
+        );
+    }
+
+    #[tokio::test]
+    async fn host_final_completion_rejects_wrong_delivery_shape() {
+        let mut client = spawn_inert_client().await;
+        client.host_final_reply_supported = true;
+        let malformed = serde_json::json!({
+            "stopReason": "end_turn",
+            "_meta": {
+                "pkzz": {
+                    "hostFinalReply": {
+                        "version": 1,
+                        "deliveryId": "additional",
+                        "content": "must not publish"
+                    }
+                }
+            }
+        });
+        assert!(matches!(
+            client.parse_prompt_completion(&malformed),
+            Err(AcpError::Protocol(_))
+        ));
+    }
+
     /// Build a `session/update` JSON-RPC notification carrying a
     /// `session_info_update` with the given `_meta.goose.activeRunId` value.
     /// Pass `None` to omit the `activeRunId` field entirely.
@@ -3698,6 +4478,19 @@ mod tests {
     // We don't test the full mode-gate fork here — that lives in lib.rs
     // and is covered by goose e2e (Eva's lane).
 
+    fn test_steer_request(
+        prompt_blocks: Vec<String>,
+        ack_tx: tokio::sync::oneshot::Sender<crate::pool::SteerAck>,
+    ) -> crate::pool::SteerRequest {
+        crate::pool::SteerRequest {
+            prompt_blocks,
+            source_event_id: nostr::EventId::from_hex(&"0".repeat(64))
+                .expect("valid dummy source event ID"),
+            source_event_ids: std::sync::Arc::new(tokio::sync::Mutex::new(Vec::new())),
+            ack_tx,
+        }
+    }
+
     /// Steer with no `active_run_id` set acks `ExpectedRunIdMissing`
     /// without writing anything. The read loop continues normally and
     /// eventually hits the idle timeout (which is fine — we just need to
@@ -3720,10 +4513,7 @@ mod tests {
         let (ack_tx, ack_rx) = tokio::sync::oneshot::channel::<crate::pool::SteerAck>();
         let send_task = tokio::spawn(async move {
             steer_tx
-                .send(crate::pool::SteerRequest {
-                    prompt_blocks: vec!["test steer body".into()],
-                    ack_tx,
-                })
+                .send(test_steer_request(vec!["test steer body".into()], ack_tx))
                 .await
                 .expect("steer_tx send should succeed");
         });
@@ -3789,10 +4579,7 @@ mod tests {
         let (ack_tx, ack_rx) = tokio::sync::oneshot::channel::<crate::pool::SteerAck>();
         let send_task = tokio::spawn(async move {
             steer_tx
-                .send(crate::pool::SteerRequest {
-                    prompt_blocks: vec!["test steer body".into()],
-                    ack_tx,
-                })
+                .send(test_steer_request(vec!["test steer body".into()], ack_tx))
                 .await
                 .expect("steer_tx send should succeed");
         });
@@ -3861,10 +4648,7 @@ mod tests {
         let (ack_tx, ack_rx) = tokio::sync::oneshot::channel::<crate::pool::SteerAck>();
         let send_task = tokio::spawn(async move {
             steer_tx
-                .send(crate::pool::SteerRequest {
-                    prompt_blocks: vec!["steer body".into()],
-                    ack_tx,
-                })
+                .send(test_steer_request(vec!["steer body".into()], ack_tx))
                 .await
                 .expect("steer_tx send should succeed");
         });
@@ -3910,11 +4694,19 @@ mod tests {
         capture_path: &std::path::Path,
         response: &str,
     ) -> AcpClient {
+        let capture = capture_path.to_string_lossy().replace('\\', "/");
+        #[cfg(windows)]
+        let capture = capture
+            .split_once(":/")
+            .filter(|(drive, _)| drive.len() == 1 && drive.as_bytes()[0].is_ascii_alphabetic())
+            .map_or_else(
+                || capture.clone(),
+                |(drive, rest)| format!("/{}/{}", drive.to_ascii_lowercase(), rest),
+            );
+        let capture = capture.replace('\'', "'\\''");
         let script = format!(
-            "read -r line; printf '%s' \"$line\" > {capture}; \
+            "read -r line; printf '%s' \"$line\" > '{capture}'; \
              printf '%s\\n' '{response}'; sleep 10",
-            capture = capture_path.display(),
-            response = response,
         );
         spawn_script(&script).await
     }
@@ -3935,10 +4727,7 @@ mod tests {
         let (ack_tx, ack_rx) = tokio::sync::oneshot::channel::<crate::pool::SteerAck>();
         let send_task = tokio::spawn(async move {
             steer_tx
-                .send(crate::pool::SteerRequest {
-                    prompt_blocks: vec!["steer body".into()],
-                    ack_tx,
-                })
+                .send(test_steer_request(vec!["steer body".into()], ack_tx))
                 .await
                 .expect("steer_tx send should succeed");
         });
@@ -4185,10 +4974,7 @@ mod tests {
         let (ack_tx, ack_rx) = tokio::sync::oneshot::channel::<crate::pool::SteerAck>();
         let send_task = tokio::spawn(async move {
             steer_tx
-                .send(crate::pool::SteerRequest {
-                    prompt_blocks: vec!["steer body".into()],
-                    ack_tx,
-                })
+                .send(test_steer_request(vec!["steer body".into()], ack_tx))
                 .await
                 .expect("steer_tx send should succeed");
         });
@@ -4238,10 +5024,7 @@ mod tests {
         let (ack_tx, ack_rx) = tokio::sync::oneshot::channel::<crate::pool::SteerAck>();
         let send_task = tokio::spawn(async move {
             steer_tx
-                .send(crate::pool::SteerRequest {
-                    prompt_blocks: vec!["steer body".into()],
-                    ack_tx,
-                })
+                .send(test_steer_request(vec!["steer body".into()], ack_tx))
                 .await
                 .expect("steer_tx send should succeed");
         });

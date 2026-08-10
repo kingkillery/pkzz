@@ -27,11 +27,8 @@ import {
 } from "@/features/agents/hooks";
 import { useGlobalAgentConfig } from "@/features/agents/useGlobalAgentConfig";
 import { AddAgentToChannelDialog } from "@/features/agents/ui/AddAgentToChannelDialog";
-import {
-  availableRuntimesForStart,
-  buildInstanceInputForDefinition,
-  resolveStartRuntimeForDefinition,
-} from "@/features/agents/lib/instanceInputForDefinition";
+import { buildInstanceInputForDefinition } from "@/features/agents/lib/instanceInputForDefinition";
+import { resolveProfileStartRuntime } from "@/features/profile/ui/resolveProfileStartRuntime";
 import { describeLogFile } from "@/features/agents/ui/agentUi";
 import { AgentDialog } from "@/features/agents/ui/AgentDialog";
 import { useAgentLifecycleActions } from "@/features/profile/ui/useAgentLifecycleActions";
@@ -124,7 +121,7 @@ export function UserProfilePanel({
   widthPx,
   transparentChrome = false,
 }: UserProfilePanelProps) {
-  const { globalConfig } = useGlobalAgentConfig();
+  const { refetchGlobalConfig } = useGlobalAgentConfig();
   const isOverlay = useIsThreadPanelOverlay();
   const isSplitLayout = layout === "split";
   useEscapeKey(onClose, isOverlay || isSinglePanelView);
@@ -421,11 +418,10 @@ export function UserProfilePanel({
 
   const createManagedAgentForPersona = React.useCallback(
     async (personaToStart: AgentPersona) => {
-      const runtimes = await availableRuntimesForStart(availableRuntimesQuery);
-      const { runtime, warnings } = resolveStartRuntimeForDefinition(
+      const { runtime, warnings } = await resolveProfileStartRuntime(
         personaToStart,
-        runtimes,
-        globalConfig.preferred_runtime,
+        availableRuntimesQuery,
+        refetchGlobalConfig,
       );
 
       for (const warning of warnings) {
@@ -445,7 +441,7 @@ export function UserProfilePanel({
     [
       availableRuntimesQuery,
       createAgentMutation.mutateAsync,
-      globalConfig.preferred_runtime,
+      refetchGlobalConfig,
       managedAgentsQuery.refetch,
       relayAgentsQuery.refetch,
     ],

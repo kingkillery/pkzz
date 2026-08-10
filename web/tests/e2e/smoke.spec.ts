@@ -248,7 +248,9 @@ test("invite asks Safari users to choose their Mac download", async ({
   await chooser.getByRole("link", { name: /Newer Mac/ }).click();
   const openedPage = await openedPagePromise;
   await expect(chooser).toBeHidden();
-  await expect(openedPage).toHaveURL("https://github.com/kingkillery/pkzz/releases");
+  await expect(openedPage).toHaveURL(
+    "https://github.com/kingkillery/pkzz/releases",
+  );
   await expect(page).toHaveURL(/\/invite\/demo-code$/);
   await openedPage.close();
 

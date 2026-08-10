@@ -15,9 +15,12 @@ export function isEditableEntry(entry: AcpRuntimeCatalogEntry): boolean {
 }
 
 /**
- * Count managed agents whose effective harness is the given definition id —
- * either a direct record-level `runtime` pin, or inheritance from a linked
- * persona whose `runtime` is that id.
+ * Count managed agents that reference the given definition id through either
+ * their effective selected runtime or an unpinned linked persona source.
+ *
+ * A fallback instance can therefore reference two definitions: the runtime it
+ * currently launches and the unavailable persona runtime it still inherits.
+ * An explicit instance pin does not retain that source dependency.
  *
  * Drives the delete-confirmation copy: deleting a harness that agents still
  * reference is allowed (blocking would turn cleanup into dependency
@@ -25,13 +28,19 @@ export function isEditableEntry(entry: AcpRuntimeCatalogEntry): boolean {
  */
 export function countAgentsReferencingHarness(
   harnessId: string,
-  agents: ReadonlyArray<{ runtime: string | null; personaId: string | null }>,
+  agents: ReadonlyArray<{
+    runtime: string | null;
+    personaId: string | null;
+    agentCommandOverride: string | null;
+  }>,
   personas: ReadonlyArray<{ id: string; runtime: string | null }>,
 ): number {
   const personaRuntime = new Map(personas.map((p) => [p.id, p.runtime]));
   return agents.filter((agent) => {
-    if (agent.runtime !== null) return agent.runtime === harnessId;
-    if (agent.personaId === null) return false;
+    if (agent.runtime === harnessId) return true;
+    if (agent.agentCommandOverride != null || agent.personaId === null) {
+      return false;
+    }
     return personaRuntime.get(agent.personaId) === harnessId;
   }).length;
 }
@@ -79,7 +88,11 @@ export function deleteConfirmState(
   harnessId: string,
   label: string,
   agents: BlastRadiusQuery<
-    ReadonlyArray<{ runtime: string | null; personaId: string | null }>
+    ReadonlyArray<{
+      runtime: string | null;
+      personaId: string | null;
+      agentCommandOverride: string | null;
+    }>
   >,
   personas: BlastRadiusQuery<
     ReadonlyArray<{ id: string; runtime: string | null }>

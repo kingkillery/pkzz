@@ -1,6 +1,7 @@
 import type { AcpRuntimeCatalogEntry } from "@/shared/api/types";
 
 export const ONBOARDING_RUNTIME_ORDER = [
+  "ompk",
   "claude",
   "codex",
   "goose",
@@ -17,9 +18,7 @@ export function runtimeIsVisibleInOnboarding(runtimeId: string) {
 
 export function runtimeIsReadyForOnboarding(runtime: AcpRuntimeCatalogEntry) {
   return (
-    runtime.availability === "available" &&
-    (runtime.authStatus.status === "logged_in" ||
-      runtime.authStatus.status === "not_applicable")
+    runtime.availability === "available" && runtime.runtimeReadiness === "ready"
   );
 }
 

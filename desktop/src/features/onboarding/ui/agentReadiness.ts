@@ -5,73 +5,66 @@ import type {
 } from "@/shared/api/types";
 
 export type AgentReadinessResult =
-  | { ready: true; reason: "cli"; runtimeLabel: string }
-  | { ready: true; reason: "buzz-agent" }
+  | { ready: true; reason: "runtime"; runtimeLabel: string }
+  | { ready: true; reason: "configured"; runtimeLabel: string }
   | { ready: false };
 
 /**
  * Determine whether the user has a working agent path configured.
  *
- * CLI path: the preferred Claude or Codex runtime is available and logged in.
- * Provider path: the preferred Pkzz Agent or Goose runtime has provider and
- * model set, plus all required credential env vars for that provider.
- *
- * Returns enough info for the UI to say which path matched, or that neither did.
+ * Rust owns operational readiness. Runtimes whose catalog metadata projects
+ * provider/model environment fields additionally need those normalized global
+ * values and their provider credentials. No runtime ID is used as a
+ * capability or readiness signal.
  */
+function runtimeIsConfigured(
+  runtime: AcpRuntimeCatalogEntry,
+  globalConfig: GlobalAgentConfig,
+): boolean {
+  if (
+    runtime.availability !== "available" ||
+    runtime.runtimeReadiness !== "ready"
+  ) {
+    return false;
+  }
+
+  const needsProvider = runtime.providerEnvVar !== null;
+  const needsModel = runtime.modelEnvVar !== null;
+  const provider = globalConfig.provider?.trim() ?? "";
+  const model = globalConfig.model?.trim() ?? "";
+  if ((needsProvider && !provider) || (needsModel && !model)) {
+    return false;
+  }
+
+  const required = needsProvider
+    ? requiredCredentialEnvKeys(runtime.id, provider)
+    : [];
+  return required.every(
+    (key) => (globalConfig.env_vars[key] ?? "").trim().length > 0,
+  );
+}
+
 export function resolveAgentReadiness(
   runtimes: readonly AcpRuntimeCatalogEntry[],
   globalConfig: GlobalAgentConfig,
   scope: "any" | "preferred" = "any",
 ): AgentReadinessResult {
-  if (scope === "any") {
-    for (const runtime of runtimes) {
-      if (runtime.id === "buzz-agent") continue;
-      if (
-        runtime.availability === "available" &&
-        (runtime.authStatus.status === "logged_in" ||
-          runtime.authStatus.status === "not_applicable")
-      ) {
-        return { ready: true, reason: "cli", runtimeLabel: runtime.label };
-      }
-    }
-  }
-
-  const preferredRuntime =
+  const candidates =
     scope === "preferred"
-      ? runtimes.find(
+      ? runtimes.filter(
           (runtime) => runtime.id === globalConfig.preferred_runtime,
         )
-      : runtimes.find((runtime) => runtime.id === "buzz-agent");
-  if (preferredRuntime?.availability !== "available") {
-    return { ready: false };
-  }
+      : runtimes;
 
-  if (
-    (preferredRuntime.id === "claude" || preferredRuntime.id === "codex") &&
-    (preferredRuntime.authStatus.status === "logged_in" ||
-      preferredRuntime.authStatus.status === "not_applicable")
-  ) {
+  for (const runtime of candidates) {
+    if (!runtimeIsConfigured(runtime, globalConfig)) continue;
+    const requiresNormalizedConfig =
+      runtime.providerEnvVar !== null || runtime.modelEnvVar !== null;
     return {
       ready: true,
-      reason: "cli",
-      runtimeLabel: preferredRuntime.label,
+      reason: requiresNormalizedConfig ? "configured" : "runtime",
+      runtimeLabel: runtime.label,
     };
-  }
-
-  if (preferredRuntime.id !== "buzz-agent" && preferredRuntime.id !== "goose") {
-    return { ready: false };
-  }
-
-  const provider = globalConfig.provider?.trim() ?? "";
-  const model = globalConfig.model?.trim() ?? "";
-  if (provider.length > 0 && model.length > 0) {
-    const required = requiredCredentialEnvKeys(preferredRuntime.id, provider);
-    const allKeysPresent = required.every(
-      (key) => (globalConfig.env_vars[key] ?? "").trim().length > 0,
-    );
-    if (allKeysPresent) {
-      return { ready: true, reason: "buzz-agent" };
-    }
   }
 
   return { ready: false };

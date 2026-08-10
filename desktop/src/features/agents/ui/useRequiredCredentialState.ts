@@ -49,6 +49,7 @@ export interface RequiredCredentialState {
 export function useRequiredCredentialState(params: {
   open: boolean;
   prospectiveRuntimeId: string;
+  providerEnvVar?: string | null;
   provider: string;
   /** Global provider default; used as fallback when per-agent provider is empty. */
   globalProvider?: string;
@@ -64,6 +65,7 @@ export function useRequiredCredentialState(params: {
   const {
     open,
     prospectiveRuntimeId,
+    providerEnvVar,
     provider,
     globalProvider = "",
     envVars,
@@ -72,7 +74,7 @@ export function useRequiredCredentialState(params: {
   } = params;
 
   const providerForRequiredKeys = runtimeSupportsLlmProviderSelection(
-    prospectiveRuntimeId,
+    providerEnvVar,
   )
     ? provider.trim() || globalProvider.trim()
     : "";

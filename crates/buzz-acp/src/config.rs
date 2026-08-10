@@ -4,7 +4,7 @@
 //! Config file (TOML) for complex subscription rules.
 
 use std::collections::{HashMap, HashSet};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use clap::Parser;
 use clap::ValueEnum;
@@ -336,6 +336,12 @@ pub struct CliArgs {
     #[arg(long, env = "BUZZ_ACP_CONFIG", default_value = "./buzz-acp.toml")]
     pub config: PathBuf,
 
+    /// Durable host-final delivery records. Desktop supplies a protected,
+    /// pair-scoped app-data directory; direct harness use defaults beside this
+    /// config file so delivery recovery is stable across process restarts.
+    #[arg(long, env = "BUZZ_ACP_HOST_FINAL_OUTBOX_DIR")]
+    pub host_final_outbox_dir: Option<PathBuf>,
+
     #[arg(long, env = "BUZZ_ACP_DEDUP", default_value = "queue", value_enum)]
     pub dedup: DedupMode,
 
@@ -515,6 +521,9 @@ pub struct Config {
     pub channels_override: Option<Vec<String>>,
     pub no_mention_filter: bool,
     pub config_path: PathBuf,
+    /// Durable final-reply delivery directory. Never defaults to a temporary
+    /// process path: pending signed events must survive restart.
+    pub host_final_outbox_dir: PathBuf,
     pub context_message_limit: u32,
     /// Maximum turns per session before proactive rotation. 0 = disabled.
     pub max_turns_per_session: u32,
@@ -821,6 +830,14 @@ pub fn propagate_legacy_env_vars() {
     }
 }
 
+fn default_host_final_outbox_dir(config_path: &Path) -> PathBuf {
+    config_path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."))
+        .join("host-final-outbox")
+}
+
 impl Config {
     pub fn from_cli() -> Result<Self, ConfigError> {
         // Legacy env-var propagation is intentionally NOT done here.
@@ -1054,6 +1071,11 @@ impl Config {
 
         validate_multiple_event_handling(args.multiple_event_handling, args.dedup)?;
 
+        let host_final_outbox_dir = args
+            .host_final_outbox_dir
+            .take()
+            .unwrap_or_else(|| default_host_final_outbox_dir(&args.config));
+
         let config = Config {
             keys,
             relay_url: args.relay_url,
@@ -1082,6 +1104,7 @@ impl Config {
             channels_override: args.channels,
             no_mention_filter: args.no_mention_filter,
             config_path: args.config,
+            host_final_outbox_dir,
             context_message_limit: args.context_message_limit,
             max_turns_per_session: args.max_turns_per_session,
             presence_enabled: !args.no_presence,
@@ -1456,6 +1479,7 @@ mod tests {
             channels_override: None,
             no_mention_filter: false,
             config_path: PathBuf::from("./buzz-acp.toml"),
+            host_final_outbox_dir: PathBuf::from("./host-final-outbox"),
             context_message_limit: 12,
             max_turns_per_session: 0,
             presence_enabled: true,
@@ -2719,6 +2743,18 @@ channels = "ALL"
         assert!(
             !s.contains("allowed_respond_to="),
             "summary should not include allowed_respond_to when empty: {s}"
+        );
+    }
+
+    #[test]
+    fn host_final_outbox_default_is_stably_config_adjacent() {
+        assert_eq!(
+            default_host_final_outbox_dir(Path::new("state/agent.toml")),
+            PathBuf::from("state").join("host-final-outbox")
+        );
+        assert_eq!(
+            default_host_final_outbox_dir(Path::new("agent.toml")),
+            PathBuf::from(".").join("host-final-outbox")
         );
     }
 

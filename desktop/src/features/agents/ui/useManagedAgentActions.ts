@@ -37,7 +37,7 @@ import {
 } from "../lib/instanceInputForDefinition";
 
 export function useManagedAgentActions() {
-  const { globalConfig } = useGlobalAgentConfig();
+  const { refetchGlobalConfig } = useGlobalAgentConfig();
   const relayAgentsQuery = useRelayAgentsQuery();
   const managedAgentsQuery = useManagedAgentsQuery();
   const [shouldLoadChannels, setShouldLoadChannels] = React.useState(false);
@@ -192,11 +192,14 @@ export function useManagedAgentActions() {
     setPersonaStartPending(persona.id, true);
     clearFeedback();
     try {
-      const runtimes = await availableRuntimesForStart(availableRuntimesQuery);
+      const [runtimes, persistedConfig] = await Promise.all([
+        availableRuntimesForStart(availableRuntimesQuery),
+        refetchGlobalConfig(),
+      ]);
       const { runtime, warnings } = resolveStartRuntimeForDefinition(
         persona,
         runtimes,
-        globalConfig.preferred_runtime,
+        persistedConfig.preferred_runtime,
       );
       const input = await buildInstanceInputForDefinition(persona, runtime);
 

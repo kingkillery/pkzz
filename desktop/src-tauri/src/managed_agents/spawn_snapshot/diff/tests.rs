@@ -9,6 +9,7 @@ const RELAY_WITH_TOKEN: &str = "wss://relay.example/ws?token=SENTINEL";
 fn base() -> SpawnConfigSnapshot {
     SpawnConfigSnapshot {
         acp_command: "buzz-acp".into(),
+        runtime_id: None,
         command: "goose".into(),
         args: vec!["--mode".into(), "acp".into()],
         mcp_command: "goose-mcp".into(),
@@ -49,6 +50,7 @@ type Mutation = (&'static str, fn(&mut SpawnConfigSnapshot));
 fn mutations() -> Vec<Mutation> {
     vec![
         ("acp_command", |s| s.acp_command = "other-acp".into()),
+        ("runtime_id", |s| s.runtime_id = Some("ompk".into())),
         ("command", |s| s.command = "claude".into()),
         ("args", |s| s.args = vec!["--other".into()]),
         ("mcp_command", |s| s.mcp_command = String::new()),

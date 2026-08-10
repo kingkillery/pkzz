@@ -8,7 +8,10 @@ import {
   AgentConfigFields,
   EMPTY_GLOBAL_CONFIG,
 } from "@/features/agents/ui/AgentConfigFields";
-import { resetConfigForHarnessChange } from "@/features/agents/ui/agentConfigOptions";
+import {
+  getDefaultPersonaRuntime,
+  resetConfigForHarnessChange,
+} from "@/features/agents/ui/agentConfigOptions";
 import { AgentDropdownSelect } from "@/features/agents/ui/agentConfigControls";
 import { getBakedBuildEnv, type BakedEnvEntry } from "@/shared/api/tauri";
 import {
@@ -126,14 +129,25 @@ function AgentDefaultsSection({
     () => new Set(effectiveReadyRuntimeIds),
     [effectiveReadyRuntimeIds],
   );
-  // Setup already confirmed readiness. Re-filter only for onboarding
-  // visibility here; a transient auth recheck must not invalidate that handoff.
-  const readyRuntimes = React.useMemo(
-    () =>
-      getVisibleOnboardingRuntimes(runtimesQuery.data ?? []).filter((runtime) =>
-        readyRuntimeIdSet.has(runtime.id),
-      ),
-    [readyRuntimeIdSet, runtimesQuery.data],
+  // Setup hands off featured ready runtimes. Also retain any explicitly saved,
+  // available catalog runtime (including one that still needs setup) so
+  // revisiting onboarding never silently replaces the user's preference.
+  const readyRuntimes = React.useMemo(() => {
+    const visible = getVisibleOnboardingRuntimes(
+      runtimesQuery.data ?? [],
+    ).filter((runtime) => readyRuntimeIdSet.has(runtime.id));
+    const saved = (runtimesQuery.data ?? []).find(
+      (runtime) =>
+        runtime.id === config.preferred_runtime &&
+        runtime.availability === "available",
+    );
+    return saved && !visible.some((runtime) => runtime.id === saved.id)
+      ? [saved, ...visible]
+      : visible;
+  }, [config.preferred_runtime, readyRuntimeIdSet, runtimesQuery.data]);
+  const defaultRuntime = React.useMemo(
+    () => getDefaultPersonaRuntime(readyRuntimes, config.preferred_runtime),
+    [config.preferred_runtime, readyRuntimes],
   );
   const selectedRuntime = React.useMemo(
     () =>
@@ -177,7 +191,14 @@ function AgentDefaultsSection({
 
   const handleHarnessChange = React.useCallback(
     (runtimeId: string) => {
-      const next = resetConfigForHarnessChange(config, runtimeId);
+      const providerEnvVar = (runtimesQuery.data ?? []).find(
+        (runtime) => runtime.id === runtimeId,
+      )?.providerEnvVar;
+      const next = resetConfigForHarnessChange(
+        config,
+        runtimeId,
+        providerEnvVar,
+      );
       setIsCustomModelEditing(false);
       setIsCustomProvider(false);
       updateDraft(next, {
@@ -185,17 +206,19 @@ function AgentDefaultsSection({
         isCustomProvider: false,
       });
     },
-    [config, updateDraft],
+    [config, runtimesQuery.data, updateDraft],
   );
 
+  // This defaults page—not Setup—owns the staged harness choice. Use the same
+  // OMPK-first fallback as agent creation and deployment, without persisting
+  // until the user finishes onboarding.
   React.useEffect(() => {
-    if (configSurfaceLoading || selectedRuntimeId) return;
-    if (readyRuntimes.length !== 1) return;
-    handleHarnessChange(readyRuntimes[0].id);
+    if (configSurfaceLoading || selectedRuntimeId || !defaultRuntime) return;
+    handleHarnessChange(defaultRuntime.id);
   }, [
     configSurfaceLoading,
+    defaultRuntime,
     handleHarnessChange,
-    readyRuntimes,
     selectedRuntimeId,
   ]);
 

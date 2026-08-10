@@ -70,6 +70,8 @@ fn record() -> ManagedAgentRecord {
         definition_respond_to_allowlist: Vec::new(),
         definition_parallelism: None,
         relay_mesh: None,
+        launch_runtime_id: None,
+        raw_command_explicit: false,
     }
 }
 

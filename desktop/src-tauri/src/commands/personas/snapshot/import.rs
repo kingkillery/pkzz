@@ -653,6 +653,8 @@ pub async fn confirm_agent_snapshot_import(
             definition_parallelism: minted_parallelism,
             relay_mesh: None,
             runtime: snapshot.definition.runtime.clone(),
+            launch_runtime_id: None,
+            raw_command_explicit: false,
             name_pool: snapshot.definition.name_pool.clone(),
         };
 

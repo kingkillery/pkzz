@@ -6,7 +6,8 @@ use crate::{
     managed_agents::{
         build_managed_agent_summary, current_instance_id, discover_provider_candidates,
         ensure_persona_is_active, find_managed_agent_mut, load_managed_agents, load_personas,
-        load_teams, managed_agent_avatar_url, normalize_agent_args, provider_deploy,
+        load_teams, managed_agent_avatar_url,
+        persona_events::apply_linked_persona_snapshot_for_start, provider_deploy,
         resolve_provider_binary, save_managed_agents, start_managed_agent_process,
         stop_managed_agent_process, stop_managed_agent_workspace_pair,
         sync_managed_agent_processes, try_regenerate_nest, validate_provider_config, BackendKind,
@@ -416,19 +417,7 @@ pub(super) async fn start_local_agent_with_preflight(
     // Load personas once: used for snapshot application below and summary build
     // at the end — avoids a second disk read for the same file in the same call.
     let personas = load_personas(app).unwrap_or_default();
-    if let Some(persona_id) = record.persona_id.clone() {
-        match personas.iter().find(|p| p.id == persona_id) {
-            Some(persona) => {
-                crate::managed_agents::persona_events::apply_persona_snapshot(record, persona);
-                record.updated_at = crate::util::now_iso();
-            }
-            None => {
-                return Err(
-                    crate::managed_agents::effective_config::ORPHANED_INSTANCE_ERROR.to_string(),
-                );
-            }
-        }
-    }
+    apply_linked_persona_snapshot_for_start(record, &personas)?;
     start_managed_agent_process(app, record, &mut runtimes, Some(owner_hex))?;
     save_managed_agents(app, &records)?;
     if let Some(saved_record) = records.iter().find(|r| r.pubkey == pubkey) {
@@ -583,6 +572,13 @@ pub async fn create_managed_agent(
         }
     }
     crate::managed_agents::validate_user_env_keys(&input.env_vars)?;
+    if let Some(Some(runtime_id)) = input.runtime_id.as_ref() {
+        let runtime_id = runtime_id.trim();
+        if runtime_id.is_empty() {
+            return Err("runtimeId must not be empty".to_string());
+        }
+        crate::managed_agents::resolve_catalog_harness_by_id(runtime_id)?;
+    }
 
     // Validate & normalize the respond-to allowlist BEFORE any side effects.
     // The harness has its own validator (buzz-acp/src/config.rs) but we want
@@ -715,46 +711,36 @@ pub async fn create_managed_agent(
         // Load personas once for harness/pack/avatar resolution below.
         let personas = load_personas(&app).unwrap_or_default();
 
-        // Harness resolution: the persona's runtime is authoritative. A
-        // persona-backed create stores an `agent_command_override` ONLY when the
-        // user deliberately picked a divergent runtime (`harness_override`) —
-        // e.g. AddChannelBotDialog's runtime selector. A divergence WITHOUT that
-        // flag is a missing-runtime fallback from `resolvePersonaRuntime`, not a
-        // pin, and must inherit so it doesn't freeze on the fallback harness once
-        // the persona's runtime is installed. A persona-less create always
-        // preserves the picked command as a real pin.
-        let agent_command_override = crate::managed_agents::create_time_agent_command_override(
+        // Catalog-backed requests are ID-authoritative; an explicit null keeps
+        // a raw command verbatim, while an absent ID retains legacy fallback.
+        let harness = crate::managed_agents::resolve_create_harness_selection(
             requested_persona_id.as_deref(),
             &personas,
-            input.agent_command.as_deref(),
-            input.harness_override,
-        );
-        // The create-time snapshot used for arg/mcp/avatar derivations and
-        // legacy reconcile. Authoritative spawn resolution re-derives this via
-        // `effective_agent_command` at use-time.
-        let agent_command = crate::managed_agents::effective_agent_command(
-            requested_persona_id.as_deref(),
-            &personas,
-            agent_command_override.as_deref(),
-        );
-        let agent_args = normalize_agent_args(
-            &agent_command,
             input
-                .agent_args
-                .iter()
-                .map(|arg| arg.trim().to_string())
-                .filter(|arg| !arg.is_empty())
-                .collect::<Vec<_>>(),
-        );
+                .runtime_id
+                .as_ref()
+                .map(|runtime_id| runtime_id.as_deref()),
+            input.agent_command.as_deref(),
+            &input.agent_args,
+            input.harness_override,
+        )?;
+        let launch_runtime_id = harness.launch_runtime_id;
+        let raw_command_explicit = harness.raw_command_explicit;
+        let agent_command = harness.command;
+        let agent_command_override = harness.command_override;
+        let agent_args = harness.args;
 
         // Derive MCP command exclusively from the runtime catalog — the
         // per-record field is never read at spawn time so user-supplied input
         // is silently discarded. Always sourcing from the catalog ensures
         // new agents pick up the correct value without any stored override.
-        let mcp_command = match crate::managed_agents::known_acp_runtime(&agent_command) {
-            Some(p) => p.mcp_command.unwrap_or("").to_string(),
-            None => String::new(),
-        };
+        let mcp_command = launch_runtime_id
+            .as_deref()
+            .and_then(crate::managed_agents::known_acp_runtime_exact)
+            .or_else(|| crate::managed_agents::known_acp_runtime(&agent_command))
+            .and_then(|runtime| runtime.mcp_command)
+            .unwrap_or("")
+            .to_string();
 
         let team_id = input
             .team_id
@@ -808,6 +794,7 @@ pub async fn create_managed_agent(
         let snapshot_model = persona_snapshot.as_ref().and_then(|s| s.model.clone());
         let snapshot_provider = persona_snapshot.as_ref().and_then(|s| s.provider.clone());
         let snapshot_source_version = persona_snapshot.as_ref().map(|s| s.source_version.clone());
+        let snapshot_runtime = persona_snapshot.as_ref().and_then(|s| s.runtime.clone());
         let effective_provider = snapshot_provider
             .or_else(|| input.provider.as_deref().and_then(trim_to_optional_string));
         let mut effective_model =
@@ -893,7 +880,9 @@ pub async fn create_managed_agent(
             respond_to_allowlist: minted.respond_to_allowlist.clone(),
             display_name: None,
             slug: None,
-            runtime: None,
+            runtime: snapshot_runtime,
+            launch_runtime_id,
+            raw_command_explicit,
             name_pool: Vec::new(),
             is_builtin: false,
             is_active: true,
@@ -1008,7 +997,11 @@ pub async fn create_managed_agent(
                     .managed_agents_store_lock
                     .lock()
                     .map_err(|e| e.to_string())?;
-                let records = load_managed_agents(&app)?;
+                let mut records = load_managed_agents(&app)?;
+                let rec = find_managed_agent_mut(&mut records, &pubkey)?;
+                let personas = load_personas(&app).unwrap_or_default();
+                apply_linked_persona_snapshot_for_start(rec, &personas)?;
+                save_managed_agents(&app, &records)?;
                 let rec = records
                     .iter()
                     .find(|r| r.pubkey == pubkey)
@@ -1125,10 +1118,15 @@ pub async fn start_managed_agent(
         let target = if record.backend == BackendKind::Local {
             StartTarget::Local
         } else {
+            apply_linked_persona_snapshot_for_start(record, &reconcile_personas)?;
+            let backend = record.backend.clone();
+            let cached_binary_path = record.provider_binary_path.clone();
+            let agent_json = build_deploy_payload(&app, &state, record)?;
+            save_managed_agents(&app, &records)?;
             StartTarget::Provider {
-                backend: record.backend.clone(),
-                cached_binary_path: record.provider_binary_path.clone(),
-                agent_json: build_deploy_payload(&app, &state, record)?,
+                backend,
+                cached_binary_path,
+                agent_json,
             }
         };
 

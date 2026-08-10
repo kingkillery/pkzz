@@ -6,7 +6,9 @@
 
 use super::*;
 use crate::managed_agents::config_bridge::types::ConfigOrigin;
-use crate::managed_agents::{BackendKind, RespondTo};
+use crate::managed_agents::{
+    BackendKind, HarnessSource, RespondTo, RuntimeAuthentication, RuntimeReadinessPolicy,
+};
 
 use std::sync::Mutex;
 
@@ -35,6 +37,8 @@ fn goose_runtime() -> &'static KnownAcpRuntime {
         commands: &["goose"],
         aliases: &[],
         avatar_url: "",
+        source: HarnessSource::Builtin,
+        default_args: &[],
         mcp_command: None,
         mcp_hooks: false,
         underlying_cli: None,
@@ -59,8 +63,8 @@ fn goose_runtime() -> &'static KnownAcpRuntime {
         context_limit_env_var: Some("GOOSE_CONTEXT_LIMIT"),
         max_rounds_env_var: None,
         required_normalized_fields: &["model", "provider"],
-        login_hint: None,
-        auth_probe_args: None,
+        authentication: RuntimeAuthentication::NotApplicable,
+        readiness_policy: RuntimeReadinessPolicy::AvailabilityOnly,
     }
 }
 
@@ -105,6 +109,8 @@ fn agent_record() -> ManagedAgentRecord {
         display_name: None,
         slug: None,
         runtime: None,
+        launch_runtime_id: None,
+        raw_command_explicit: false,
         name_pool: Vec::new(),
         is_builtin: false,
         is_active: true,

@@ -1,20 +1,29 @@
 import type { AcpRuntimeCatalogEntry } from "@/shared/api/types";
 
 /**
- * Availability warning sentence for the agent-definition dialog.
- * Returns null when the runtime is available (no warning to show).
- *
- * Non-empty install hints are appended so a not-installed or
- * adapter-missing runtime tells the user the actual next step (presets
- * always carry one; custom harnesses may leave it empty — guard on the
- * trimmed value to avoid a dangling "X is not installed. ").
+ * Setup warning sentence for an unavailable or not-yet-ready catalog runtime.
+ * Install and login hints come directly from the catalog; no runtime identity is
+ * inferred in the UI.
  */
 export function runtimeAvailabilityWarning(
   runtime: AcpRuntimeCatalogEntry,
 ): string | null {
   if (runtime.availability === "available") {
-    return null;
+    const loginHint = runtime.loginHint?.trim();
+    switch (runtime.runtimeReadiness) {
+      case "ready":
+        return null;
+      case "authentication_required":
+        return loginHint
+          ? `${runtime.label} requires sign-in. ${loginHint}`
+          : `${runtime.label} requires sign-in.`;
+      case "model_unavailable":
+        return `${runtime.label} needs a model configured before it can run.`;
+      case "unknown":
+        return `${runtime.label}'s setup could not be verified.`;
+    }
   }
+
   const hint = runtime.installHint.trim();
   const withHint = (base: string) => (hint ? `${base} ${hint}` : base);
   switch (runtime.availability) {

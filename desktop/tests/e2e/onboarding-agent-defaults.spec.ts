@@ -3,7 +3,7 @@ import { installMockBridge } from "../helpers/bridge";
 import { passThroughBackupStep } from "../helpers/onboarding";
 
 function runtime(
-  id: "buzz-agent" | "claude" | "codex" | "goose",
+  id: "omp" | "ompk" | "buzz-agent" | "claude" | "codex" | "goose",
   availability: string,
   authStatus: Record<string, unknown>,
   overrides: Record<string, unknown> = {},
@@ -11,26 +11,47 @@ function runtime(
   return {
     id,
     label:
-      id === "buzz-agent"
-        ? "Pkzz Agent"
-        : id === "claude"
-          ? "Claude Code"
-          : id === "codex"
-            ? "Codex"
-            : "Goose",
+      id === "omp"
+        ? "Oh My Pi"
+        : id === "ompk"
+          ? "Oh My PK"
+          : id === "buzz-agent"
+            ? "Pkzz Agent"
+            : id === "claude"
+              ? "Claude Code"
+              : id === "codex"
+                ? "Codex"
+                : "Goose",
     avatar_url: "",
     availability,
     command: availability === "available" ? id : null,
     binary_path: availability === "available" ? `/usr/local/bin/${id}` : null,
     default_args: [],
+    model_env_var: null,
+    provider_env_var: null,
+    thinking_env_var: null,
+    max_tokens_env_var: null,
+    context_limit_env_var: null,
+    max_rounds_env_var: null,
     mcp_command: null,
     install_hint: `Install ${id}`,
     install_instructions_url: "https://example.com",
     can_auto_install: true,
+    requires_external_cli: false,
     underlying_cli_path: null,
     node_required: false,
     auth_status: authStatus,
+    runtime_readiness:
+      availability !== "available"
+        ? "unknown"
+        : authStatus.status === "logged_out"
+          ? "authentication_required"
+          : authStatus.status === "unknown"
+            ? "unknown"
+            : "ready",
+    can_connect_account: authStatus.status === "logged_out",
     login_hint: `Sign in to ${id}`,
+    source: "preset",
     ...overrides,
   };
 }
@@ -75,11 +96,20 @@ async function readGlobalConfigSetterCallCount(
   });
 }
 
-test("setup shows all bundled harnesses as detected", async ({ page }) => {
+test("setup shows all featured harnesses as detected", async ({ page }) => {
   await installMockBridge(
     page,
     {
       acpRuntimesCatalog: [
+        runtime(
+          "ompk",
+          "available",
+          { status: "unknown" },
+          {
+            can_connect_account: true,
+            runtime_readiness: "ready",
+          },
+        ),
         runtime("buzz-agent", "available", { status: "not_applicable" }),
         runtime("goose", "available", { status: "not_applicable" }),
         runtime("codex", "available", { status: "logged_in" }),
@@ -91,6 +121,7 @@ test("setup shows all bundled harnesses as detected", async ({ page }) => {
   await page.goto("/");
   await navigateToSetupPage(page);
 
+  await expect(page.getByTestId("onboarding-runtime-ompk")).toBeVisible();
   await expect(page.getByTestId("onboarding-runtime-claude")).toBeVisible();
   await expect(page.getByTestId("onboarding-runtime-codex")).toBeVisible();
   await expect(page.getByTestId("onboarding-runtime-goose")).toBeVisible();
@@ -818,7 +849,7 @@ test("Next keeps the draft and retries after a save failure", async ({
   expect(await readGlobalConfigSetterCallCount(page)).toBe(2);
 });
 
-test("defaults requires a choice when multiple visible harnesses are ready", async ({
+test("defaults stages OMPK with multiple ready harnesses and persists it on Finish", async ({
   page,
 }) => {
   await installMockBridge(
@@ -829,6 +860,15 @@ test("defaults requires a choice when multiple visible harnesses are ready", asy
         runtime("goose", "available", { status: "not_applicable" }),
         runtime("claude", "available", { status: "logged_in" }),
         runtime("codex", "available", { status: "logged_in" }),
+        runtime(
+          "ompk",
+          "available",
+          { status: "unknown" },
+          {
+            can_connect_account: true,
+            runtime_readiness: "ready",
+          },
+        ),
       ],
       globalAgentConfig: {
         env_vars: {},
@@ -845,25 +885,132 @@ test("defaults requires a choice when multiple visible harnesses are ready", asy
   await expect(page.getByTestId("onboarding-page-config")).toBeVisible();
 
   const harness = page.getByTestId("global-agent-default-harness");
-  await expect(harness).toHaveText("Select a harness");
-  await expect(page.getByTestId("onboarding-finish")).toBeDisabled();
-  await harness.click();
-  await expect(
-    page.getByTestId("global-agent-default-harness-option-claude"),
-  ).toBeVisible();
-  await expect(
-    page.getByTestId("global-agent-default-harness-option-codex"),
-  ).toBeVisible();
-  await expect(
-    page.getByTestId("global-agent-default-harness-option-goose"),
-  ).toBeVisible();
-  await expect(
-    page.getByTestId("global-agent-default-harness-option-buzz-agent"),
-  ).toBeVisible();
-  await page.getByTestId("global-agent-default-harness-option-codex").click();
-  await expect(harness).toHaveText("Codex");
-  await expect(page.getByTestId("onboarding-finish")).toBeEnabled();
+  const finish = page.getByTestId("onboarding-finish");
+  await expect(harness).toHaveText("Oh My PK");
+  await expect(finish).toBeEnabled();
   expect(await readSavedRuntime(page)).toBeNull();
+
+  await finish.click();
+
+  await expect(page.getByText("Join or create a community")).toBeVisible();
+  await expect.poll(() => readSavedRuntime(page)).toBe("ompk");
+  expect(await readGlobalConfigSetterCallCount(page)).toBe(1);
+});
+
+test("installed model-unavailable OMPK is not automatically staged", async ({
+  page,
+}) => {
+  await installMockBridge(
+    page,
+    {
+      acpRuntimesCatalog: [
+        runtime(
+          "ompk",
+          "available",
+          { status: "unknown" },
+          {
+            can_connect_account: true,
+            runtime_readiness: "model_unavailable",
+          },
+        ),
+        runtime("buzz-agent", "available", { status: "not_applicable" }),
+      ],
+      acpAuthMethods: {
+        ompk: {
+          methods: [
+            {
+              id: "agent",
+              name: "Use configured account",
+              description: null,
+              type: null,
+              command: [],
+              args: [],
+              meta: null,
+            },
+            {
+              id: "terminal",
+              name: "Set up in Terminal",
+              description: null,
+              type: "terminal",
+              command: [],
+              args: ["--acp-terminal-auth"],
+              meta: null,
+            },
+          ],
+        },
+      },
+      globalAgentConfig: {
+        env_vars: {},
+        provider: null,
+        model: null,
+        preferred_runtime: null,
+      },
+    },
+    { skipCommunitySeed: true, skipOnboardingSeed: true },
+  );
+  await page.goto("/");
+  await navigateToSetupPage(page);
+
+  const ompk = page.getByTestId("onboarding-runtime-ompk");
+  await expect(ompk).toHaveAttribute("data-ready", "false");
+  await expect(
+    page.getByTestId("onboarding-runtime-instructions-ompk"),
+  ).toHaveText("SET UP");
+  await page.getByTestId("onboarding-runtime-instructions-ompk").click();
+  await expect(
+    page.getByTestId("onboarding-runtime-instructions-ompk"),
+  ).toHaveText("CHECKING…");
+
+  await page.getByTestId("onboarding-setup-next").click();
+  await expect(page.getByTestId("global-agent-default-harness")).toHaveText(
+    "Pkzz",
+  );
+  expect(await readSavedRuntime(page)).toBeNull();
+  expect(await readGlobalConfigSetterCallCount(page)).toBe(0);
+});
+
+test("defaults preserve an explicit ready OMP compatibility preference", async ({
+  page,
+}) => {
+  await installMockBridge(
+    page,
+    {
+      acpRuntimesCatalog: [
+        runtime(
+          "ompk",
+          "available",
+          { status: "unknown" },
+          {
+            can_connect_account: true,
+            runtime_readiness: "ready",
+          },
+        ),
+        runtime("omp", "available", { status: "not_applicable" }),
+      ],
+      globalAgentConfig: {
+        env_vars: {},
+        provider: null,
+        model: null,
+        preferred_runtime: "omp",
+      },
+    },
+    { skipCommunitySeed: true, skipOnboardingSeed: true },
+  );
+  await page.goto("/");
+  await navigateToSetupPage(page);
+  await expect(page.getByTestId("onboarding-runtime-omp")).toHaveCount(0);
+  await page.getByTestId("onboarding-setup-next").click();
+
+  const harness = page.getByTestId("global-agent-default-harness");
+  await expect(harness).toHaveText("Oh My Pi");
+  await expect(page.getByTestId("onboarding-finish")).toBeEnabled();
+  expect(await readSavedRuntime(page)).toBe("omp");
+  expect(await readGlobalConfigSetterCallCount(page)).toBe(0);
+
+  await page.getByTestId("onboarding-finish").click();
+  await expect(page.getByText("Join or create a community")).toBeVisible();
+  expect(await readSavedRuntime(page)).toBe("omp");
+  expect(await readGlobalConfigSetterCallCount(page)).toBe(0);
 });
 
 /**

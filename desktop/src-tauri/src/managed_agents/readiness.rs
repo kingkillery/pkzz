@@ -39,251 +39,22 @@
 //! UI display only.
 
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 
 use crate::managed_agents::{
-    agent_env::baked_build_env,
     config_bridge::read_goose_file_config,
-    discovery::{known_acp_runtime, KnownAcpRuntime},
-    env_vars::merged_user_env,
-    global_config::GlobalAgentConfig,
-    normalize_agent_args,
-    types::{AcpAvailabilityStatus, AgentDefinition, ManagedAgentRecord},
+    discovery::{
+        known_acp_runtime, known_acp_runtime_exact, KnownAcpRuntime, RuntimeReadinessPolicy,
+    },
+    types::{AcpAvailabilityStatus, RuntimeReadinessStatus},
 };
 
 mod cli_login;
 pub(crate) mod cli_probe;
-
-// ── EffectiveAgentEnv ─────────────────────────────────────────────────────────
-
-/// The resolved environment that a spawn of `record` would actually receive.
-///
-/// Assembled from: baked build defaults (floor) → runtime metadata env vars
-/// → merged user env_vars (last-wins) → reserved-key filtered.
-///
-/// `config_file_path` is the harness config file path (if any) — not part of
-/// the process env but relevant for display and future write-back dispatch.
-/// `effective_command` is the resolved harness binary name (e.g. `"buzz-agent"`,
-/// `"goose"`) after persona and override resolution.
-#[derive(Debug, Clone)]
-pub(crate) struct EffectiveAgentEnv {
-    /// The process-env map the spawned harness would receive.
-    pub env: BTreeMap<String, String>,
-    /// Harness config file path, if any (e.g. `~/.config/goose/config.yaml`).
-    // Not read yet; kept for the unified-agent-record rewrite (chunk A) which
-    // replaces this resolution path wholesale.
-    #[allow(dead_code)]
-    pub config_file_path: Option<&'static str>,
-    /// The resolved harness binary name (e.g. `"buzz-agent"`, `"goose"`).
-    pub effective_command: String,
-}
-
-// ── Typed effective-harness descriptor ───────────────────────────────────────
-//
-// A single owned type that fully describes what a spawn would run.  Produced
-// by `resolve_effective_harness_descriptor` and consumed by spawn_agent_child,
-// spawn_snapshot, build_managed_agent_summary, get_agent_models, and
-// agent_readiness — so the harness-definition lookup and arg/env resolution
-// happen exactly once, in one place.
-
-/// The complete effective description of a harness spawn: resolved command,
-/// args, and layered env.  This is the single source of truth for what will
-/// actually run — computed once and shared across every consumer that needs
-/// the effective values.
-#[derive(Debug, Clone)]
-pub(crate) struct EffectiveHarnessDescriptor {
-    /// The raw effective command string (e.g. `"buzz-agent"`, `"my-acp-agent"`).
-    /// Used for `known_acp_runtime` lookup and hashing.
-    pub command: String,
-    /// Normalized effective args.  Instance args win when non-empty; otherwise
-    /// the harness definition's args apply.
-    pub args: Vec<String>,
-    /// The full layered process env: baked floor → runtime metadata → definition
-    /// env → global → persona → agent.
-    pub env: BTreeMap<String, String>,
-}
-
-/// Resolve the complete harness descriptor from a record + context — the single
-/// authoritative path for command, args, and env.
-///
-/// This is the only place where harness-definition lookup and arg/env layering
-/// happen; spawn, hash, summary, and both model-probe paths all consume this.
-///
-/// Returns `Err("DANGLING_HARNESS_ID:<id>")` when the record (or its linked
-/// persona) references a runtime id that no longer exists in the registry —
-/// the same typed error produced by `try_record_agent_command`.  Callers that
-/// cannot meaningfully continue with a dangling id (e.g. `spawn_agent_child`)
-/// propagate the error; callers that degrade gracefully may use
-/// `.unwrap_or_else(|_| …)`.
-///
-/// Does NOT require an `AppHandle` so it is fully unit-testable.
-///
-/// # Arguments
-/// * `record` — the managed agent record
-/// * `personas` — all current personas (for command/env resolution)
-/// * `global` — global agent config defaults
-pub(crate) fn resolve_effective_harness_descriptor(
-    record: &ManagedAgentRecord,
-    personas: &[crate::managed_agents::types::AgentDefinition],
-    global: &crate::managed_agents::GlobalAgentConfig,
-) -> Result<EffectiveHarnessDescriptor, String> {
-    let effective_command = crate::managed_agents::try_record_agent_command(record, personas)?;
-    let runtime_meta = known_acp_runtime(&effective_command);
-
-    // Look up the harness definition once — used for both args and env.
-    // Resolution order: record.runtime → persona.runtime → "".
-    let harness_def = {
-        let runtime_id = record
-            .runtime
-            .as_deref()
-            .or_else(|| {
-                record.persona_id.as_deref().and_then(|pid| {
-                    personas
-                        .iter()
-                        .find(|p| p.id == pid)
-                        .and_then(|p| p.runtime.as_deref())
-                })
-            })
-            .unwrap_or("");
-        crate::managed_agents::custom_harnesses::lookup_loaded_harness_by_id(runtime_id)
-    };
-
-    // Args: explicit non-empty instance args win; otherwise use definition args.
-    let args = {
-        let record_args = record.agent_args.clone();
-        let instance_has_args = record_args.iter().any(|a| !a.trim().is_empty());
-        if instance_has_args {
-            normalize_agent_args(&effective_command, record_args)
-        } else if let Some(ref def) = harness_def {
-            normalize_agent_args(&effective_command, def.args.clone())
-        } else {
-            normalize_agent_args(&effective_command, record_args)
-        }
-    };
-
-    // Env: full layered resolution (same as resolve_effective_agent_env).
-    // Pass harness_def directly to avoid a second lookup.
-    let effective_env =
-        resolve_effective_agent_env_with_def(record, personas, runtime_meta, global, harness_def);
-
-    Ok(EffectiveHarnessDescriptor {
-        command: effective_command,
-        args,
-        env: effective_env.env,
-    })
-}
-
-/// Assemble the effective agent env from a record, personas, optional
-/// known-runtime metadata, and the global agent config defaults — without an
-/// `AppHandle` so it is fully unit-testable.
-///
-/// # Arguments
-/// * `record` — the managed agent record (model/provider/env_vars/…)
-/// * `personas` — all current persona records (for persona-backed resolution)
-/// * `runtime` — the `KnownAcpRuntime` for the effective command, if any
-/// * `global` — global agent config defaults (lowest user layer; pass
-///   `&GlobalAgentConfig::default()` in tests that don't need global config)
-pub(crate) fn resolve_effective_agent_env(
-    record: &ManagedAgentRecord,
-    personas: &[AgentDefinition],
-    runtime: Option<&KnownAcpRuntime>,
-    global: &GlobalAgentConfig,
-) -> EffectiveAgentEnv {
-    // Look up the harness definition for definition-level env (preset/custom).
-    // Same resolution logic as spawn_agent_child: record runtime id first, then
-    // persona runtime id, then nothing.
-    let harness_def = {
-        let runtime_id = record
-            .runtime
-            .as_deref()
-            .or_else(|| {
-                record.persona_id.as_deref().and_then(|pid| {
-                    personas
-                        .iter()
-                        .find(|p| p.id == pid)
-                        .and_then(|p| p.runtime.as_deref())
-                })
-            })
-            .unwrap_or("");
-        crate::managed_agents::custom_harnesses::lookup_loaded_harness_by_id(runtime_id)
-    };
-
-    resolve_effective_agent_env_with_def(record, personas, runtime, global, harness_def)
-}
-
-/// Inner implementation that accepts a pre-fetched `harness_def` to avoid a
-/// second registry lookup when the caller (e.g. `resolve_effective_harness_descriptor`)
-/// already has the definition in hand.
-fn resolve_effective_agent_env_with_def(
-    record: &ManagedAgentRecord,
-    personas: &[AgentDefinition],
-    runtime: Option<&KnownAcpRuntime>,
-    global: &GlobalAgentConfig,
-    harness_def: Option<std::sync::Arc<crate::managed_agents::custom_harnesses::HarnessDefinition>>,
-) -> EffectiveAgentEnv {
-    let effective_command = crate::managed_agents::record_agent_command(record, personas);
-
-    // Layer 1: baked build defaults (floor — internal builds only; OSS = empty).
-    let mut env = baked_build_env();
-
-    let (effective_model, effective_provider) =
-        super::global_config::resolve_effective_model_provider(record, personas, global);
-
-    if let Some(rt) = runtime {
-        for (key, value) in super::runtime::runtime_metadata_env_vars(
-            rt.model_env_var,
-            rt.provider_env_var,
-            rt.provider_locked,
-            effective_model.as_deref(),
-            effective_provider.as_deref(),
-        ) {
-            env.insert(key.to_string(), value.to_string());
-        }
-    }
-
-    // Layer 2b: definition env — the harness author's defaults (e.g. CURSOR_ACP=1).
-    // Applied as a floor below global so user env always wins on collision.
-    // Reserved keys are stripped by the shared `is_reserved_env_key` predicate.
-    if let Some(ref def) = harness_def {
-        for (key, value) in &def.env {
-            if !super::env_vars::is_reserved_env_key(key) {
-                env.insert(key.clone(), value.clone());
-            }
-        }
-    }
-
-    // Layer 3a: global env vars — the lowest user-settable layer.
-    // Injected before persona/agent so per-agent values win on collision.
-    // `merged_user_env` with an empty "lower" map applies reserved/malformed-key
-    // filtering to the global map for free.
-    let global_env = merged_user_env(&BTreeMap::new(), &global.env_vars);
-    env.extend(global_env);
-
-    // Layer 3b: merged user env — live persona env under the record's own
-    // overrides (last-wins), after reserved/malformed-key filtering. Reading
-    // the persona live is what makes persona credential edits refresh on the
-    // next spawn instead of being frozen into the record.
-    let user_env = merged_user_env(
-        &super::env_vars::live_persona_env(personas, record.persona_id.as_deref()),
-        &record.env_vars,
-    );
-    env.extend(user_env);
-
-    // Pkzz shared compute is a native Pkzz provider. Translate it to buzz-agent's
-    // OpenAI-compatible transport only in the effective runtime environment.
-    #[cfg(feature = "mesh-llm")]
-    super::apply_relay_mesh_env(
-        &mut env,
-        effective_provider.as_deref(),
-        effective_model.as_deref(),
-    );
-
-    EffectiveAgentEnv {
-        env,
-        config_file_path: runtime.and_then(|r| r.config_file_path),
-        effective_command,
-    }
-}
+mod descriptor;
+pub(crate) use descriptor::{
+    resolve_effective_agent_env, resolve_effective_harness_descriptor, EffectiveAgentEnv,
+    EffectiveHarnessDescriptor,
+};
 
 // ── Requirement types ─────────────────────────────────────────────────────────
 
@@ -341,6 +112,12 @@ pub enum Requirement {
     MissingBinary {
         /// The command name that was not found (e.g. `\"my-acp-agent\"`).
         command: String,
+    },
+    /// Operational ACP readiness that is neither installation nor a claim
+    /// about login state.
+    RuntimeReadiness {
+        status: RuntimeReadinessStatus,
+        setup_copy: String,
     },
 }
 
@@ -400,8 +177,41 @@ impl AgentReadiness {
 /// but the normal path is OAuth PKCE.  We intentionally do NOT mark the
 /// token as required to avoid a false NotReady for users on OAuth.
 pub(crate) fn agent_readiness(effective: &EffectiveAgentEnv) -> AgentReadiness {
-    let runtime = known_acp_runtime(&effective.effective_command);
-    let missing = collect_missing_requirements(effective, runtime);
+    let runtime = effective
+        .runtime_id
+        .as_deref()
+        .and_then(known_acp_runtime_exact)
+        .or_else(|| known_acp_runtime(&effective.effective_command));
+    let mut missing = collect_missing_requirements(effective, runtime);
+
+    if runtime.is_some_and(|metadata| {
+        metadata.readiness_policy == RuntimeReadinessPolicy::AcpModelCatalog
+    }) {
+        let status = super::runtime_readiness::cached_runtime_readiness(
+            &effective.effective_command,
+            &effective.effective_args,
+            &effective.env,
+        );
+        if status != RuntimeReadinessStatus::Ready {
+            let setup_copy = match status {
+                RuntimeReadinessStatus::ModelUnavailable => {
+                    "Configure at least one model for this ACP runtime, then check again."
+                }
+                RuntimeReadinessStatus::Unknown => {
+                    "Runtime readiness could not be verified. Check the runtime setup and try again."
+                }
+                RuntimeReadinessStatus::AuthenticationRequired => {
+                    "Complete the runtime account setup, then check again."
+                }
+                RuntimeReadinessStatus::Ready => unreachable!(),
+            };
+            missing.push(Requirement::RuntimeReadiness {
+                status,
+                setup_copy: setup_copy.to_string(),
+            });
+        }
+    }
+
     if missing.is_empty() {
         AgentReadiness::Ready
     } else {
@@ -665,6 +475,8 @@ mod tests {
         EffectiveAgentEnv {
             env,
             config_file_path: runtime.and_then(|r| r.config_file_path),
+            runtime_id: None,
+            effective_args: Vec::new(),
             effective_command: command.to_string(),
         }
     }
@@ -1029,6 +841,8 @@ mod tests {
             commands,
             aliases: &[],
             avatar_url: "",
+            source: crate::managed_agents::HarnessSource::Builtin,
+            default_args: &[],
             mcp_command: None,
             mcp_hooks: false,
             underlying_cli,
@@ -1053,8 +867,8 @@ mod tests {
             context_limit_env_var: None,
             max_rounds_env_var: None,
             required_normalized_fields: &[],
-            login_hint: None,
-            auth_probe_args: None,
+            authentication: crate::managed_agents::RuntimeAuthentication::NotApplicable,
+            readiness_policy: RuntimeReadinessPolicy::AvailabilityOnly,
         }
     }
 
@@ -1530,6 +1344,8 @@ mod tests {
             definition_respond_to_allowlist: Vec::new(),
             definition_parallelism: None,
             relay_mesh: None,
+            launch_runtime_id: None,
+            raw_command_explicit: false,
         };
 
         let runtime = known_acp_runtime_exact("buzz-agent");

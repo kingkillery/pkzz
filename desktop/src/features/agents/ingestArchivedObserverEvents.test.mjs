@@ -985,7 +985,7 @@ describe("raw-event-level merge: stateful aggregates across live/archive boundar
     });
 
     // Live: permission response — result.outcome carries outcome:"selected" and
-    // the selected optionId so describePermissionOutcome builds "Approved (allow_once)".
+    // the selected optionId so the fixed one-shot outcome can be derived.
     const permResponse = makeObserverEvent({
       seq: 11,
       timestamp: "2026-01-01T00:10:01.000Z",
@@ -1015,9 +1015,85 @@ describe("raw-event-level merge: stateful aggregates across live/archive boundar
     // The row must carry the fully-resolved production label.
     assert.equal(
       permRows[0].outcome,
-      "Approved (allow_once)",
-      "permission row outcome must be the production-shaped label when request+response are in the combined window",
+      "Approved once",
+      "permission row outcome must be the fixed one-shot label when request+response are in the combined window",
     );
+  });
+
+  it("test_archived_raw_request_plus_live_semantic_terminal_upserts_one_bound_row", () => {
+    const channelId = "chan-semantic-perm";
+    const sessionId = "sess-semantic";
+    const rpcId = 42;
+    const requestId = "75a8098e-0cb2-4b47-bb95-ef9c33e17ae1";
+    const toolCall = {
+      toolCallId: "tool-semantic",
+      title: "Write deployment manifest",
+      kind: "edit",
+      rawInput: { path: "deploy/app.yaml" },
+    };
+    const rawRequest = makeObserverEvent({
+      seq: 20,
+      timestamp: "2026-01-01T00:20:00.000Z",
+      kind: "acp_read",
+      channelId,
+      sessionId,
+      payload: {
+        id: rpcId,
+        method: "session/request_permission",
+        params: {
+          sessionId,
+          toolCall,
+          options: [
+            { optionId: "private-a", kind: "allow_once" },
+            { optionId: "private-r", kind: "reject_once" },
+          ],
+        },
+      },
+    });
+    const semanticRequest = makeObserverEvent({
+      seq: 21,
+      timestamp: "2026-01-01T00:20:01.000Z",
+      kind: "permission_requested",
+      channelId,
+      sessionId,
+      payload: {
+        requestId,
+        agentPubkey: AGENT_PUBKEY,
+        relayUrl: "wss://relay.example.test",
+        sessionId,
+        rpcId,
+        expiresAt: "2099-01-01T00:00:00.000Z",
+        toolCall,
+        detailsComplete: true,
+        canApproveOnce: true,
+      },
+    });
+    const semanticResolution = makeObserverEvent({
+      seq: 22,
+      timestamp: "2026-01-01T00:20:02.000Z",
+      kind: "permission_resolved",
+      channelId,
+      sessionId,
+      payload: {
+        requestId,
+        agentPubkey: AGENT_PUBKEY,
+        relayUrl: "wss://relay.example.test",
+        sessionId,
+        rpcId,
+        outcome: "approved",
+      },
+    });
+
+    const combined = mergeObserverEventWindows(
+      [semanticRequest, semanticResolution],
+      [rawRequest],
+    );
+    const permissionRows = buildTranscriptState(combined).items.filter(
+      (item) => item.type === "lifecycle" && item.renderClass === "permission",
+    );
+    assert.equal(permissionRows.length, 1);
+    assert.equal(permissionRows[0].permission?.binding.requestId, requestId);
+    assert.equal(permissionRows[0].outcome, "Approved once");
   });
 
   it("test_raw_rail_count_includes_archived_events_after_reload", async () => {

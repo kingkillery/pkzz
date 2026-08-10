@@ -3,11 +3,20 @@ import test from "node:test";
 
 import {
   collectRuntimeWarnings,
+  getDefaultPersonaRuntime,
   resolvePersonaRuntime,
 } from "./resolvePersonaRuntime.ts";
 
-function makeRuntime(id, label = `${id} label`) {
-  return { id, label, command: id, avatarUrl: "" };
+function makeRuntime(id, label = `${id} label`, overrides = {}) {
+  return {
+    id,
+    label,
+    command: id,
+    avatarUrl: "",
+    availability: "available",
+    runtimeReadiness: "ready",
+    ...overrides,
+  };
 }
 
 const goose = makeRuntime("goose", "Goose");
@@ -20,6 +29,7 @@ test("resolvePersonaRuntime — no personaRuntimeId returns defaultRuntime with 
     runtime: goose,
     warnings: [],
     isOverridden: false,
+    provenance: "implicit_default",
   });
 });
 
@@ -29,6 +39,7 @@ test("resolvePersonaRuntime — undefined personaRuntimeId also returns defaultR
     runtime: goose,
     warnings: [],
     isOverridden: false,
+    provenance: "implicit_default",
   });
 });
 
@@ -46,6 +57,7 @@ test("resolvePersonaRuntime — matching runtime found returns matched runtime, 
     runtime: goose,
     warnings: [],
     isOverridden: false,
+    provenance: "persona",
   });
 });
 
@@ -55,6 +67,7 @@ test("resolvePersonaRuntime — override=true with same runtime as default retur
     runtime: goose,
     warnings: [],
     isOverridden: false,
+    provenance: "persona",
   });
 });
 
@@ -74,6 +87,7 @@ test("resolvePersonaRuntime — override=false returns matched runtime, ignores 
     runtime: goose,
     warnings: [],
     isOverridden: false,
+    provenance: "persona",
   });
 });
 
@@ -83,6 +97,7 @@ test("resolvePersonaRuntime — override=true but no defaultRuntime returns matc
     runtime: goose,
     warnings: [],
     isOverridden: false,
+    provenance: "persona",
   });
 });
 
@@ -123,6 +138,17 @@ test("resolvePersonaRuntime — isOverridden is true when persona's runtime is u
 test("resolvePersonaRuntime — isOverridden is false when override selects same runtime as persona", () => {
   const result = resolvePersonaRuntime("goose", runtimes, goose, true);
   assert.equal(result.isOverridden, false);
+});
+
+test("resolvePersonaRuntime exposes fallback and forced-override provenance", () => {
+  assert.equal(
+    resolvePersonaRuntime("missing", runtimes, goose).provenance,
+    "fallback",
+  );
+  assert.equal(
+    resolvePersonaRuntime("goose", runtimes, claude, true).provenance,
+    "forced_override",
+  );
 });
 
 test("collectRuntimeWarnings — no fallbackRuntime returns empty array regardless of personas", () => {
@@ -176,4 +202,32 @@ test("collectRuntimeWarnings — override=false behaves identically to no overri
 
 test("collectRuntimeWarnings — empty personas array always returns empty", () => {
   assert.deepEqual(collectRuntimeWarnings([], runtimes, goose, true), []);
+});
+
+test("explicit available preference wins even when runtime readiness is not ready", () => {
+  const unreadyOmpk = makeRuntime("ompk", "Oh My PK", {
+    runtimeReadiness: "model_unavailable",
+  });
+  const result = getDefaultPersonaRuntime([goose, unreadyOmpk], "ompk");
+  assert.equal(result, unreadyOmpk);
+});
+
+test("implicit selection skips unready candidates before applying precedence", () => {
+  const unreadyOmpk = makeRuntime("ompk", "Oh My PK", {
+    runtimeReadiness: "unknown",
+  });
+  const unreadyBuzz = makeRuntime("buzz-agent", "Pkzz Agent", {
+    runtimeReadiness: "authentication_required",
+  });
+  assert.equal(
+    getDefaultPersonaRuntime([unreadyOmpk, goose, unreadyBuzz])?.id,
+    "goose",
+  );
+});
+
+test("OMP is preserved when explicitly preferred and is never implicit", () => {
+  const omp = makeRuntime("omp", "OMP");
+  assert.equal(getDefaultPersonaRuntime([omp, goose], "omp"), omp);
+  assert.equal(getDefaultPersonaRuntime([omp, goose])?.id, "goose");
+  assert.equal(getDefaultPersonaRuntime([omp]), null);
 });

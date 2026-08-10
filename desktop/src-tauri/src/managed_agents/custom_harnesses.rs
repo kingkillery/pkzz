@@ -18,6 +18,10 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
+mod catalog_ids;
+
+pub(crate) use catalog_ids::check_id_collision;
+
 /// Regex-equivalent predicate for a valid harness ID.
 ///
 /// IDs must match `[a-z0-9_][a-z0-9_-]*` — lowercase alphanumeric plus
@@ -208,32 +212,6 @@ fn validate_harness_definition(def: &HarnessDefinition) -> Result<(), String> {
 /// without duplicating the rules.
 pub(crate) fn validate_harness_definition_pub(def: &HarnessDefinition) -> Result<(), String> {
     validate_harness_definition(def)
-}
-
-// ── Built-in ID set ──────────────────────────────────────────────────────────
-
-/// IDs reserved for the compiled-in catalog. A custom definition whose `id`
-/// collides with a built-in or preset is rejected to prevent shadowing (e.g. a
-/// file called `cursor.json` hiding the pre-existing tier-2 preset).
-///
-/// Derived at compile time from `PRESET_HARNESSES` (tier-2) plus the four
-/// tier-1 runtimes — no hand-maintained copy.  Adding a preset to
-/// `PRESET_HARNESSES` automatically reserves its ID without a separate edit.
-fn builtin_ids() -> impl Iterator<Item = &'static str> {
-    const TIER1: &[&str] = &["goose", "claude", "codex", "buzz-agent"];
-    let tier2 = crate::managed_agents::discovery::preset_harness_ids();
-    TIER1.iter().copied().chain(tier2.iter().copied())
-}
-
-/// Return an error string if `id` conflicts with a built-in harness ID.
-pub(crate) fn check_id_collision(id: &str) -> Result<(), String> {
-    if builtin_ids().any(|reserved| reserved.eq_ignore_ascii_case(id)) {
-        return Err(format!(
-            "id {:?} is reserved for a built-in harness and cannot be overridden",
-            id
-        ));
-    }
-    Ok(())
 }
 
 // ── Loaded harness registry (F2 — spawn resolution for custom/preset) ────────
@@ -535,15 +513,19 @@ mod tests {
     // ── Collision check ──────────────────────────────────────────────────────
 
     #[test]
-    fn builtin_ids_are_rejected() {
-        // Tier-1 hard-coded IDs must always be reserved.
-        for id in &["goose", "claude", "codex", "buzz-agent"] {
+    fn every_rich_and_flat_runtime_id_is_reserved() {
+        for id in crate::managed_agents::discovery::known_runtime_ids() {
             assert!(check_id_collision(id).is_err(), "{id} should be rejected");
         }
-        // Tier-2 preset IDs must also be reserved (derived from PRESET_HARNESSES).
         for id in crate::managed_agents::discovery::preset_harness_ids() {
             assert!(check_id_collision(id).is_err(), "{id} should be rejected");
         }
+    }
+
+    #[test]
+    fn ompk_id_is_reserved_case_insensitively_after_promotion() {
+        assert!(check_id_collision("ompk").is_err());
+        assert!(check_id_collision("OMPK").is_err());
     }
 
     #[test]

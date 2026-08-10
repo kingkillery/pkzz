@@ -52,23 +52,28 @@ export function catalogDialogEntries(
     .sort(compareCatalogEntries);
 }
 
+function entryIsOperationallyReady(entry: AcpRuntimeCatalogEntry): boolean {
+  return (
+    entry.availability === "available" && entry.runtimeReadiness === "ready"
+  );
+}
+
 /** Needs-setup entries first (that's why the user opened the dialog), then
  * ready ones; alphabetical within each group. */
 function compareCatalogEntries(
   a: AcpRuntimeCatalogEntry,
   b: AcpRuntimeCatalogEntry,
 ): number {
-  const aReady = a.availability === "available" ? 1 : 0;
-  const bReady = b.availability === "available" ? 1 : 0;
+  const aReady = entryIsOperationallyReady(a) ? 1 : 0;
+  const bReady = entryIsOperationallyReady(b) ? 1 : 0;
   if (aReady !== bReady) return aReady - bReady;
   return a.label.localeCompare(b.label);
 }
 
 /**
- * Splits catalog entries into the two accordion sections of the Add-runtimes
- * list: "Setup" (needs action — the reason the user opened the dialog) and
- * "Installed" (already ready, collapsed by default). Relative order within
- * each group is preserved from the input.
+ * list: "Setup" (needs an install, authentication, or model action) and
+ * "Installed" (operationally ready, collapsed by default). Relative order
+ * within each group is preserved from the input.
  */
 export function groupCatalogEntries(
   entries: readonly AcpRuntimeCatalogEntry[],
@@ -77,8 +82,8 @@ export function groupCatalogEntries(
   installed: AcpRuntimeCatalogEntry[];
 } {
   return {
-    setup: entries.filter((e) => e.availability !== "available"),
-    installed: entries.filter((e) => e.availability === "available"),
+    setup: entries.filter((entry) => !entryIsOperationallyReady(entry)),
+    installed: entries.filter(entryIsOperationallyReady),
   };
 }
 
@@ -147,28 +152,34 @@ export function entryStatusLabel(entry: AcpRuntimeCatalogEntry): string | null {
     case "not_installed":
       return "CLI needed";
     case "available":
-      return entry.authStatus.status === "logged_out" ? "Sign-in needed" : null;
+      switch (entry.runtimeReadiness) {
+        case "authentication_required":
+          return "Sign-in needed";
+        case "model_unavailable":
+          return "Model setup needed";
+        case "unknown":
+          return "Status unavailable";
+        case "ready":
+          return null;
+      }
+      return null;
     default:
       return null;
   }
 }
 
 /**
- * Sign-in guidance to show under a row, or null when there's nothing to say.
- *
- * The backend already ships a `loginHint` for every runtime whose CLI needs a
- * provider login (probe-derived for builtins, static for presets whose CLIs
- * expose no non-interactive login-status command). It was plumbed all the way
- * to this type and then rendered nowhere, so "how do I sign this thing in?"
- * had no answer in the UI.
- *
- * Gated on `available`: an absent CLI shows install copy instead, and telling
- * someone to run a login command for a binary they don't have is backwards.
- * `logged_in` suppresses it — a signed-in runtime needs no instructions.
+ * Sign-in guidance to show under a row, or null when authentication is not the
+ * blocker. Rust readiness is authoritative: ready/keyless runtimes suppress
+ * login copy even when their independent auth probe remains unknown.
  */
 export function entryLoginHint(entry: AcpRuntimeCatalogEntry): string | null {
-  if (entry.availability !== "available") return null;
-  if (entry.authStatus.status === "logged_in") return null;
+  if (
+    entry.availability !== "available" ||
+    entry.runtimeReadiness !== "authentication_required"
+  ) {
+    return null;
+  }
   const hint = entry.loginHint?.trim();
   return hint ? hint : null;
 }
@@ -232,8 +243,12 @@ export function installLinkLabel(entry: AcpRuntimeCatalogEntry): string {
 export function catalogPrimaryAction(
   entry: AcpRuntimeCatalogEntry,
 ): CatalogPrimaryAction {
-  if (entry.availability === "available") return { kind: "none" };
-  if (entry.canAutoInstall && !entry.nodeRequired) {
+  if (entryIsOperationallyReady(entry)) return { kind: "none" };
+  if (
+    entry.availability !== "available" &&
+    entry.canAutoInstall &&
+    !entry.nodeRequired
+  ) {
     return {
       kind: "install",
       label: entry.availability === "adapter_outdated" ? "Update" : "Install",

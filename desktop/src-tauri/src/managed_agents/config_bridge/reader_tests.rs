@@ -7,6 +7,7 @@ use std::{collections::BTreeMap, path::Path, sync::Mutex};
 use super::*;
 use crate::managed_agents::discovery::KnownAcpRuntime;
 use crate::managed_agents::types::ManagedAgentRecord;
+use crate::managed_agents::{HarnessSource, RuntimeAuthentication, RuntimeReadinessPolicy};
 
 static GOOSE_PATH_ROOT_LOCK: Mutex<()> = Mutex::new(());
 
@@ -34,6 +35,8 @@ fn test_runtime() -> &'static KnownAcpRuntime {
         commands: &["goose"],
         aliases: &[],
         avatar_url: "",
+        source: HarnessSource::Builtin,
+        default_args: &[],
         mcp_command: None,
         mcp_hooks: false,
         underlying_cli: None,
@@ -58,8 +61,8 @@ fn test_runtime() -> &'static KnownAcpRuntime {
         context_limit_env_var: Some("GOOSE_CONTEXT_LIMIT"),
         max_rounds_env_var: None,
         required_normalized_fields: &["model", "provider"],
-        login_hint: None,
-        auth_probe_args: None,
+        authentication: RuntimeAuthentication::NotApplicable,
+        readiness_policy: RuntimeReadinessPolicy::AvailabilityOnly,
     }
 }
 
@@ -118,6 +121,8 @@ fn test_record() -> ManagedAgentRecord {
         agent_command_override: None,
         persona_source_version: None,
         provider: None,
+        launch_runtime_id: None,
+        raw_command_explicit: false,
     }
 }
 
@@ -623,6 +628,8 @@ fn buzz_agent_runtime() -> &'static KnownAcpRuntime {
         commands: &["buzz-agent"],
         aliases: &[],
         avatar_url: "",
+        source: HarnessSource::Builtin,
+        default_args: &[],
         mcp_command: None,
         mcp_hooks: false,
         underlying_cli: None,
@@ -647,8 +654,8 @@ fn buzz_agent_runtime() -> &'static KnownAcpRuntime {
         context_limit_env_var: Some("BUZZ_AGENT_MAX_CONTEXT_TOKENS"),
         max_rounds_env_var: Some("BUZZ_AGENT_MAX_ROUNDS"),
         required_normalized_fields: &["model", "provider"],
-        login_hint: None,
-        auth_probe_args: None,
+        authentication: RuntimeAuthentication::NotApplicable,
+        readiness_policy: RuntimeReadinessPolicy::AvailabilityOnly,
     }
 }
 

@@ -51,7 +51,7 @@ export function AddTeamToChannelDialog({
   onOpenChange,
   onDeployed,
 }: AddTeamToChannelDialogProps) {
-  const { globalConfig } = useGlobalAgentConfig();
+  const { globalConfig, isReady: globalConfigReady } = useGlobalAgentConfig();
   const channelsQuery = useChannelsQuery();
   const providersQuery = useAvailableAcpRuntimes();
   const [channelId, setChannelId] = React.useState("");
@@ -69,12 +69,11 @@ export function AddTeamToChannelDialog({
   );
 
   const runtimes = providersQuery.data ?? [];
-  // Use the buzz-agent-first preference so the team-deploy fallback mirrors the
-  // single-agent start path (buzz-agent → goose → first available).
-  const defaultProvider = getDefaultPersonaRuntime(
-    runtimes,
-    globalConfig.preferred_runtime,
-  );
+  // Use the canonical OMPK-first preference so team deployment mirrors the
+  // single-agent start path (OMPK → Pkzz Agent → Goose → first available).
+  const defaultProvider = globalConfigReady
+    ? getDefaultPersonaRuntime(runtimes, globalConfig.preferred_runtime)
+    : null;
 
   const teamPersonaResolution = React.useMemo(
     () =>
@@ -118,9 +117,14 @@ export function AddTeamToChannelDialog({
     channels.find((channel) => channel.id === channelId) ?? null;
 
   async function handleDeploy() {
-    if (!team || !selectedChannel || !defaultProvider) {
+    if (!team || !selectedChannel || !globalConfigReady) {
       return;
     }
+    const submitDefaultProvider = getDefaultPersonaRuntime(
+      runtimes,
+      globalConfig.preferred_runtime,
+    );
+    if (!submitDefaultProvider) return;
 
     try {
       // Resolve each persona's preferred runtime. This dialog has no
@@ -131,9 +135,9 @@ export function AddTeamToChannelDialog({
         const { runtime: personaRuntime } = resolvePersonaRuntime(
           persona.runtime,
           runtimes,
-          defaultProvider,
+          submitDefaultProvider,
         );
-        const runtimeToUse = personaRuntime ?? defaultProvider;
+        const runtimeToUse = personaRuntime ?? submitDefaultProvider;
         return {
           runtime: {
             id: runtimeToUse.id,
@@ -147,6 +151,7 @@ export function AddTeamToChannelDialog({
           avatarUrl: persona.avatarUrl ?? undefined,
           model: persona.model ?? undefined,
           personaId: persona.id,
+          harnessOverride: false,
           teamId: team.id,
           // One persona can be deployed under multiple teams with different instructions.
           forceNewInstance: true,
@@ -303,6 +308,7 @@ export function AddTeamToChannelDialog({
                 !defaultProvider ||
                 resolved.length === 0 ||
                 missingPersonaCount > 0 ||
+                !globalConfigReady ||
                 channelsQuery.isLoading ||
                 providersQuery.isLoading ||
                 deployMutation.isPending

@@ -6,10 +6,9 @@ use super::agent_env::build_buzz_agent_provider_defaults;
 
 use crate::{
     managed_agents::{
-        append_log_marker, known_acp_runtime, login_shell_path, managed_agent_log_path,
-        missing_command_message, normalize_agent_args, open_log_file, resolve_command,
-        spawn_key_refusal, KnownAcpRuntime, ManagedAgentPairRuntime, ManagedAgentRecord,
-        ManagedAgentRuntimeKey, ManagedAgentSummary,
+        append_log_marker, login_shell_path, managed_agent_log_path, missing_command_message,
+        normalize_agent_args, open_log_file, resolve_command, spawn_key_refusal, KnownAcpRuntime,
+        ManagedAgentPairRuntime, ManagedAgentRecord, ManagedAgentRuntimeKey, ManagedAgentSummary,
     },
     util::now_iso,
 };
@@ -25,6 +24,11 @@ pub(crate) use metadata::{
     apply_agent_display_env, resolve_session_title, runtime_metadata_env_vars,
     DISPLAY_NAME_ENV_VAR, SESSION_TITLE_ENV_VAR,
 };
+
+mod pair_key;
+#[cfg(test)]
+pub(crate) use pair_key::resolve_workspace_pair_key;
+pub(crate) use pair_key::workspace_pair_key;
 
 mod stop;
 pub(crate) use stop::managed_agent_runtime_keys;
@@ -95,37 +99,6 @@ fn persona_drift_state(
         .as_deref()
         .is_some_and(|pinned| pinned != current);
     (out_of_date, false)
-}
-
-/// Resolve the runtime-pair key this record maps to for the active
-/// workspace: always the active workspace relay (the legacy per-record relay
-/// pin is ignored — see `effective_agent_relay_url`). Returns `None` for
-/// records that cannot form a valid pair key yet (e.g. key-less agents that
-/// mint keys on first start).
-pub(crate) fn workspace_pair_key(
-    app: &AppHandle,
-    record: &ManagedAgentRecord,
-) -> Option<ManagedAgentRuntimeKey> {
-    use tauri::Manager;
-    let state = app.state::<crate::app_state::AppState>();
-    resolve_workspace_pair_key(
-        &record.pubkey,
-        &record.relay_url,
-        &crate::relay::relay_ws_url_with_override(&state),
-    )
-}
-
-/// Pure core of [`workspace_pair_key`]: workspace-relay resolution (legacy
-/// record pins ignored) plus canonical key construction, kept `AppHandle`-free
-/// so summary/stop scoping semantics are unit-testable.
-pub(crate) fn resolve_workspace_pair_key(
-    pubkey: &str,
-    record_relay_url: &str,
-    workspace_relay_url: &str,
-) -> Option<ManagedAgentRuntimeKey> {
-    let effective_relay =
-        crate::relay::effective_agent_relay_url(record_relay_url, workspace_relay_url);
-    ManagedAgentRuntimeKey::new(pubkey.to_string(), &effective_relay).ok()
 }
 
 pub fn build_managed_agent_summary(
@@ -286,21 +259,27 @@ pub fn build_managed_agent_summary(
         };
         let args = normalize_agent_args(&cmd, record.agent_args.clone());
         crate::managed_agents::readiness::EffectiveHarnessDescriptor {
+            runtime_id: record
+                .launch_runtime_id
+                .clone()
+                .or_else(|| record.runtime.clone()),
             command: cmd,
             args,
             env: Default::default(),
         }
     });
-    let effective_mcp_command = known_acp_runtime(&descriptor.command)
-        .and_then(|r| r.mcp_command)
+    let effective_mcp_command = descriptor
+        .known_runtime()
+        .and_then(|runtime| runtime.mcp_command)
         .unwrap_or("")
         .to_string();
+    let effective_runtime_id = descriptor.runtime_id.clone();
 
     Ok(ManagedAgentSummary {
         pubkey: record.pubkey.clone(),
         name: record.name.clone(),
         persona_id: record.persona_id.clone(),
-        runtime: record.runtime.clone(),
+        runtime: effective_runtime_id,
         team_id: record.team_id.clone(),
         relay_url: record.relay_url.clone(),
         acp_command: record.acp_command.clone(),
@@ -412,6 +391,9 @@ pub fn spawn_agent_child(
         return Err(error);
     }
     let runtime_key = ManagedAgentRuntimeKey::new(record.pubkey.clone(), relay_url)?;
+    // The durable delivery store is pair-scoped exactly like the child process
+    // and its logs. Resolve/create it before log files or process side effects.
+    let host_final_outbox_dir = super::host_final_outbox_dir(app, &runtime_key)?;
     // Resolve the effective harness (agent command) from the linked persona, so
     // persona harness edits propagate on the next spawn; an explicit per-agent
     // override wins. `agent_args` and `mcp_command` are pure derivations of the
@@ -475,8 +457,10 @@ pub fn spawn_agent_child(
         .map_err(|error| format!("failed to clone log handle: {error}"))?;
     let resolved_acp_command = resolve_command(&record.acp_command)
         .ok_or_else(|| missing_command_message(&record.acp_command, "ACP harness command"))?;
-    let effective_mcp_command = known_acp_runtime(effective_command)
-        .and_then(|r| r.mcp_command)
+    crate::managed_agents::force_descriptor_readiness(&descriptor, Some(&resolved_acp_command));
+    let effective_mcp_command = descriptor
+        .known_runtime()
+        .and_then(|runtime| runtime.mcp_command)
         .unwrap_or("");
     let resolved_mcp_command: Option<std::path::PathBuf> = if effective_mcp_command.is_empty() {
         None
@@ -530,6 +514,7 @@ pub fn spawn_agent_child(
     command.env("RUST_LOG", child_rust_log_filter());
     command.env("BUZZ_PRIVATE_KEY", &record.private_key_nsec);
     command.env("BUZZ_RELAY_URL", &effective_relay_url);
+    command.env("BUZZ_ACP_HOST_FINAL_OUTBOX_DIR", host_final_outbox_dir);
     command.env("BUZZ_ACP_LAZY_POOL", if lazy { "true" } else { "false" });
     command.env("BUZZ_ACP_AGENT_COMMAND", &resolved_agent_command);
     command.env("BUZZ_ACP_AGENT_ARGS", agent_args.join(","));
@@ -543,7 +528,7 @@ pub fn spawn_agent_child(
     }
     // Enable MCP hook tools (_Stop, _PostCompact) for agents that need them.
     // Uses "*" because build_mcp_servers() hard-codes the server name to "buzz-mcp".
-    let runtime_meta = known_acp_runtime(effective_command);
+    let runtime_meta = descriptor.known_runtime();
     if runtime_meta.is_some_and(|r| r.mcp_hooks) {
         command.env("MCP_HOOK_SERVERS", "*");
     }
@@ -575,6 +560,8 @@ pub fn spawn_agent_child(
         // Construct EffectiveAgentEnv from the descriptor computed above — no second
         // resolver call; the descriptor's env is already the fully layered result.
         let effective = EffectiveAgentEnv {
+            runtime_id: descriptor.runtime_id.clone(),
+            effective_args: descriptor.args.clone(),
             env: descriptor.env.clone(),
             config_file_path: runtime_meta.and_then(|r| r.config_file_path),
             effective_command: descriptor.command.clone(),
@@ -620,6 +607,13 @@ pub fn spawn_agent_child(
                             "surface": "missing_binary",
                             "command": command,
                         }),
+                        Requirement::RuntimeReadiness { status, setup_copy } => {
+                            serde_json::json!({
+                                "surface": "runtime_readiness",
+                                "status": status,
+                                "setup_copy": setup_copy,
+                            })
+                        }
                     })
                     .collect();
                 let payload = serde_json::json!({

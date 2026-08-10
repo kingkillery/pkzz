@@ -588,7 +588,10 @@ test("buildTranscript surfaces session/request_permission as a permission lifecy
   assert.equal(transcript.length, 1);
   assert.equal(transcript[0].type, "lifecycle");
   assert.equal(transcript[0].renderClass, "permission");
-  assert.equal(transcript[0].title, "Permission requested");
+  assert.equal(
+    transcript[0].title,
+    "Confirm force-with-lease push to kingkillery/pkzz.",
+  );
   assert.match(transcript[0].text, /Confirm force-with-lease push/);
 });
 
@@ -776,11 +779,11 @@ test("buildTranscript appends Approved outcome when allow_once is selected", () 
   const item = transcript[0];
   assert.equal(item.type, "lifecycle");
   assert.equal(item.renderClass, "permission");
-  assert.equal(item.outcome, "Approved (allow_once)");
+  assert.equal(item.outcome, "Approved once");
   assert.doesNotMatch(item.text ?? "", /Approved/);
 });
 
-test("buildTranscript appends Denied outcome when reject_once is selected", () => {
+test("buildTranscript appends Rejected outcome when reject_once is selected", () => {
   const transcript = buildTranscript([
     makePermissionRequest(1, "req-2"),
     makePermissionResponse(2, "req-2", "selected", "reject_once"),
@@ -788,8 +791,8 @@ test("buildTranscript appends Denied outcome when reject_once is selected", () =
 
   const item = transcript[0];
   assert.equal(item.type, "lifecycle");
-  assert.equal(item.outcome, "Denied (reject_once)");
-  assert.doesNotMatch(item.text ?? "", /Denied/);
+  assert.equal(item.outcome, "Rejected");
+  assert.doesNotMatch(item.text ?? "", /Rejected/);
 });
 
 test("buildTranscript appends Cancelled outcome on cancelled response", () => {
@@ -834,7 +837,7 @@ test("buildTranscript appends Approved outcome for a numeric JSON-RPC id (select
   const item = transcript[0];
   assert.equal(item.type, "lifecycle");
   assert.equal(item.renderClass, "permission");
-  assert.equal(item.outcome, "Approved (allow_once)");
+  assert.equal(item.outcome, "Approved once");
   assert.doesNotMatch(item.text ?? "", /Approved/);
 });
 
@@ -862,8 +865,234 @@ test('buildTranscript does not collide between numeric id 1 and string id "1"', 
     makePermissionResponse(2, "1", "selected", "reject_once"),
   ]);
 
-  assert.equal(transcriptNumeric[0].outcome, "Approved (allow_once)");
-  assert.equal(transcriptString[0].outcome, "Denied (reject_once)");
+  assert.equal(transcriptNumeric[0].outcome, "Approved once");
+  assert.equal(transcriptString[0].outcome, "Rejected");
+});
+
+const PERMISSION_AGENT = "a".repeat(64);
+const PERMISSION_REQUEST_ID = "75a8098e-0cb2-4b47-bb95-ef9c33e17ae1";
+
+function semanticPermissionRequestEvent(
+  seq,
+  {
+    sessionId = "session-semantic",
+    rpcId = "rpc-semantic",
+    requestId = PERMISSION_REQUEST_ID,
+    expiresAt = "2099-06-30T10:02:00.000Z",
+    detailsComplete = true,
+    canApproveOnce = true,
+    toolCall = {
+      toolCallId: "tool-semantic",
+      title: "Run release command",
+      kind: "execute",
+      rawInput: { command: "pnpm <script>alert('x')</script>" },
+      content: [{ type: "text", text: "writes release artifacts" }],
+      locations: [{ path: "dist/<release>" }],
+    },
+  } = {},
+) {
+  return {
+    ...baseEvent,
+    seq,
+    timestamp: `2026-06-30T10:00:${String(seq).padStart(2, "0")}.000Z`,
+    kind: "permission_requested",
+    sessionId,
+    payload: {
+      requestId,
+      agentPubkey: PERMISSION_AGENT,
+      relayUrl: "wss://relay.example.test",
+      sessionId,
+      rpcId,
+      expiresAt,
+      toolCall,
+      detailsComplete,
+      canApproveOnce,
+    },
+  };
+}
+
+function semanticPermissionResolutionEvent(
+  seq,
+  outcome,
+  {
+    sessionId = "session-semantic",
+    rpcId = "rpc-semantic",
+    requestId = PERMISSION_REQUEST_ID,
+  } = {},
+) {
+  return {
+    ...baseEvent,
+    seq,
+    timestamp: `2026-06-30T10:01:${String(seq).padStart(2, "0")}.000Z`,
+    kind: "permission_resolved",
+    sessionId,
+    payload: {
+      requestId,
+      agentPubkey: PERMISSION_AGENT,
+      relayUrl: "wss://relay.example.test",
+      sessionId,
+      rpcId,
+      outcome,
+    },
+  };
+}
+
+test("trusted semantic OMPK permission renders complete nested tool details and one-shot copy", () => {
+  const [item] = buildTranscript([semanticPermissionRequestEvent(1)]);
+  assert.equal(item.renderClass, "permission");
+  assert.equal(item.permission?.canApproveOnce, true);
+  assert.equal(item.permission?.detailsComplete, true);
+  assert.match(item.text, /Run release command/);
+  assert.ok(item.text.includes("pnpm <script>alert('x')</script>"));
+  assert.ok(item.text.includes("dist/<release>"));
+  assert.ok(item.text.includes("Approval applies to this call only."));
+  assert.doesNotMatch(item.text, /optionId|allow_always|Options:/);
+});
+
+test("raw plus trusted semantic telemetry upserts one actionable permission row", () => {
+  const raw = {
+    ...makePermissionRequest(1, "rpc-semantic"),
+    sessionId: "session-semantic",
+    payload: {
+      ...makePermissionRequest(1, "rpc-semantic").payload,
+      params: {
+        sessionId: "session-semantic",
+        toolCall: {
+          toolCallId: "tool-semantic",
+          title: "Run release command",
+          kind: "execute",
+          rawInput: { command: "pnpm release" },
+        },
+        options: [
+          { optionId: "private-a", kind: "allow_once", name: "Allow once" },
+          { optionId: "private-r", kind: "reject_once", name: "Reject" },
+        ],
+      },
+    },
+  };
+  const transcript = buildTranscript([
+    raw,
+    semanticPermissionRequestEvent(2),
+  ]).filter((item) => item.renderClass === "permission");
+  assert.equal(transcript.length, 1);
+  assert.equal(
+    transcript[0].permission?.binding.requestId,
+    PERMISSION_REQUEST_ID,
+  );
+});
+
+test("semantic-only permission is actionable while raw ACP telemetry stays passive", () => {
+  const semantic = buildTranscript([semanticPermissionRequestEvent(1)])[0];
+  const raw = buildTranscript([makePermissionRequest(1, "raw-only")])[0];
+  assert.ok(semantic.permission);
+  assert.equal(raw.permission, undefined);
+});
+
+test("permission response correlation includes session and typed JSON-RPC id", () => {
+  const events = [
+    {
+      ...makePermissionRequest(1, 1),
+      sessionId: "session-a",
+      payload: { ...makePermissionRequest(1, 1).payload },
+    },
+    {
+      ...makePermissionRequest(2, 1),
+      sessionId: "session-b",
+      payload: { ...makePermissionRequest(2, 1).payload },
+    },
+    {
+      ...makePermissionRequest(3, "1"),
+      sessionId: "session-a",
+      payload: { ...makePermissionRequest(3, "1").payload },
+    },
+    {
+      ...makePermissionResponse(4, 1, "selected", "allow_once"),
+      sessionId: "session-b",
+    },
+    {
+      ...makePermissionResponse(5, "1", "selected", "reject_once"),
+      sessionId: "session-a",
+    },
+  ];
+  const permissions = buildTranscript(events).filter(
+    (item) => item.renderClass === "permission",
+  );
+  assert.equal(permissions.length, 3);
+  assert.equal(
+    permissions.find(
+      (item) => item.sessionId === "session-a" && item.id.endsWith(":1"),
+    )?.outcome,
+    undefined,
+  );
+  assert.equal(
+    permissions.find((item) => item.sessionId === "session-b")?.outcome,
+    "Approved once",
+  );
+  assert.equal(
+    permissions.find((item) => item.id.includes('"1"'))?.outcome,
+    "Rejected",
+  );
+});
+
+for (const [semanticOutcome, label] of [
+  ["approved", "Approved once"],
+  ["rejected", "Rejected"],
+  ["expired", "Expired"],
+  ["cancelled", "Cancelled"],
+  ["unavailable", "Unavailable"],
+  ["invalid_request", "Invalid request"],
+]) {
+  test(`semantic ${semanticOutcome} resolves the exact permission row`, () => {
+    const [item] = buildTranscript([
+      semanticPermissionRequestEvent(1),
+      semanticPermissionResolutionEvent(2, semanticOutcome),
+    ]);
+    assert.equal(item.outcome, label);
+    assert.equal(item.permissionResolution?.outcome, semanticOutcome);
+  });
+}
+
+test("semantic resolution arriving before its request still converges to one terminal row", () => {
+  const [item] = buildTranscript([
+    semanticPermissionResolutionEvent(1, "expired"),
+    semanticPermissionRequestEvent(2),
+  ]);
+  assert.equal(item.outcome, "Expired");
+  assert.ok(item.permission);
+  assert.equal(item.permissionResolution?.outcome, "expired");
+});
+
+test("mismatched, incomplete, and malformed semantic requests never gain action data", () => {
+  const mismatched = semanticPermissionRequestEvent(1);
+  mismatched.payload.sessionId = "other-session";
+  const malformed = semanticPermissionRequestEvent(2);
+  delete malformed.payload.requestId;
+  const missingDetails = semanticPermissionRequestEvent(3);
+  delete missingDetails.payload.toolCall.title;
+  for (const event of [mismatched, malformed, missingDetails]) {
+    const item = buildTranscript([event]).find(
+      (candidate) => candidate.renderClass === "permission",
+    );
+    assert.equal(item?.permission, undefined);
+  }
+});
+
+test("a newer session in the same channel makes an unresolved archived request passive", () => {
+  const transcript = buildTranscript([
+    semanticPermissionRequestEvent(1, { sessionId: "old-session" }),
+    {
+      ...baseEvent,
+      seq: 2,
+      kind: "turn_started",
+      sessionId: "new-session",
+      payload: {},
+    },
+  ]);
+  const permission = transcript.find(
+    (item) => item.renderClass === "permission",
+  );
+  assert.ok(permission);
+  assert.equal(permission.permission, undefined);
 });
 
 // ─── observer parity: new session/update classifier cases ────────────────────

@@ -31,7 +31,6 @@ import {
   AUTO_PROVIDER_DROPDOWN_VALUE,
   BLOCK_BUILD_HIDDEN_PROVIDER_IDS,
   CUSTOM_PROVIDER_DROPDOWN_VALUE,
-  formatRuntimeOptionLabel,
   getDefaultLlmModelLabel,
   getDefaultPersonaRuntime,
   getPersonaProviderOptions,
@@ -53,7 +52,6 @@ import {
   computeEditAgentFormValidity,
   envVarsEqual,
   isEditAgentProviderSaveValid,
-  resolveAgentCommandUpdate,
   resolveInheritedRuntimeSubmission,
   resolveRuntimeProviderCapability,
 } from "./personaRuntimeModel";
@@ -90,11 +88,19 @@ import { resolveModelFieldStatusMessage } from "./agentConfigControls";
 import { AdvancedRequiredBadge } from "./AdvancedRequiredBadge";
 import { showAgentProfileSyncWarning } from "./agentProfileSyncWarning";
 import { AddCustomHarnessDialog } from "./AddCustomHarnessDialog";
+import { RuntimeSetupGuidance } from "./RuntimeSetupGuidance";
 import {
-  ADD_CUSTOM_HARNESS_OPTION,
   runtimeDropdownAction,
   usePendingHarnessSelection,
 } from "./addCustomHarness";
+import {
+  buildRuntimeDropdownOptions,
+  canPersistRuntimePin,
+  resolveProspectiveRuntimeId,
+  resolveRuntimeIdentityUpdate,
+  resolveOriginalRuntimeSupportsProvider,
+  resolveSelectedRuntimeId,
+} from "./agentInstanceRuntimeIdentity";
 
 export function AgentInstanceEditDialog({
   agent,
@@ -167,12 +173,13 @@ export function AgentInstanceEditDialog({
   const [isAddHarnessOpen, setIsAddHarnessOpen] = React.useState(false);
   const shouldReduceMotion = useReducedMotion();
 
-  // Runtime selector: defaults to "custom" until the dialog opens and the
-  // catalog loads. The open-effect re-derives the correct id from the catalog.
-  const [selectedRuntimeId, setSelectedRuntimeId] = React.useState("custom");
+  const [selectedRuntimeId, setSelectedRuntimeId] = React.useState(() =>
+    resolveSelectedRuntimeId([], agent.runtime, agent.agentCommand),
+  );
 
-  // Tracks whether the user has made an in-dialog runtime selection.
+  // Distinguish user edits from catalog-arrival/default display updates.
   const runtimeTouched = React.useRef(false);
+  const argsTouched = React.useRef(false);
 
   // Reset form state only when the dialog opens or when switching to a different agent.
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentional — including agent fields would re-fire on every 5s poll and wipe edits
@@ -201,10 +208,10 @@ export function AgentInstanceEditDialog({
       setIsAvatarUploadPending(false);
       setIsAddHarnessOpen(false);
       runtimeTouched.current = false;
-      const matched =
-        runtimes.find((r) => r.command?.trim() === agent.agentCommand.trim()) ??
-        runtimes.find((r) => r.id === agent.agentCommand.trim());
-      setSelectedRuntimeId(matched ? matched.id : "custom");
+      argsTouched.current = false;
+      setSelectedRuntimeId(
+        resolveSelectedRuntimeId(runtimes, agent.runtime, agent.agentCommand),
+      );
       updateMutation.reset();
     }
   }, [open, agent.pubkey]);
@@ -214,13 +221,10 @@ export function AgentInstanceEditDialog({
     if (!open || runtimeTouched.current || runtimes.length === 0) {
       return;
     }
-    const matched =
-      runtimes.find((r) => r.command?.trim() === agent.agentCommand.trim()) ??
-      runtimes.find((r) => r.id === agent.agentCommand.trim());
-    if (matched) {
-      setSelectedRuntimeId(matched.id);
-    }
-  }, [open, runtimes, agent.agentCommand]);
+    setSelectedRuntimeId(
+      resolveSelectedRuntimeId(runtimes, agent.runtime, agent.agentCommand),
+    );
+  }, [open, runtimes, agent.agentCommand, agent.runtime]);
 
   // Build the sorted runtime catalog for the dropdown.
   const sortedRuntimes = React.useMemo(
@@ -235,75 +239,59 @@ export function AgentInstanceEditDialog({
 
   const runtimeDropdownValue = selectedRuntimeId || NO_RUNTIME_DROPDOWN_VALUE;
 
-  const runtimeDropdownOptions: PersonaDropdownOption[] = React.useMemo(() => {
-    const options: PersonaDropdownOption[] = [
-      ...sortedRuntimes.map((candidate) => ({
-        label: formatRuntimeOptionLabel(candidate),
-        value: candidate.id,
-      })),
-      { label: "Custom command", value: "custom" },
-    ];
-    if (
-      selectedRuntimeId &&
-      selectedRuntimeId !== "custom" &&
-      !options.some((o) => o.value === selectedRuntimeId)
-    ) {
-      options.push({
-        label: `${selectedRuntimeId} (current)`,
-        value: selectedRuntimeId,
-      });
-    }
-    options.push(ADD_CUSTOM_HARNESS_OPTION);
-    return options;
-  }, [sortedRuntimes, selectedRuntimeId]);
+  const runtimeDropdownOptions = React.useMemo(
+    () => buildRuntimeDropdownOptions(sortedRuntimes, selectedRuntimeId),
+    [sortedRuntimes, selectedRuntimeId],
+  );
 
-  // Resolve the dialog-opening command as the catalog loads. Edit-state runtime
-  // ids mutate during selection changes and cannot identify the original state.
-  const originalRuntimeSupportsProvider = React.useMemo(() => {
-    const originalCommand = originalAgentCommand.trim();
-    const matched =
-      runtimes.find((r) => r.command?.trim() === originalCommand) ??
-      runtimes.find((r) => r.id === originalCommand);
-    return runtimeSupportsLlmProviderSelection(matched?.id ?? "");
-  }, [runtimes, originalAgentCommand]);
+  const {
+    globalConfig,
+    inheritedDefaults: {
+      provider: inheritedProviderDefault,
+      model: inheritedModelDefault,
+    },
+    inheritedEnvVars: inheritedEnvVarsForAdvanced,
+  } = useAgentDialogDefaults({ inheritedEnvVars, open });
 
-  // The runtime id active after submit. Inheriting resolves from the LINKED PERSONA's runtime
-  // (that is what runs once the override is cleared, not the current override).
-  // Falls back to dual-match (command path, then id) when no persona or its runtime is unset.
-  // This single prospective id feeds BOTH the block-save gate and submit so they always agree.
-  const prospectiveRuntimeId = React.useMemo(() => {
-    if (!inheritHarness) {
-      return selectedRuntime?.id ?? selectedRuntimeId;
-    }
-    const personaRuntimeId = linkedPersona?.runtime?.trim();
-    if (personaRuntimeId) {
-      return (
-        runtimes.find((r) => r.id === personaRuntimeId)?.id ?? personaRuntimeId
-      );
-    }
-    return (
-      runtimes.find((r) => r.command?.trim() === agent.agentCommand.trim())
-        ?.id ??
-      runtimes.find((r) => r.id === agent.agentCommand.trim())?.id ??
-      // Fall back to the app default runtime so discovery can run for agents
-      // whose persona has no runtime set (e.g. freshly-added catalog builtins).
-      getDefaultPersonaRuntime(runtimes)?.id ??
-      ""
+  // Original (dialog-opening) capability: see resolveOriginalRuntimeSupportsProvider.
+  const originalRuntimeSupportsProvider =
+    resolveOriginalRuntimeSupportsProvider(
+      runtimes,
+      agent.runtime,
+      originalAgentCommand,
     );
-  }, [
-    inheritHarness,
-    linkedPersona?.runtime,
-    runtimes,
-    agent.agentCommand,
-    selectedRuntime?.id,
-    selectedRuntimeId,
-  ]);
 
-  const llmProviderFieldVisible =
-    runtimeSupportsLlmProviderSelection(prospectiveRuntimeId);
+  // The runtime id active after submit: inheriting resolves from the LINKED PERSONA's
+  // runtime; falls back to dual-match (command path, then id) when unset. This single
+  // prospective id feeds BOTH the block-save gate and submit so they always agree.
+  const prospectiveRuntimeId = React.useMemo(
+    () =>
+      resolveProspectiveRuntimeId({
+        agentCommand: agent.agentCommand,
+        defaultRuntimeId: getDefaultPersonaRuntime(
+          runtimes,
+          globalConfig.preferred_runtime,
+        )?.id,
+        inheritHarness,
+        linkedPersonaRuntime: linkedPersona?.runtime,
+        runtimes,
+        selectedRuntimeId,
+      }),
+    [
+      inheritHarness,
+      linkedPersona?.runtime,
+      runtimes,
+      globalConfig.preferred_runtime,
+      agent.agentCommand,
+      selectedRuntimeId,
+    ],
+  );
 
   const prospectiveRuntime = runtimes.find(
     (r) => r.id === prospectiveRuntimeId,
+  );
+  const llmProviderFieldVisible = runtimeSupportsLlmProviderSelection(
+    prospectiveRuntime?.providerEnvVar,
   );
   const runtimeCatalogStatus = runtimesQuery.isLoading
     ? ("loading" as const)
@@ -370,21 +358,13 @@ export function AgentInstanceEditDialog({
     ],
   );
 
-  const {
-    globalConfig,
-    inheritedDefaults: {
-      provider: inheritedProviderDefault,
-      model: inheritedModelDefault,
-    },
-    inheritedEnvVars: inheritedEnvVarsForAdvanced,
-  } = useAgentDialogDefaults({ inheritedEnvVars, open });
-
   // Runtime/provider-required credential state for the PROSPECTIVE post-submit runtime.
   // globalProvider/globalEnvVars: fallback for empty per-agent provider; keys satisfied globally don't block Save.
   const { requiredEnvKeys, fileSatisfiedEnvKeys, requiredEnvKeyMissing } =
     useRequiredCredentialState({
       open,
       prospectiveRuntimeId,
+      providerEnvVar: prospectiveRuntime?.providerEnvVar,
       provider: inheritedSubmission.provider ?? "",
       globalProvider: inheritedProviderDefault.value,
       envVars: inheritedSubmission.envVars,
@@ -461,6 +441,7 @@ export function AgentInstanceEditDialog({
       !shouldClearKnownModelForSelectionScope({
         model,
         provider: providerForDiscovery,
+        providerEnvVar: selectedRuntime?.providerEnvVar,
         runtime: selectedRuntime?.id ?? selectedRuntimeId,
       })
     ) {
@@ -492,6 +473,18 @@ export function AgentInstanceEditDialog({
     setIsCustomProviderEditing(next.isCustomProviderEditing);
     setIsCustomModelEditing(next.isCustomModelEditing);
     setEnvVars(next.envVars);
+  }
+
+  function handleAgentArgsChange(value: string) {
+    argsTouched.current = true;
+    setAgentArgs(value);
+  }
+
+  function handleInheritHarnessChange(value: boolean) {
+    if (value !== inheritHarness) {
+      runtimeTouched.current = true;
+    }
+    setInheritHarness(value);
   }
 
   function handleRuntimeDropdownChange(nextValue: string) {
@@ -533,6 +526,7 @@ export function AgentInstanceEditDialog({
       setAgentCommand(nextRuntime.command);
       const newArgs = nextRuntime.defaultArgs.join(",");
       setAgentArgs(newArgs);
+      argsTouched.current = false;
     }
 
     applySelection(
@@ -540,8 +534,13 @@ export function AgentInstanceEditDialog({
         previousRuntime: previousRuntimeId,
         nextRuntime: nextRuntime?.id ?? nextRuntimeId,
         nextRuntimeCanChooseProvider: runtimeSupportsLlmProviderSelection(
-          nextRuntime?.id ?? nextRuntimeId,
+          nextRuntime?.providerEnvVar ??
+            runtimes.find((entry) => entry.id === nextRuntimeId)
+              ?.providerEnvVar,
         ),
+        nextRuntimeProviderEnvVar:
+          nextRuntime?.providerEnvVar ??
+          runtimes.find((entry) => entry.id === nextRuntimeId)?.providerEnvVar,
         lockedRuntimeReset: "full",
       }),
     );
@@ -599,6 +598,12 @@ export function AgentInstanceEditDialog({
     originalRuntimeSupportsProvider,
   });
 
+  const canPinSelectedRuntime = canPersistRuntimePin({
+    inheritHarness,
+    runtimeTouched: runtimeTouched.current,
+    selectedRuntime,
+    selectedRuntimeId,
+  });
   const canSubmit =
     computeEditAgentFormValidity({
       name,
@@ -612,6 +617,7 @@ export function AgentInstanceEditDialog({
       agentCommand,
       requiredEnvKeyMissing,
     }) &&
+    canPinSelectedRuntime &&
     providerValid &&
     !updateMutation.isPending &&
     !isAvatarUploadPending;
@@ -628,14 +634,17 @@ export function AgentInstanceEditDialog({
       // requires one) and a deliberate local model still wins.
       const normalizedModel = inheritedSubmission.model;
 
-      // Harness pin resolution — see resolveAgentCommandUpdate for the full
-      // sentinel/pin/no-op contract, including the inherit→pin transition where
-      // the prefilled command equals the original but must still be pinned.
-      const agentCommandUpdate = resolveAgentCommandUpdate({
-        inheritHarness,
+      const runtimeIdentity = resolveRuntimeIdentityUpdate({
         agentCommand,
-        originalAgentCommand: agent.agentCommand,
         agentCommandOverride: agent.agentCommandOverride ?? null,
+        argsTouched: argsTouched.current,
+        inheritHarness,
+        originalAgentCommand: agent.agentCommand,
+        originalArgs: agent.agentArgs,
+        parsedArgs,
+        prospectiveRuntimeId,
+        runtimeTouched: runtimeTouched.current,
+        selectedRuntimeId,
       });
 
       // Classify the effective post-submit runtime's provider capability as a
@@ -648,7 +657,7 @@ export function AgentInstanceEditDialog({
       // always agree on which runtime is being saved.
       const providerRuntimeCapability = resolveRuntimeProviderCapability(
         prospectiveRuntimeId,
-        runtimeSupportsLlmProviderSelection(prospectiveRuntimeId),
+        runtimeSupportsLlmProviderSelection(prospectiveRuntime?.providerEnvVar),
       );
 
       // Provider + env to persist — the shared inherited-submission snapshot
@@ -665,17 +674,7 @@ export function AgentInstanceEditDialog({
           acpCommand.trim() !== agent.acpCommand
             ? acpCommand.trim()
             : undefined,
-        agentCommand: agentCommandUpdate,
-        // A non-inheriting selection is a deliberate pin — signal it so the
-        // backend preserves a Custom/runtime command even when it maps to the
-        // linked persona's own runtime (otherwise it would be dropped back to
-        // inherit). Omitted (falsy) when inheriting or on a name-only edit.
-        harnessOverride:
-          agentCommandUpdate != null ? !inheritHarness : undefined,
-        agentArgs:
-          parsedArgs.join(",") !== agent.agentArgs.join(",")
-            ? parsedArgs
-            : undefined,
+        ...runtimeIdentity,
         parallelism:
           parsedParallelism > 0 && parsedParallelism !== agent.parallelism
             ? parsedParallelism
@@ -972,6 +971,7 @@ export function AgentInstanceEditDialog({
                   </span>
                 </p>
               ) : null}
+              <RuntimeSetupGuidance runtime={selectedRuntime} />
               <AddCustomHarnessDialog
                 onOpenChange={setIsAddHarnessOpen}
                 onSaved={selectSavedHarness}
@@ -1201,10 +1201,10 @@ export function AgentInstanceEditDialog({
                       selectedRuntime={prospectiveRuntime}
                       systemPrompt={systemPrompt}
                       onAcpCommandChange={setAcpCommand}
-                      onAgentArgsChange={setAgentArgs}
+                      onAgentArgsChange={handleAgentArgsChange}
                       onAutoRestartChange={setAutoRestartOnConfigChange}
                       onEnvVarsChange={setEnvVars}
-                      onInheritHarnessChange={setInheritHarness}
+                      onInheritHarnessChange={handleInheritHarnessChange}
                       onParallelismChange={setParallelism}
                       onSystemPromptChange={setSystemPrompt}
                     />
