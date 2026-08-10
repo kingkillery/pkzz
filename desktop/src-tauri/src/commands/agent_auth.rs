@@ -107,6 +107,27 @@ fn connect_acp_runtime_blocking(
     Ok(ConnectAcpRuntimeResult { launched: true })
 }
 
+/// Whether a sidecar candidate is a real binary rather than a build stub.
+///
+/// Dev builds create zero-byte `externalBin` placeholders (`just
+/// _ensure-sidecar-stubs`) so Tauri's compile-time validation passes, and
+/// Tauri copies them next to the app binary. Resolving on `exists()` alone
+/// let such a stub shadow a working helper on PATH, which broke ACP
+/// authentication for every ACP runtime (ompk, claude) in dev builds.
+fn is_usable_sidecar(path: &std::path::Path) -> bool {
+    match std::fs::metadata(path) {
+        Ok(meta) if meta.is_file() && meta.len() > 0 => true,
+        Ok(_) => {
+            tracing::warn!(
+                path = %path.display(),
+                "ignoring zero-byte sidecar stub; falling back to PATH"
+            );
+            false
+        }
+        Err(_) => false,
+    }
+}
+
 fn run_buzz_acp_auth_command<const N: usize>(
     runtime_id: &str,
     args: [&str; N],
@@ -122,7 +143,7 @@ fn run_buzz_acp_auth_command<const N: usize>(
     let acp_path = std::env::current_exe()
         .map(|path| path.with_file_name(format!("buzz-acp{}", std::env::consts::EXE_SUFFIX)))
         .ok()
-        .filter(|path| path.exists())
+        .filter(|path| is_usable_sidecar(path))
         .or_else(|| resolve_command("buzz-acp"))
         .ok_or_else(|| "buzz-acp helper not found".to_string())?;
 
@@ -489,9 +510,33 @@ mod tests {
     #[cfg(unix)]
     use super::run_buzz_acp_auth_command_with_paths;
     use super::{
-        adapter_terminal_argv, append_inherited_path, is_claude_subscription_login, shell_escape,
-        shell_join, uses_terminal_auth, windows_terminal_args, AcpAuthMethod,
+        adapter_terminal_argv, append_inherited_path, is_claude_subscription_login,
+        is_usable_sidecar, shell_escape, shell_join, uses_terminal_auth, windows_terminal_args,
+        AcpAuthMethod,
     };
+
+    /// Dev builds drop zero-byte `externalBin` stubs next to the app binary;
+    /// they must never shadow a real helper resolved from PATH.
+    #[test]
+    fn zero_byte_sidecar_stub_is_not_usable() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let stub = dir.path().join("buzz-acp-stub");
+        std::fs::write(&stub, b"").unwrap();
+        assert!(!is_usable_sidecar(&stub), "zero-byte stub must be rejected");
+
+        let real = dir.path().join("buzz-acp-real");
+        std::fs::write(&real, b"MZ not-really-a-binary").unwrap();
+        assert!(is_usable_sidecar(&real), "non-empty file must be accepted");
+
+        assert!(
+            !is_usable_sidecar(&dir.path().join("missing")),
+            "absent candidate must be rejected"
+        );
+        assert!(
+            !is_usable_sidecar(dir.path()),
+            "a directory must be rejected"
+        );
+    }
 
     /// Windows regression: the augmented PATH there holds only Pkzz-managed
     /// dirs and the exe parent (no login-shell PATH, no managed Node), so the
