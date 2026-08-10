@@ -132,11 +132,11 @@ mod tests {
     /// race every other test in the binary.
     #[test]
     fn plugin_directories_are_prepended_in_order() {
-        let joined = prepended_path(
-            Some(Path::new("/tmp/fake-home")),
-            std::ffi::OsStr::new("/inherited/bin:/usr/bin"),
-        )
-        .unwrap();
+        // Build the inherited PATH with the platform separator so the
+        // round-trip through split_paths holds on Windows too.
+        let inherited =
+            std::env::join_paths([Path::new("/inherited/bin"), Path::new("/usr/bin")]).unwrap();
+        let joined = prepended_path(Some(Path::new("/tmp/fake-home")), &inherited).unwrap();
         let dirs: Vec<PathBuf> = std::env::split_paths(&joined).collect();
         assert_eq!(
             dirs,
@@ -176,7 +176,9 @@ mod tests {
 
     #[test]
     fn resolves_absolute_paths_directly() {
-        assert!(resolves_on_path("/bin/sh"));
+        // An existing absolute path resolves directly on any platform.
+        let current_exe = std::env::current_exe().unwrap();
+        assert!(resolves_on_path(&current_exe.to_string_lossy()));
         assert!(!resolves_on_path("/nonexistent/plugin-binary"));
     }
 }
