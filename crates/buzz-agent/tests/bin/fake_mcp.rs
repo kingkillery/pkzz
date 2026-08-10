@@ -212,7 +212,7 @@ fn main() {
                 write_response(
                     id,
                     json!({
-                        "protocolVersion": "2025-06-18",
+                        "protocolVersion": "2025-11-25",
                         "capabilities": { "tools": {} },
                         "serverInfo": { "name": "fake-mcp", "version": "0.0.0" },
                     }),

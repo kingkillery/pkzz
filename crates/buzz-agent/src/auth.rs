@@ -684,16 +684,24 @@ mod tests {
 
     #[test]
     fn cache_path_includes_namespace_and_hash() {
-        // HOME is required; cargo test runs set it.
+        // Use an explicit cache dir override: the default branch relies on
+        // $HOME, which is not set on Windows dev machines.
+        let tmp = tempfile::TempDir::new().unwrap();
         let cfg = PkceOAuthConfig {
             discovery_url: "https://example.com/.well-known".into(),
             client_id: "abc".into(),
             scopes: vec!["a".into(), "b".into()],
             cache_namespace: "demo".into(),
-            cache_dir_override: None,
+            cache_dir_override: Some(tmp.path().to_path_buf()),
         };
         let p = cache_path_for(&cfg).unwrap();
-        assert!(p.to_string_lossy().contains("/buzz-agent/oauth/demo/"));
+        assert_eq!(
+            p.parent()
+                .and_then(|d| d.file_name())
+                .and_then(|s| s.to_str()),
+            Some("demo"),
+            "namespace must be a path component: {p:?}"
+        );
         assert!(p.extension().and_then(|s| s.to_str()) == Some("json"));
     }
 

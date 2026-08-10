@@ -6668,7 +6668,7 @@ mod tests {
             "got: {header_str}"
         );
         assert!(
-            header_str.contains("x-openrouter-title: buzz"),
+            header_str.contains("x-openrouter-title: pkzz"),
             "got: {header_str}"
         );
     }

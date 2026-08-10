@@ -8,6 +8,12 @@ use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;
 
+/// Absolute working directory for session/new payloads: "/tmp" is not
+/// absolute on Windows, and the agent rejects non-absolute cwds.
+fn abs_test_cwd() -> String {
+    std::env::temp_dir().to_string_lossy().into_owned()
+}
+
 struct Harness {
     child: tokio::process::Child,
     stdin: tokio::process::ChildStdin,
@@ -193,7 +199,10 @@ async fn handshake(h: &mut Harness) -> String {
     );
 
     let new_id = h
-        .send("session/new", json!({ "cwd": "/tmp", "mcpServers": [] }))
+        .send(
+            "session/new",
+            json!({ "cwd": abs_test_cwd(), "mcpServers": [] }),
+        )
         .await;
     let new = h.recv_for_id(new_id).await;
     let sid = new["result"]["sessionId"].as_str().unwrap().to_owned();

@@ -15,6 +15,12 @@ use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;
 
+/// Absolute working directory for session/new payloads: "/tmp" is not
+/// absolute on Windows, and the agent rejects non-absolute cwds.
+fn abs_test_cwd() -> String {
+    std::env::temp_dir().to_string_lossy().into_owned()
+}
+
 struct CapturingLlm {
     url: String,
     captured: Arc<Mutex<Vec<Value>>>,
@@ -259,7 +265,7 @@ async fn init_session(h: &mut Harness, mcp_servers: Value) -> String {
     let _ = h.recv().await;
     h.send(
         "session/new",
-        json!({"cwd":"/tmp","mcpServers": mcp_servers}),
+        json!({"cwd": abs_test_cwd(),"mcpServers": mcp_servers}),
     )
     .await;
     let r = h
@@ -332,7 +338,7 @@ async fn mcp_init_timeout_kills_child() {
     h.send(
         "session/new",
         json!({
-            "cwd": "/tmp",
+            "cwd": abs_test_cwd(),
             "mcpServers": [{
                 "name": "stuck",
                 "command": fake_mcp,
@@ -377,7 +383,7 @@ async fn tool_metadata_caps_enforced() {
     h.send(
         "session/new",
         json!({
-            "cwd": "/tmp",
+            "cwd": abs_test_cwd(),
             "mcpServers": [{
                 "name": "many",
                 "command": fake_mcp,
@@ -450,8 +456,11 @@ async fn mcp_server_count_cap() {
             })
         })
         .collect();
-    h.send("session/new", json!({"cwd":"/tmp","mcpServers": servers}))
-        .await;
+    h.send(
+        "session/new",
+        json!({"cwd": abs_test_cwd(),"mcpServers": servers}),
+    )
+    .await;
     let r = h
         .recv_until(|v| v.get("result").is_some() || v.get("error").is_some())
         .await;
@@ -629,7 +638,7 @@ async fn per_turn_tool_call_cap_enforced() {
     h.send(
         "session/new",
         json!({
-            "cwd": "/tmp",
+            "cwd": abs_test_cwd(),
             "mcpServers": [{
                 "name": "many",
                 "command": fake_mcp,
@@ -704,7 +713,7 @@ async fn description_clamping_enforced() {
     h.send(
         "session/new",
         json!({
-            "cwd": "/tmp",
+            "cwd": abs_test_cwd(),
             "mcpServers": [{
                 "name": "big",
                 "command": fake_mcp,
@@ -770,7 +779,7 @@ async fn init_session_with_fake_mcp(h: &mut Harness, extra_mcp_env: &[(&str, &st
     h.send(
         "session/new",
         json!({
-            "cwd": "/tmp",
+            "cwd": abs_test_cwd(),
             "mcpServers": [{
                 "name": "fake",
                 "command": fake_mcp,
@@ -3322,7 +3331,7 @@ async fn handoff_cap_binds_within_a_single_turn() {
     h.send(
         "session/new",
         json!({
-            "cwd": "/tmp",
+            "cwd": abs_test_cwd(),
             "mcpServers": [{
                 "name": "cap_test",
                 "command": fake_mcp,
@@ -3518,7 +3527,7 @@ async fn failed_summarize_burns_handoff_attempt_budget() {
     h.send(
         "session/new",
         json!({
-            "cwd": "/tmp",
+            "cwd": abs_test_cwd(),
             "mcpServers": [{
                 "name": "budget_test",
                 "command": fake_mcp,

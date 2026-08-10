@@ -23,6 +23,12 @@ use serde_json::json;
 use sha2::{Digest, Sha256};
 use tempfile::TempDir;
 
+/// Absolute working directory for session/new payloads: "/tmp" is not
+/// absolute on Windows, and the agent rejects non-absolute cwds.
+fn abs_test_cwd() -> String {
+    std::env::temp_dir().to_string_lossy().into_owned()
+}
+
 #[derive(Deserialize)]
 struct TokenForm {
     grant_type: String,
@@ -584,8 +590,11 @@ async fn run_single_prompt(provider: &str, base: &str, model: &str) {
     )
     .await;
     h.recv_for(1).await;
-    h.send("session/new", json!({ "cwd": "/tmp", "mcpServers": [] }))
-        .await;
+    h.send(
+        "session/new",
+        json!({ "cwd": abs_test_cwd(), "mcpServers": [] }),
+    )
+    .await;
     let r = h.recv_for(2).await;
     let sid = r["result"]["sessionId"].as_str().unwrap().to_string();
     h.send(
@@ -782,8 +791,11 @@ async fn run_with_set_model(
     )
     .await;
     h.recv_for(1).await;
-    h.send("session/new", json!({ "cwd": "/tmp", "mcpServers": [] }))
-        .await;
+    h.send(
+        "session/new",
+        json!({ "cwd": abs_test_cwd(), "mcpServers": [] }),
+    )
+    .await;
     let r = h.recv_for(2).await;
     let sid = r["result"]["sessionId"].as_str().unwrap().to_string();
 
@@ -932,8 +944,11 @@ async fn session_set_model_unknown_session_returns_error() {
     )
     .await;
     h.recv_for(1).await;
-    h.send("session/new", json!({ "cwd": "/tmp", "mcpServers": [] }))
-        .await;
+    h.send(
+        "session/new",
+        json!({ "cwd": abs_test_cwd(), "mcpServers": [] }),
+    )
+    .await;
     h.recv_for(2).await;
 
     // Call set_model with a bogus session ID.
@@ -969,8 +984,11 @@ async fn session_set_model_empty_model_id_returns_error() {
     )
     .await;
     h.recv_for(1).await;
-    h.send("session/new", json!({ "cwd": "/tmp", "mcpServers": [] }))
-        .await;
+    h.send(
+        "session/new",
+        json!({ "cwd": abs_test_cwd(), "mcpServers": [] }),
+    )
+    .await;
     let r = h.recv_for(2).await;
     let sid = r["result"]["sessionId"].as_str().unwrap().to_string();
 
@@ -1111,7 +1129,10 @@ async fn oauth_missing_token_uses_configured_model_then_retries_discovery() {
     assert!(h.recv_for(initialize).await.get("result").is_some());
 
     let first = h
-        .send("session/new", json!({ "cwd": "/tmp", "mcpServers": [] }))
+        .send(
+            "session/new",
+            json!({ "cwd": abs_test_cwd(), "mcpServers": [] }),
+        )
         .await;
     let first_response = h.recv_for(first).await;
     assert!(
@@ -1127,7 +1148,10 @@ async fn oauth_missing_token_uses_configured_model_then_retries_discovery() {
     write_cached_oauth_token(h.oauth_home(), &host, "cached-bearer");
 
     let second = h
-        .send("session/new", json!({ "cwd": "/tmp", "mcpServers": [] }))
+        .send(
+            "session/new",
+            json!({ "cwd": abs_test_cwd(), "mcpServers": [] }),
+        )
         .await;
     let second_response = h.recv_for(second).await;
     assert!(
@@ -1182,7 +1206,10 @@ async fn non_auth_discovery_failure_uses_configured_model_without_caching_fallba
 
     for expected_attempts in 1..=2 {
         let request = h
-            .send("session/new", json!({ "cwd": "/tmp", "mcpServers": [] }))
+            .send(
+                "session/new",
+                json!({ "cwd": abs_test_cwd(), "mcpServers": [] }),
+            )
             .await;
         let response = h.recv_for(request).await;
         assert!(
@@ -1250,7 +1277,7 @@ async fn rejected_static_token_does_not_consume_capacity_or_spawn_mcp() {
     let failed = h
         .send(
             "session/new",
-            json!({ "cwd": "/tmp", "mcpServers": mcp_servers }),
+            json!({ "cwd": abs_test_cwd(), "mcpServers": mcp_servers }),
         )
         .await;
     let failed_response = h.recv_for(failed).await;
@@ -1269,7 +1296,10 @@ async fn rejected_static_token_does_not_consume_capacity_or_spawn_mcp() {
     );
 
     let retry = h
-        .send("session/new", json!({ "cwd": "/tmp", "mcpServers": [] }))
+        .send(
+            "session/new",
+            json!({ "cwd": abs_test_cwd(), "mcpServers": [] }),
+        )
         .await;
     let retry_response = h.recv_for(retry).await;
     assert!(

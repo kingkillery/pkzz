@@ -409,11 +409,11 @@ mod tests {
             "first wins (.agents/)"
         );
         // Path should point to the .agents/ version (first wins).
-        assert!(skills[0]
-            .path
-            .to_str()
-            .unwrap()
-            .contains(".agents/skills/shared"));
+        let normalized = skills[0].path.to_string_lossy().replace('\\', "/");
+        assert!(
+            normalized.contains(".agents/skills/shared"),
+            "got {normalized}"
+        );
     }
 
     #[test]
