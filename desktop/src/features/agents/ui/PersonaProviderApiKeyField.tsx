@@ -24,6 +24,7 @@ import {
  * logic. The inherited value is never echoed into the field.
  */
 export function PersonaProviderApiKeyField({
+  apiKeyUrl,
   disabled,
   envVarName,
   isInherited,
@@ -33,6 +34,8 @@ export function PersonaProviderApiKeyField({
   onValueChange,
   value,
 }: {
+  /** Vendor page where this credential is issued, when one exists. */
+  apiKeyUrl?: string;
   disabled: boolean;
   /**
    * The backing environment variable name, e.g. `OPENAI_COMPAT_API_KEY`.
@@ -69,6 +72,17 @@ export function PersonaProviderApiKeyField({
         <p className="text-xs text-muted-foreground font-mono" id={hintId}>
           {envVarName}
         </p>
+      ) : null}
+      {apiKeyUrl ? (
+        <a
+          className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+          data-testid="persona-provider-api-key-url"
+          href={apiKeyUrl}
+          rel="noreferrer"
+          target="_blank"
+        >
+          Get a key
+        </a>
       ) : null}
       <div
         className={cn(

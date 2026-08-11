@@ -45,6 +45,7 @@ export const NO_RUNTIME_DROPDOWN_VALUE = "__no_runtime__";
 
 const KNOWN_LLM_PROVIDER_IDS = [
   "anthropic",
+  "cline",
   "databricks",
   "databricks_v2",
   "openai",
@@ -93,6 +94,12 @@ export type ProviderCredentialConfig =
       secretEnvVar: string;
       /** Display label for the credential input field, e.g. "Anthropic API Key". */
       apiKeyLabel: string;
+      /**
+       * Where the user issues this credential. Rendered as a link beside the
+       * field so the answer to "where do I get a key / what does it bill
+       * against?" lives with the vendor, not in Pkzz copy.
+       */
+      apiKeyUrl?: string;
     };
 
 /**
@@ -144,6 +151,7 @@ const PROVIDER_CREDENTIAL_CONFIG: Partial<
     requiredEnvKeys: ["CLINE_API_KEY"],
     secretEnvVar: "CLINE_API_KEY",
     apiKeyLabel: "Cline API Key",
+    apiKeyUrl: "https://app.cline.bot/dashboard/account?tab=credits",
   },
 };
 
@@ -192,6 +200,19 @@ function isKnownLlmProvider(
  * buzz-agent and goose use provider-specific credentials; claude and codex
  * handle auth via CLI login (surfaced separately via the CliLogin surface).
  */
+/**
+ * Where a provider's credential is issued, when the vendor has a self-serve
+ * page. Undefined for providers without one.
+ */
+export function providerApiKeyUrl(
+  provider: string | null | undefined,
+): string | undefined {
+  if (!provider || !isKnownLlmProvider(provider)) return undefined;
+  const config = PROVIDER_CREDENTIAL_CONFIG[provider];
+  if (!config) return undefined;
+  return "apiKeyUrl" in config ? config.apiKeyUrl : undefined;
+}
+
 export function requiredCredentialEnvKeys(
   runtimeId: string,
   provider: string,
@@ -393,11 +414,17 @@ export function buildTemplateModelDropdownOptions(
 /**
  * Build the provider dropdown options for a persona/instance dialog.
  *
- * `hideProviderIds` suppresses specific provider ids from the base list while
- * still preserving the `(current)` tail-append for saved values that are in
- * the hidden set — so an agent already persisted with a hidden provider
- * continues to render its current value, while the hidden option is not
- * offered for new selections.
+ * `providerEnvVar` is the runtime-catalog capability that scopes named
+ * providers to harnesses that implement them. Cline is a native buzz-agent
+ * provider, so it is offered only when the catalog advertises
+ * `BUZZ_AGENT_PROVIDER`; saved values on other runtimes still receive the
+ * `(current)` tail rather than disappearing.
+ *
+ * `hideProviderIds` suppresses specific provider ids from the scoped list
+ * while still preserving the `(current)` tail-append for saved values that
+ * are in the hidden set — so an agent already persisted with a hidden
+ * provider continues to render its current value, while the hidden option is
+ * not offered for new selections.
  *
  * Internal Block builds pass `BLOCK_BUILD_HIDDEN_PROVIDER_IDS` to hide the
  * legacy Databricks v1 option (the boot migration rewrites v1→v2 on those
@@ -408,14 +435,19 @@ export function getPersonaProviderOptions(
   runtimeId: string,
   globalProvider?: string,
   hideProviderIds?: ReadonlySet<string>,
+  providerEnvVar?: string | null,
 ): readonly PersonaModelOption[] {
   const trimmedProvider = currentProvider.trim();
   const defaultProviderOptions = [
     { id: "", label: getDefaultLlmProviderLabel(runtimeId, globalProvider) },
   ];
+  const runtimeScopedOptions =
+    providerEnvVar === "BUZZ_AGENT_PROVIDER"
+      ? PERSONA_LLM_PROVIDER_OPTIONS
+      : PERSONA_LLM_PROVIDER_OPTIONS.filter((option) => option.id !== "cline");
   const filteredOptions = hideProviderIds?.size
-    ? PERSONA_LLM_PROVIDER_OPTIONS.filter((o) => !hideProviderIds.has(o.id))
-    : PERSONA_LLM_PROVIDER_OPTIONS;
+    ? runtimeScopedOptions.filter((option) => !hideProviderIds.has(option.id))
+    : runtimeScopedOptions;
   const options = [...defaultProviderOptions, ...filteredOptions];
   if (
     trimmedProvider.length === 0 ||

@@ -39,6 +39,7 @@ import {
   getPersonaProviderOptions,
   getProviderApiKeyEnvVar,
   getProviderApiKeyLabel,
+  providerApiKeyUrl,
   runtimeSupportsLlmProviderSelection,
 } from "@/features/agents/ui/agentConfigOptions";
 import {
@@ -604,6 +605,7 @@ export function AgentConfigFields({
     credentialRuntimeId,
     undefined,
     hideProviderIds,
+    selectedRuntime?.providerEnvVar,
   );
   const providerSelectValue = isCustomProvider
     ? CUSTOM_PROVIDER_DROPDOWN_VALUE
@@ -772,6 +774,7 @@ export function AgentConfigFields({
       {providerFieldVisible && apiKeyEnvVar ? (
         <div className={blockClassName}>
           <PersonaProviderApiKeyField
+            apiKeyUrl={providerApiKeyUrl(effectiveProvider)}
             disabled={false}
             envVarName={apiKeyEnvVar}
             inheritedLabel={

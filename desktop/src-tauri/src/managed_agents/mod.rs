@@ -25,6 +25,7 @@ mod personas;
 #[cfg(windows)]
 mod process_lifecycle;
 pub(crate) mod readiness;
+mod readiness_providers;
 pub(crate) mod reconcile;
 mod relay_mesh;
 mod repos;

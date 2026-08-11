@@ -12,8 +12,8 @@ import {
   shouldPersistImplicitRuntimePreference,
   sortPersonaRuntimes,
   runtimeSupportsLlmProviderSelection,
-  PERSONA_LLM_PROVIDER_OPTIONS,
   requiredCredentialEnvKeys,
+  providerApiKeyUrl,
 } from "./agentConfigOptions.tsx";
 import { formatModelDiscoveryErrorStatus } from "./personaModelDiscoveryStatus.ts";
 
@@ -417,14 +417,72 @@ test("getProviderApiKeyLabel_provider_id_trimmed_and_lowercased", () => {
   assert.equal(getProviderApiKeyLabel(" Anthropic "), "Anthropic API Key");
 });
 
-test("cline is an LLM provider option with its own credential", () => {
-  const option = PERSONA_LLM_PROVIDER_OPTIONS.find((o) => o.id === "cline");
-  assert.ok(option, "cline must be selectable as an LLM provider");
-  assert.equal(option.label, "Cline");
+test("cline is offered only by runtimes with the buzz-agent provider capability", () => {
+  const buzzAgentOptions = getPersonaProviderOptions(
+    "",
+    "buzz-agent",
+    "",
+    new Set(),
+    "BUZZ_AGENT_PROVIDER",
+  );
+  const option = buzzAgentOptions.find((candidate) => candidate.id === "cline");
+  assert.equal(option?.label, "Cline");
 
-  // buzz-agent resolves CLINE_API_KEY (falling back to OPENAI_COMPAT_API_KEY)
-  // and defaults the base URL to https://api.cline.bot/api/v1.
+  const gooseOptions = getPersonaProviderOptions(
+    "",
+    "goose",
+    "",
+    new Set(),
+    "GOOSE_PROVIDER",
+  );
+  assert.ok(
+    !gooseOptions.some((candidate) => candidate.id === "cline"),
+    "Goose must not offer an unsupported named Cline provider",
+  );
+
+  const catalogCapabilityWinsOverRuntimeId = getPersonaProviderOptions(
+    "",
+    "custom-buzz-agent-build",
+    "",
+    new Set(),
+    "BUZZ_AGENT_PROVIDER",
+  );
+  assert.ok(
+    catalogCapabilityWinsOverRuntimeId.some(
+      (candidate) => candidate.id === "cline",
+    ),
+    "providerEnvVar, not a hardcoded runtime id, controls availability",
+  );
+
   assert.deepEqual(requiredCredentialEnvKeys("buzz-agent", "cline"), [
     "CLINE_API_KEY",
   ]);
+});
+
+test("saved Cline value remains visible on unsupported runtimes as current-only", () => {
+  const options = getPersonaProviderOptions(
+    "cline",
+    "goose",
+    "",
+    new Set(),
+    "GOOSE_PROVIDER",
+  );
+  assert.equal(options.at(-1)?.id, "cline");
+  assert.equal(options.at(-1)?.label, "cline (current)");
+  assert.equal(
+    options.filter((candidate) => candidate.id === "cline").length,
+    1,
+  );
+});
+
+test("cline credential field links to where keys are issued", () => {
+  // Billing questions (ClinePass vs credits) belong on Cline's page, not in
+  // Pkzz copy, so the field links out instead of asserting a billing model.
+  const url = providerApiKeyUrl("cline");
+  assert.ok(url?.startsWith("https://app.cline.bot/"), `got ${url}`);
+
+  // Providers without a self-serve page stay undefined rather than guessing.
+  assert.equal(providerApiKeyUrl("relay-mesh"), undefined);
+  assert.equal(providerApiKeyUrl(null), undefined);
+  assert.equal(providerApiKeyUrl("not-a-provider"), undefined);
 });

@@ -285,15 +285,8 @@ fn buzz_agent_requirements(effective: &EffectiveAgentEnv) -> Vec<Requirement> {
     // databricks/databricks_v2, ANTHROPIC_MODEL for anthropic, etc.). The
     // baked buzz-releases env sets DATABRICKS_MODEL but not BUZZ_AGENT_MODEL,
     // so without this fallback agents baked from releases appear "not ready".
-    let provider_model_key = match provider {
-        Some("databricks") | Some("databricks_v2") | Some("databricks-v2") => {
-            Some("DATABRICKS_MODEL")
-        }
-        Some("anthropic") => Some("ANTHROPIC_MODEL"),
-        Some("openai") | Some("openai-compat") => Some("OPENAI_COMPAT_MODEL"),
-        Some("openrouter") => Some("OPENROUTER_MODEL"),
-        _ => None,
-    };
+    let provider_model_key =
+        crate::managed_agents::readiness_providers::provider_model_env_key(provider);
     let model_present = effective
         .env
         .get("BUZZ_AGENT_MODEL")
@@ -309,41 +302,17 @@ fn buzz_agent_requirements(effective: &EffectiveAgentEnv) -> Vec<Requirement> {
         });
     }
 
-    // Provider-specific credential requirements.
-    // A key present with an empty value is treated as absent — matching the
-    // dialog's (envVars[key] ?? "").length === 0 emptiness check.
+    // Provider-specific credential requirements. A key present with an empty
+    // value is treated as absent — matching the dialog's
+    // (envVars[key] ?? "").length === 0 emptiness check.
     let env_key_missing = |key: &str| effective.env.get(key).is_none_or(|v| v.is_empty());
-    match provider {
-        Some("anthropic")
-            if env_key_missing("ANTHROPIC_API_KEY") => {
-                missing.push(Requirement::EnvKey {
-                    key: "ANTHROPIC_API_KEY".to_string(),
-                });
-            }
-        Some("openai")
-            if env_key_missing("OPENAI_COMPAT_API_KEY") => {
-                missing.push(Requirement::EnvKey {
-                    key: "OPENAI_COMPAT_API_KEY".to_string(),
-                });
-            }
-        Some("databricks") | Some("databricks_v2") | Some("databricks-v2")
-            // DATABRICKS_HOST is hard-required; DATABRICKS_TOKEN is optional
-            // (OAuth PKCE is the normal path — see buzz-agent/src/config.rs:143).
-            if env_key_missing("DATABRICKS_HOST") => {
-                missing.push(Requirement::EnvKey {
-                    key: "DATABRICKS_HOST".to_string(),
-                });
-            }
-        Some("openrouter")
-            if env_key_missing("OPENROUTER_API_KEY") => {
-                missing.push(Requirement::EnvKey {
-                    key: "OPENROUTER_API_KEY".to_string(),
-                });
-            }
-        _ => {
-            // Unknown provider or no provider yet — only the NormalizedField
-            // requirement above captures this gap.
-        }
+    if let Some(key) = crate::managed_agents::readiness_providers::missing_provider_credential(
+        provider,
+        env_key_missing,
+    ) {
+        missing.push(Requirement::EnvKey {
+            key: key.to_string(),
+        });
     }
 
     missing
