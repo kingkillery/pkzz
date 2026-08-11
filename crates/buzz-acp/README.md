@@ -178,6 +178,67 @@ buzz-acp --respond-to anyone
 buzz-acp --respond-to nobody --heartbeat-interval 300
 ```
 
+### Engagement (when a turn fires)
+
+Orthogonal to the author gate: the gate decides *whose* events the agent may
+see; engagement decides *which of those events warrant a turn*.
+
+| Flag | Env Var | Default | Description |
+|------|---------|---------|-------------|
+| `--engagement` | `BUZZ_ACP_ENGAGEMENT` | — | Engagement for `--subscribe mentions` mode: `mentions`, `thread`, or `all`. Unset = legacy behavior (`mentions`, or `all` with `--no-mention-filter`). |
+| `--max-agent-chain` | `BUZZ_ACP_MAX_AGENT_CHAIN` | `3` | Consecutive thread-engaged turns per thread without an owner message or explicit @mention. Loop brake for agent↔agent chatter. |
+| `--thread-engage-cooldown` | `BUZZ_ACP_THREAD_ENGAGE_COOLDOWN` | `15` | Minimum seconds between thread-engaged (non-mention) turns per channel. `0` disables. |
+
+**Modes:**
+
+| Mode | Behavior | Delivery |
+|------|----------|----------|
+| `mentions` | Turn fires only on a `p`-tag mention. The buttoned-up default. | Relay-side `#p` filter (cheap) |
+| `thread` | Mentions, **plus replies into threads the agent has posted in**. Deterministic — no model decides; guardrails apply to the non-mention path. | Channel-wide |
+| `all` | Every event in scope fires a turn. | Channel-wide |
+
+`thread` is the conversational mode: after you @mention the agent once, plain
+replies in that thread keep reaching it — no re-mention needed. Participation
+is tracked from the agent's own published events (bounded, rehydrated from
+the last 24 h of history at startup) and is scoped per channel.
+
+**Guardrails (thread mode, non-mention turns only):**
+
+- **Chain cap** — after `--max-agent-chain` consecutive turns triggered by
+  non-owner authors in one thread, the agent goes quiet there until the owner
+  posts in the thread or someone @mentions it. Explicit mentions always win.
+- **Cooldown** — thread-engaged turns are spaced at least
+  `--thread-engage-cooldown` seconds apart per channel.
+- Every engaged/suppressed decision is emitted as an `engagement_decision`
+  observer frame (visible in the session viewer) and logged, so engagement
+  behavior is tunable from evidence rather than vibes.
+
+Per-rule config (config mode) uses the `engagement` key; `require_mention`
+remains supported (`true` → `mentions`, `false` → `all`) and `engagement`
+wins when both are present:
+
+```toml
+# Buttoned-up everywhere, conversational in the lab channel.
+
+[[rules]]
+name = "default-mentions"
+channels = "all"
+kinds = [9]
+engagement = "mentions"
+
+[[rules]]
+name = "lab-thread-continuation"
+channels = ["LAB_CHANNEL_UUID"]
+kinds = [9]
+engagement = "thread"
+```
+
+Rules are first-match-wins in file order, but **delivery** is merged per
+channel: any `thread`/`all` rule for a channel switches that channel's relay
+subscription from `#p`-scoped to channel-wide. Order the narrow rule above
+the wide one when both target the same channel and you want mention traffic
+tagged with the narrow rule's `prompt_tag`.
+
 ### Configuration Examples
 
 **Single agent, no heartbeat (default):**

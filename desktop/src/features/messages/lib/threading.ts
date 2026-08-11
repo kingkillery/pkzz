@@ -1,4 +1,5 @@
 import type { RelayEvent } from "@/shared/api/types";
+import { normalizePubkey } from "@/shared/lib/pubkey";
 
 export type ThreadReference = {
   parentId: string | null;
@@ -96,6 +97,42 @@ export function diffAddedMentionPubkeys(
   return normalizeMentionPubkeys(editedPubkeys, selfPubkey).filter(
     (pubkey) => !original.has(pubkey),
   );
+}
+
+/**
+ * Ensure a reply to an agent-authored message addresses that agent.
+ *
+ * Replying is addressing: agent harnesses subscribe mention-only by default
+ * (`#p` relay filter), so a thread reply that lacks the agent's `p` tag is
+ * never delivered and the agent silently "ignores" its own conversation.
+ * When the parent message's author is a known agent, fold the author into
+ * the recipient list. Humans are deliberately excluded — this fixes agent
+ * delivery without changing human notification semantics.
+ *
+ * Returns `mentionPubkeys` unchanged (same reference) when there is nothing
+ * to add: no parent, self-reply, human parent, or agent already mentioned.
+ */
+export function withAgentParentRecipient(
+  mentionPubkeys: string[],
+  parentAuthorPubkey: string | null | undefined,
+  selfPubkey: string,
+  knownAgentPubkeys: ReadonlySet<string>,
+): string[] {
+  if (!parentAuthorPubkey) {
+    return mentionPubkeys;
+  }
+  const parent = normalizePubkey(parentAuthorPubkey);
+  if (
+    parent.length === 0 ||
+    parent === normalizePubkey(selfPubkey) ||
+    !knownAgentPubkeys.has(parent)
+  ) {
+    return mentionPubkeys;
+  }
+  if (mentionPubkeys.some((pubkey) => normalizePubkey(pubkey) === parent)) {
+    return mentionPubkeys;
+  }
+  return [...mentionPubkeys, parent];
 }
 
 export function buildReplyTags(

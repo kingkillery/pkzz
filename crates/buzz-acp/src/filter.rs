@@ -50,6 +50,40 @@ impl FilterContext {
     }
 }
 
+/// How a rule decides an event warrants a turn, beyond channel/kind scoping.
+///
+/// This is the per-rule *engagement axis*, orthogonal to delivery: `Mentions`
+/// rules keep the efficient relay-side `#p` subscription; `Thread` and `All`
+/// rules force channel-wide delivery so the harness can evaluate events that
+/// do not p-tag the agent.
+///
+/// Precedence: when `engagement` is present on a rule it wins; the legacy
+/// `require_mention` bool is only consulted when `engagement` is absent
+/// (`true` → `Mentions`, `false` → `All`), so existing configs are unchanged.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, clap::ValueEnum)]
+#[serde(rename_all = "snake_case")]
+pub enum EngagementMode {
+    /// Every event in scope fires a turn (legacy `require_mention = false`).
+    All,
+    /// Only events p-tagging the agent fire a turn (legacy
+    /// `require_mention = true`). The buttoned-up default.
+    Mentions,
+    /// Mentions, plus replies into threads the agent has posted in.
+    /// Deterministic conversation continuation — no model in the loop.
+    /// Guardrails (chain cap, cooldown) apply to the non-mention path.
+    Thread,
+}
+
+impl std::fmt::Display for EngagementMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EngagementMode::All => write!(f, "all"),
+            EngagementMode::Mentions => write!(f, "mentions"),
+            EngagementMode::Thread => write!(f, "thread"),
+        }
+    }
+}
+
 /// Scope of channels a subscription rule applies to.
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(untagged)]
@@ -89,8 +123,14 @@ pub struct SubscriptionRule {
     #[serde(default)]
     pub kinds: Vec<u32>,
     /// If `true`, the event must contain a `p` tag referencing the agent pubkey.
+    ///
+    /// Legacy engagement switch — superseded by `engagement`, which wins when
+    /// both are present. Kept so existing configs deserialize unchanged.
     #[serde(default)]
     pub require_mention: bool,
+    /// Engagement axis for this rule. `None` falls back to `require_mention`.
+    #[serde(default)]
+    pub engagement: Option<EngagementMode>,
     /// Optional evalexpr boolean expression for fine-grained filtering.
     #[serde(default)]
     pub filter: Option<String>,
@@ -120,6 +160,7 @@ impl Default for SubscriptionRule {
             channels: ChannelScope::All("all".into()),
             kinds: Vec::new(),
             require_mention: false,
+            engagement: None,
             filter: None,
             prompt_tag: None,
             compiled_filter: None,
@@ -135,6 +176,7 @@ impl Clone for SubscriptionRule {
             channels: self.channels.clone(),
             kinds: self.kinds.clone(),
             require_mention: self.require_mention,
+            engagement: self.engagement,
             filter: self.filter.clone(),
             prompt_tag: self.prompt_tag.clone(),
             compiled_filter: self.compiled_filter.clone(),
@@ -142,6 +184,19 @@ impl Clone for SubscriptionRule {
             // agree on the timeout state.
             consecutive_timeouts: self.consecutive_timeouts.clone(),
         }
+    }
+}
+
+impl SubscriptionRule {
+    /// The effective engagement mode: explicit `engagement` wins; otherwise
+    /// the legacy `require_mention` bool maps `true` → `Mentions`,
+    /// `false` → `All`.
+    pub fn effective_engagement(&self) -> EngagementMode {
+        self.engagement.unwrap_or(if self.require_mention {
+            EngagementMode::Mentions
+        } else {
+            EngagementMode::All
+        })
     }
 }
 
@@ -153,6 +208,9 @@ pub struct MatchedRule {
     pub rule_index: usize,
     /// Prompt tag to use (rule's `prompt_tag` or its `name`).
     pub prompt_tag: String,
+    /// `true` when the rule engaged via thread participation without a
+    /// direct mention — the guardrailed path.
+    pub via_thread: bool,
 }
 
 /// Maximum expression length accepted by `evaluate_filter`.
@@ -349,10 +407,15 @@ const MAX_CONSECUTIVE_TIMEOUTS: u32 = 5;
 ///
 /// 1. **channels** — if not `"all"`, the event's channel UUID must be in the list.
 /// 2. **kinds** — if non-empty, the event kind must be in the list.
-/// 3. **require_mention** — if `true`, a `p` tag matching `agent_pubkey_hex` must
-///    exist. Tag kind is checked via `tag.as_slice()` for stable, library-independent
-///    access.
+/// 3. **engagement** — per [`SubscriptionRule::effective_engagement`]:
+///    `Mentions` requires a `p` tag matching `agent_pubkey_hex`; `Thread`
+///    additionally accepts events for which the caller resolved thread
+///    participation (`thread_engaged`); `All` accepts everything in scope.
 /// 4. **filter** — if `Some`, the evalexpr expression must evaluate to `true`.
+///
+/// The returned match reports `via_thread = true` when the winning rule
+/// engaged through thread participation WITHOUT a direct mention — callers
+/// apply guardrails (chain cap / cooldown) to exactly that path.
 ///
 /// # Fail-closed filter error handling
 ///
@@ -370,8 +433,16 @@ pub async fn match_event(
     channel_id: uuid::Uuid,
     rules: &[SubscriptionRule],
     agent_pubkey_hex: &str,
+    thread_engaged: bool,
 ) -> Option<MatchedRule> {
     let filter_ctx = FilterContext::from_event(event, channel_id);
+
+    // Mention status is rule-independent — compute once.
+    let mentioned = event.tags.iter().any(|tag| {
+        let s = tag.as_slice();
+        s.first().map(|k| k.as_str()) == Some("p")
+            && s.get(1).map(|v| v.as_str()) == Some(agent_pubkey_hex)
+    });
 
     for (index, rule) in rules.iter().enumerate() {
         // 1. Channel scope check.
@@ -384,19 +455,24 @@ pub async fn match_event(
             continue;
         }
 
-        // 3. Mention check — look for a `p` tag whose first element equals
-        //    agent_pubkey_hex. Uses tag.as_slice() for stable, library-independent
-        //    access — avoids relying on the Display impl of tag kind.
-        if rule.require_mention {
-            let mentioned = event.tags.iter().any(|tag| {
-                let s = tag.as_slice();
-                s.first().map(|k| k.as_str()) == Some("p")
-                    && s.get(1).map(|v| v.as_str()) == Some(agent_pubkey_hex)
-            });
-            if !mentioned {
-                continue;
+        // 3. Engagement gate.
+        let via_thread = match rule.effective_engagement() {
+            EngagementMode::All => false,
+            EngagementMode::Mentions => {
+                if !mentioned {
+                    continue;
+                }
+                false
             }
-        }
+            EngagementMode::Thread => {
+                if !mentioned && !thread_engaged {
+                    continue;
+                }
+                // Mention wins for guardrail purposes: an explicitly
+                // addressed turn is never throttled.
+                !mentioned
+            }
+        };
 
         // 4. Optional evalexpr filter expression.
         if let Some(expr) = &rule.filter {
@@ -453,6 +529,7 @@ pub async fn match_event(
         return Some(MatchedRule {
             rule_index: index,
             prompt_tag,
+            via_thread,
         });
     }
 
@@ -501,6 +578,7 @@ mod tests {
             channels,
             kinds,
             require_mention: mention,
+            engagement: None,
             filter: filter.map(|s| s.into()),
             prompt_tag: prompt_tag.map(|s| s.into()),
             compiled_filter: None,
@@ -601,7 +679,9 @@ mod tests {
             ),
         ];
 
-        let matched = match_event(&event, channel_id, &rules, "").await.unwrap();
+        let matched = match_event(&event, channel_id, &rules, "", false)
+            .await
+            .unwrap();
         assert_eq!(matched.rule_index, 0);
         assert_eq!(matched.prompt_tag, "tag-first");
     }
@@ -630,7 +710,9 @@ mod tests {
             ),
         ];
 
-        let matched = match_event(&event, channel_id, &rules, "").await.unwrap();
+        let matched = match_event(&event, channel_id, &rules, "", false)
+            .await
+            .unwrap();
         assert_eq!(matched.rule_index, 1);
         assert_eq!(matched.prompt_tag, "matched");
     }
@@ -653,11 +735,11 @@ mod tests {
         )];
 
         // Without mention — no match.
-        let result = match_event(&event_no_mention, channel_id, &rules, agent_pubkey).await;
+        let result = match_event(&event_no_mention, channel_id, &rules, agent_pubkey, false).await;
         assert!(result.is_none());
 
         // With mention — matches.
-        let matched = match_event(&event_with_mention, channel_id, &rules, agent_pubkey)
+        let matched = match_event(&event_with_mention, channel_id, &rules, agent_pubkey, false)
             .await
             .unwrap();
         assert_eq!(matched.prompt_tag, "mentioned");
@@ -677,7 +759,7 @@ mod tests {
             None,
         )];
 
-        let result = match_event(&event, channel_id, &rules, "").await;
+        let result = match_event(&event, channel_id, &rules, "", false).await;
         assert!(result.is_none());
     }
 
@@ -725,7 +807,9 @@ mod tests {
             None, // no explicit tag
         )];
 
-        let matched = match_event(&event, channel_id, &rules, "").await.unwrap();
+        let matched = match_event(&event, channel_id, &rules, "", false)
+            .await
+            .unwrap();
         assert_eq!(matched.prompt_tag, "my-rule");
     }
 
@@ -755,7 +839,7 @@ mod tests {
         ];
 
         // Must return None — not "catch-all".
-        let result = match_event(&event, channel_id, &rules, "").await;
+        let result = match_event(&event, channel_id, &rules, "", false).await;
         assert!(
             result.is_none(),
             "filter error must fail closed, not fall through to next rule"
@@ -781,7 +865,98 @@ mod tests {
             .store(MAX_CONSECUTIVE_TIMEOUTS, Ordering::Relaxed);
 
         let rules = vec![rule];
-        let result = match_event(&event, channel_id, &rules, "").await;
+        let result = match_event(&event, channel_id, &rules, "", false).await;
         assert!(result.is_none(), "disabled rule must return None");
+    }
+
+    /// Build an event that p-tags `pubkey_hex`.
+    fn make_mention_event(kind: u32, pubkey_hex: &str) -> nostr::Event {
+        let keys = Keys::generate();
+        EventBuilder::new(Kind::Custom(kind as u16), "hey you")
+            .tags([Tag::parse(["p", pubkey_hex]).expect("p tag")])
+            .sign_with_keys(&keys)
+            .expect("sign")
+    }
+
+    fn thread_rule() -> SubscriptionRule {
+        SubscriptionRule {
+            name: "thread".into(),
+            engagement: Some(EngagementMode::Thread),
+            ..SubscriptionRule::default()
+        }
+    }
+
+    #[test]
+    fn effective_engagement_precedence() {
+        // Legacy mapping.
+        let mut rule = SubscriptionRule::default();
+        assert_eq!(rule.effective_engagement(), EngagementMode::All);
+        rule.require_mention = true;
+        assert_eq!(rule.effective_engagement(), EngagementMode::Mentions);
+        // Explicit engagement wins over the legacy bool.
+        rule.engagement = Some(EngagementMode::Thread);
+        assert_eq!(rule.effective_engagement(), EngagementMode::Thread);
+        rule.require_mention = false;
+        assert_eq!(rule.effective_engagement(), EngagementMode::Thread);
+    }
+
+    #[test]
+    fn engagement_deserializes_from_toml_and_defaults_to_none() {
+        let with: SubscriptionRule =
+            toml::from_str("name = \"r\"\nchannels = \"all\"\nengagement = \"thread\"")
+                .expect("deserialize with engagement");
+        assert_eq!(with.engagement, Some(EngagementMode::Thread));
+
+        // Absent field: legacy configs parse unchanged.
+        let without: SubscriptionRule =
+            toml::from_str("name = \"r\"\nchannels = \"all\"\nrequire_mention = true")
+                .expect("deserialize legacy rule");
+        assert_eq!(without.engagement, None);
+        assert_eq!(without.effective_engagement(), EngagementMode::Mentions);
+    }
+
+    #[tokio::test]
+    async fn thread_rule_accepts_mention_without_participation() {
+        let agent = "a".repeat(64);
+        let event = make_mention_event(9, &agent);
+        let matched = match_event(&event, any_channel(), &[thread_rule()], &agent, false)
+            .await
+            .expect("mention must match thread rule");
+        assert!(!matched.via_thread, "mention path is never guardrailed");
+    }
+
+    #[tokio::test]
+    async fn thread_rule_accepts_participation_without_mention() {
+        let agent = "a".repeat(64);
+        let event = make_event(9, "continuing the thread");
+        let matched = match_event(&event, any_channel(), &[thread_rule()], &agent, true)
+            .await
+            .expect("thread engagement must match");
+        assert!(matched.via_thread, "non-mention engagement is guardrailed");
+    }
+
+    #[tokio::test]
+    async fn thread_rule_rejects_unrelated_event() {
+        let agent = "a".repeat(64);
+        let event = make_event(9, "unrelated chatter");
+        let result = match_event(&event, any_channel(), &[thread_rule()], &agent, false).await;
+        assert!(result.is_none());
+    }
+
+    #[tokio::test]
+    async fn mentions_rule_ignores_thread_engagement() {
+        let agent = "a".repeat(64);
+        let event = make_event(9, "in a shared thread");
+        let rules = vec![make_rule(
+            "mentions-only",
+            ChannelScope::All("all".into()),
+            vec![],
+            true,
+            None,
+            None,
+        )];
+        // Even with thread engagement resolved, a Mentions rule stays strict.
+        let result = match_event(&event, any_channel(), &rules, &agent, true).await;
+        assert!(result.is_none());
     }
 }

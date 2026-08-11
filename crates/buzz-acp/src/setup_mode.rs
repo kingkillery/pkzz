@@ -441,11 +441,14 @@ pub(crate) async fn run_setup_listener(config: Config, payload: SetupPayload) ->
         .await;
 
         // Apply channel/kind filter rules.
+        // Setup mode has no participation tracker — it only nudges, never
+        // converses — so thread engagement is always false here.
         let filter_matched = filter::match_event(
             &buzz_event.event,
             buzz_event.channel_id,
             &rules,
             &pubkey_hex,
+            false,
         )
         .await
         .is_some();
@@ -549,6 +552,7 @@ fn mentions_rule(kinds: Vec<u32>) -> filter::SubscriptionRule {
         channels: filter::ChannelScope::All("all".into()),
         kinds,
         require_mention: true,
+        engagement: None,
         filter: None,
         compiled_filter: None,
         consecutive_timeouts: Arc::new(AtomicU32::new(0)),

@@ -1,5 +1,10 @@
 import { useEffect, useEffectEvent } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import {
@@ -13,6 +18,7 @@ import {
   isBroadcastReply,
   normalizeMentionPubkeys,
   resolveReplyRootId,
+  withAgentParentRecipient,
 } from "@/features/messages/lib/threading";
 import {
   projectChannelWindowMessages,
@@ -27,6 +33,7 @@ import {
 export { mergeMessages, mergeTimelineCacheMessages };
 import { splitOutgoingTags } from "@/features/messages/lib/imetaMediaMarkdown";
 import { messageMentionPubkeys } from "@/features/messages/lib/messageMentionPubkeys";
+import { useKnownAgentPubkeys } from "@/features/agents/useKnownAgentPubkeys";
 import {
   clearTimeoutState,
   recordTimeoutFromRejection,
@@ -127,6 +134,40 @@ export function createOptimisticMessage(
     sig: "",
     pending: true,
   };
+}
+
+/**
+ * Best-effort author lookup for a reply parent across the two caches a reply
+ * surface can target: the channel window projection, then (for thread-panel
+ * replies to non-root messages) the open thread's reply cache. A miss returns
+ * `null` — the reply simply gets no agent parent tag; the harness-side thread
+ * engagement mode is the deterministic backstop for that case.
+ *
+ * Exported for unit testing.
+ */
+export function findCachedParentAuthor(
+  queryClient: QueryClient,
+  channelId: string,
+  parentEventId: string,
+  threadRootId?: string | null,
+): string | null {
+  const channelEvents =
+    queryClient.getQueryData<RelayEvent[]>(channelMessagesKey(channelId)) ?? [];
+  const fromChannel = channelEvents.find((event) => event.id === parentEventId);
+  if (fromChannel) {
+    return fromChannel.pubkey;
+  }
+  if (threadRootId) {
+    const threadEvents =
+      queryClient.getQueryData<RelayEvent[]>(
+        threadRepliesKey(channelId, threadRootId),
+      ) ?? [];
+    const fromThread = threadEvents.find((event) => event.id === parentEventId);
+    if (fromThread) {
+      return fromThread.pubkey;
+    }
+  }
+  return null;
 }
 
 /**
@@ -402,6 +443,7 @@ export function useSendMessageMutation(
   identity: Identity | undefined,
 ) {
   const queryClient = useQueryClient();
+  const knownAgentPubkeys = useKnownAgentPubkeys();
 
   return useMutation<
     RelayEvent,
@@ -412,6 +454,12 @@ export function useSendMessageMutation(
       content: string;
       mentionPubkeys?: string[];
       parentEventId?: string | null;
+      /**
+       * Root id of the open thread when replying from the thread panel.
+       * Lets the parent-author lookup reach the thread replies cache for
+       * replies to non-root messages.
+       */
+      threadRootId?: string | null;
       mediaTags?: string[][];
     },
     MessageQueryContext | undefined
@@ -422,6 +470,7 @@ export function useSendMessageMutation(
       content,
       mentionPubkeys,
       parentEventId,
+      threadRootId,
       mediaTags,
     }) => {
       // Prefer a channel captured by the caller at compose time. Otherwise,
@@ -459,10 +508,26 @@ export function useSendMessageMutation(
         emojiTags,
         mentionTags,
       } = splitOutgoingTags(mediaTags);
-      const recipientPubkeys = messageMentionPubkeys(
-        effectiveChannel,
+      // Replying to an agent addresses the agent: fold a known-agent parent
+      // author into the recipients so mention-scoped harnesses receive the
+      // reply. Humans are never auto-added.
+      const parentAuthor = parentEventId
+        ? findCachedParentAuthor(
+            queryClient,
+            effectiveChannel.id,
+            parentEventId,
+            threadRootId,
+          )
+        : null;
+      const recipientPubkeys = withAgentParentRecipient(
+        messageMentionPubkeys(
+          effectiveChannel,
+          identity.pubkey,
+          mentionPubkeys,
+        ),
+        parentAuthor,
         identity.pubkey,
-        mentionPubkeys,
+        knownAgentPubkeys,
       );
 
       // Messages carrying media OR custom-emoji tags MUST go through REST so
@@ -538,6 +603,7 @@ export function useSendMessageMutation(
       content,
       mentionPubkeys,
       parentEventId,
+      threadRootId,
       mediaTags,
     }) => {
       // Mirror mutationFn's target resolution so the optimistic message lands
@@ -566,12 +632,27 @@ export function useSendMessageMutation(
       const windowKey = channelWindowKey(effectiveChannel.id);
       const previousWindow =
         queryClient.getQueryData<ChannelWindowStore>(windowKey);
+      // Mirror mutationFn's agent-parent augmentation so the optimistic
+      // reply carries the same p tags as the relay-accepted event.
+      const parentAuthor = parentEventId
+        ? findCachedParentAuthor(
+            queryClient,
+            effectiveChannel.id,
+            parentEventId,
+            threadRootId,
+          )
+        : null;
       const optimisticMessage = createOptimisticMessage(
         effectiveChannel.id,
         content.trim(),
         identity,
         previousMessages,
-        mentionPubkeys ?? [],
+        withAgentParentRecipient(
+          mentionPubkeys ?? [],
+          parentAuthor,
+          identity.pubkey,
+          knownAgentPubkeys,
+        ),
         parentEventId ?? null,
         mediaTags ?? [],
       );

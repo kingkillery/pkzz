@@ -333,6 +333,27 @@ pub struct CliArgs {
     #[arg(long, env = "BUZZ_ACP_NO_MENTION_FILTER")]
     pub no_mention_filter: bool,
 
+    /// Engagement mode for the synthesized mentions-mode rule.
+    ///
+    /// `mentions` (default behavior when unset) requires a `p` tag; `thread`
+    /// additionally continues conversations in threads the agent has posted
+    /// in (guardrailed); `all` fires on everything in scope. Only consulted
+    /// in `--subscribe mentions` mode: All mode is already unconditional and
+    /// Config mode carries per-rule `engagement` fields. When unset, the
+    /// legacy `--no-mention-filter` mapping applies.
+    #[arg(long, env = "BUZZ_ACP_ENGAGEMENT", value_enum)]
+    pub engagement: Option<crate::filter::EngagementMode>,
+
+    /// Consecutive thread-engaged turns allowed per thread without an owner
+    /// message or explicit @mention (loop brake for agent-to-agent chatter).
+    #[arg(long, env = "BUZZ_ACP_MAX_AGENT_CHAIN", default_value_t = 3)]
+    pub max_agent_chain: u32,
+
+    /// Minimum seconds between thread-engaged (non-mention) turns per
+    /// channel. Explicit mentions bypass this. 0 disables the cooldown.
+    #[arg(long, env = "BUZZ_ACP_THREAD_ENGAGE_COOLDOWN", default_value_t = 15)]
+    pub thread_engage_cooldown: u64,
+
     #[arg(long, env = "BUZZ_ACP_CONFIG", default_value = "./buzz-acp.toml")]
     pub config: PathBuf,
 
@@ -520,6 +541,12 @@ pub struct Config {
     pub kinds_override: Option<Vec<u32>>,
     pub channels_override: Option<Vec<String>>,
     pub no_mention_filter: bool,
+    /// Engagement override for the synthesized mentions-mode rule.
+    pub engagement: Option<crate::filter::EngagementMode>,
+    /// Chain cap for thread-engaged turns (see CLI doc).
+    pub max_agent_chain: u32,
+    /// Cooldown seconds between thread-engaged turns per channel.
+    pub thread_engage_cooldown: u64,
     pub config_path: PathBuf,
     /// Durable final-reply delivery directory. Never defaults to a temporary
     /// process path: pending signed events must survive restart.
@@ -847,6 +874,18 @@ impl Config {
         Self::from_args(args)
     }
 
+    /// Effective engagement for the synthesized mentions-mode rule.
+    ///
+    /// Explicit `--engagement` wins; otherwise the legacy
+    /// `--no-mention-filter` mapping applies (`true` → `All`).
+    pub fn mentions_mode_engagement(&self) -> crate::filter::EngagementMode {
+        self.engagement.unwrap_or(if self.no_mention_filter {
+            crate::filter::EngagementMode::All
+        } else {
+            crate::filter::EngagementMode::Mentions
+        })
+    }
+
     /// Build a `Config` from already-parsed `CliArgs`. Separated from `from_cli()` so
     /// tests can construct `CliArgs` via `CliArgs::try_parse_from` and exercise the full
     /// validation path without going through process args.
@@ -913,6 +952,17 @@ impl Config {
             if args.no_mention_filter {
                 tracing::warn!("--no-mention-filter is ignored in config mode");
             }
+            if args.engagement.is_some() {
+                tracing::warn!(
+                    "--engagement is ignored in config mode — set per-rule `engagement` in the rules file"
+                );
+            }
+        }
+
+        if matches!(args.subscribe, SubscribeMode::All) && args.engagement.is_some() {
+            tracing::warn!(
+                "--engagement is ignored in --subscribe all mode (already unconditional)"
+            );
         }
 
         let agent_command = args.agent_command;
@@ -1103,6 +1153,9 @@ impl Config {
             kinds_override: args.kinds,
             channels_override: args.channels,
             no_mention_filter: args.no_mention_filter,
+            engagement: args.engagement,
+            max_agent_chain: args.max_agent_chain,
+            thread_engage_cooldown: args.thread_engage_cooldown,
             config_path: args.config,
             host_final_outbox_dir,
             context_message_limit: args.context_message_limit,
@@ -1285,7 +1338,11 @@ pub fn resolve_channel_filters(
                     KIND_STREAM_REMINDER,
                 ]
             });
-            let require_mention = !config.no_mention_filter;
+            // Delivery follows engagement: only pure mention-engagement can
+            // keep the relay-side `#p` scope. Thread/All engagement needs
+            // channel-wide delivery so non-mention events reach the harness.
+            let require_mention =
+                config.mentions_mode_engagement() == crate::filter::EngagementMode::Mentions;
             for ch in &target_channels {
                 result.insert(
                     *ch,
@@ -1327,7 +1384,9 @@ pub fn resolve_channel_filters(
                             }
                         }
                     }
-                    if !rule.require_mention {
+                    // Any non-mention engagement (Thread/All) forces
+                    // channel-wide delivery for this channel.
+                    if rule.effective_engagement() != crate::filter::EngagementMode::Mentions {
                         require_mention = false;
                     }
                 }
@@ -1390,7 +1449,8 @@ pub fn resolve_dynamic_channel_filter(
                     KIND_STREAM_REMINDER,
                 ]
             })),
-            require_mention: !config.no_mention_filter,
+            require_mention: config.mentions_mode_engagement()
+                == crate::filter::EngagementMode::Mentions,
         }),
         SubscribeMode::All => Some(ChannelFilter {
             kinds: config.kinds_override.clone(),
@@ -1418,7 +1478,7 @@ pub fn resolve_dynamic_channel_filter(
                         }
                     }
                 }
-                if !rule.require_mention {
+                if rule.effective_engagement() != crate::filter::EngagementMode::Mentions {
                     require_mention = false;
                 }
             }
@@ -1478,6 +1538,9 @@ mod tests {
             kinds_override: None,
             channels_override: None,
             no_mention_filter: false,
+            engagement: None,
+            max_agent_chain: 3,
+            thread_engage_cooldown: 15,
             config_path: PathBuf::from("./buzz-acp.toml"),
             host_final_outbox_dir: PathBuf::from("./host-final-outbox"),
             context_message_limit: 12,
@@ -1515,6 +1578,7 @@ mod tests {
             channels,
             kinds,
             require_mention: mention,
+            engagement: None,
             filter: None,
             prompt_tag: None,
             compiled_filter: None,
@@ -1559,6 +1623,71 @@ mod tests {
 
         let f = result.get(&channels[0]).unwrap();
         assert!(!f.require_mention);
+    }
+
+    #[test]
+    fn engagement_thread_widens_mentions_mode_delivery() {
+        let mut config = test_config(SubscribeMode::Mentions);
+        config.engagement = Some(crate::filter::EngagementMode::Thread);
+        let channels = vec![Uuid::new_v4()];
+        let result = resolve_channel_filters(&config, &channels, &[]);
+
+        // Thread engagement cannot ride a #p-scoped subscription: non-mention
+        // replies would never be delivered.
+        let f = result.get(&channels[0]).unwrap();
+        assert!(!f.require_mention);
+    }
+
+    #[test]
+    fn engagement_mentions_keeps_p_scope_even_with_no_mention_filter() {
+        let mut config = test_config(SubscribeMode::Mentions);
+        config.no_mention_filter = true;
+        config.engagement = Some(crate::filter::EngagementMode::Mentions);
+        let channels = vec![Uuid::new_v4()];
+        let result = resolve_channel_filters(&config, &channels, &[]);
+
+        // Explicit --engagement wins over the legacy flag.
+        let f = result.get(&channels[0]).unwrap();
+        assert!(f.require_mention);
+    }
+
+    #[test]
+    fn config_mode_thread_rule_widens_delivery() {
+        let config = test_config(SubscribeMode::Config);
+        let ch = Uuid::new_v4();
+        let mut mention_rule = make_rule(
+            "mentions",
+            ChannelScope::List(vec![ch.to_string()]),
+            vec![9],
+            true,
+        );
+        mention_rule.engagement = None;
+        let mut thread_rule = make_rule(
+            "thread",
+            ChannelScope::List(vec![ch.to_string()]),
+            vec![9],
+            true,
+        );
+        thread_rule.engagement = Some(crate::filter::EngagementMode::Thread);
+
+        // Mention-only rule set: #p scope retained.
+        let strict = resolve_channel_filters(&config, &[ch], &[mention_rule.clone()]);
+        assert!(strict.get(&ch).unwrap().require_mention);
+
+        // Adding a thread rule for the channel forces channel-wide delivery.
+        let widened = resolve_channel_filters(&config, &[ch], &[mention_rule, thread_rule]);
+        assert!(!widened.get(&ch).unwrap().require_mention);
+
+        // Dynamic (post-startup) resolution agrees.
+        let mut dynamic_thread = make_rule(
+            "thread-dyn",
+            ChannelScope::List(vec![ch.to_string()]),
+            vec![9],
+            true,
+        );
+        dynamic_thread.engagement = Some(crate::filter::EngagementMode::Thread);
+        let dynamic = resolve_dynamic_channel_filter(&config, ch, &[dynamic_thread]).unwrap();
+        assert!(!dynamic.require_mention);
     }
 
     #[test]

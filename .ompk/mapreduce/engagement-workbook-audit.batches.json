@@ -1,0 +1,10 @@
+{
+  "task": "engagement-workbook-audit",
+  "batches": [
+    {"worker": "W1-config", "model": "smol", "selectors": ["S4", "S9"], "files": ["crates/buzz-acp/src/config.rs", "crates/buzz-acp/README.md"]},
+    {"worker": "W2-match-telemetry", "model": "default", "selectors": ["S3", "S8"], "files": ["crates/buzz-acp/src/filter.rs", "crates/buzz-acp/src/lib.rs"]},
+    {"worker": "W3-participation", "model": "default", "selectors": ["S5", "S6", "S7"], "files": ["crates/buzz-acp/src/participation.rs", "crates/buzz-acp/src/lib.rs"]},
+    {"worker": "W4-desktop", "model": "smol", "selectors": ["S1", "S2"], "files": ["desktop/src/features/messages/lib/threading.ts", "desktop/src/features/messages/hooks.ts", "desktop/src/features/channels/useChannelPaneHandlers.ts", "desktop/src/features/agents/useKnownAgentPubkeys.tsx"]},
+    {"worker": "W5-coherence", "model": "default", "selectors": ["S10", "S11"], "files": ["docs/engagement-discernment-workbook.md", "crates/buzz-acp/src/observer.rs", "crates/buzz-cli/src (discovery)"]}
+  ]
+}

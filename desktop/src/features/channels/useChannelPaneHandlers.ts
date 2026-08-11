@@ -327,6 +327,9 @@ export function useChannelPaneHandlers({
         content,
         mentionPubkeys,
         parentEventId,
+        // Thread head id lets the send mutation resolve the parent author
+        // from the thread replies cache when replying to a non-root message.
+        threadRootId: activeThreadHeadId,
         mediaTags,
         channelId: channelId ?? undefined,
       });

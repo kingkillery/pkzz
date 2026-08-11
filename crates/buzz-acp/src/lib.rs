@@ -6,6 +6,7 @@ mod engram_fetch;
 mod filter;
 mod final_delivery;
 mod observer;
+mod participation;
 mod permission;
 mod pool;
 mod pool_lifecycle;
@@ -115,6 +116,118 @@ fn emit_runtime_lifecycle(
             }),
         );
     }
+}
+
+/// Emit an `engagement_decision` observer frame (thread-engagement telemetry).
+///
+/// These frames are the dogfooding instrument for non-mention engagement:
+/// every fired or suppressed thread turn is recorded with its chain depth or
+/// suppress reason. Viewable in the desktop session viewer's "Raw ACP
+/// activity" feed (the default Activity transcript drops this frame type) or
+/// the Harness Log panel.
+fn emit_engagement_decision(
+    observer: Option<&observer::ObserverHandle>,
+    buzz_event: &relay::BuzzEvent,
+    decision: &str,
+    chain_depth: Option<u32>,
+    reason: Option<&str>,
+) {
+    let Some(observer) = observer else {
+        return;
+    };
+    let context = observer::context_for(Some(buzz_event.channel_id), None, None);
+    observer.emit(
+        "engagement_decision",
+        None,
+        &context,
+        serde_json::json!({
+            "eventId": buzz_event.event.id.to_hex(),
+            "channelId": buzz_event.channel_id.to_string(),
+            "author": buzz_event.event.pubkey.to_hex(),
+            "decision": decision,
+            "chainDepth": chain_depth,
+            "reason": reason,
+        }),
+    );
+}
+
+/// Replay window for participation rehydration at startup (24 h).
+const PARTICIPATION_REHYDRATE_WINDOW_SECS: u64 = 86_400;
+/// Cap on rehydrated self-authored events.
+const PARTICIPATION_REHYDRATE_LIMIT: usize = 200;
+/// Hard timeout for the rehydration query — startup must not hang on it.
+const PARTICIPATION_REHYDRATE_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// Seed the participation tracker from the agent's recently authored events.
+///
+/// Best-effort: failure degrades to "explicit mention required again" in
+/// threads older than process start, never to over-engagement.
+async fn rehydrate_participation(
+    participation: &mut participation::ParticipationTracker,
+    rest: &relay::RestClient,
+    agent_pubkey_hex: &str,
+) {
+    let author = match nostr::PublicKey::from_hex(agent_pubkey_hex) {
+        Ok(pk) => pk,
+        Err(e) => {
+            tracing::warn!("participation rehydrate: bad agent pubkey: {e}");
+            return;
+        }
+    };
+    let now_secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    // Relay queries must carry explicit kinds (p-gate); the timeline trio is
+    // the same set the synthesized rules subscribe to.
+    let filter = nostr::Filter::new()
+        .authors([author])
+        .kinds([
+            nostr::Kind::Custom(KIND_STREAM_MESSAGE as u16),
+            nostr::Kind::Custom(KIND_WORKFLOW_APPROVAL_REQUESTED as u16),
+            nostr::Kind::Custom(KIND_STREAM_REMINDER as u16),
+        ])
+        .since(nostr::Timestamp::from(
+            now_secs.saturating_sub(PARTICIPATION_REHYDRATE_WINDOW_SECS),
+        ))
+        .limit(PARTICIPATION_REHYDRATE_LIMIT);
+
+    let response =
+        match tokio::time::timeout(PARTICIPATION_REHYDRATE_TIMEOUT, rest.query(&[filter])).await {
+            Ok(Ok(v)) => v,
+            Ok(Err(e)) => {
+                tracing::warn!("participation rehydrate: query failed: {e}");
+                return;
+            }
+            Err(_) => {
+                tracing::warn!("participation rehydrate: query timed out");
+                return;
+            }
+        };
+
+    let Some(events) = response.as_array() else {
+        tracing::warn!("participation rehydrate: unexpected response shape");
+        return;
+    };
+    let mut recorded = 0usize;
+    for raw in events {
+        let Ok(event) = serde_json::from_value::<nostr::Event>(raw.clone()) else {
+            continue;
+        };
+        let Some(channel_id) = event.tags.iter().find_map(|tag| {
+            let s = tag.as_slice();
+            if s.first().map(|k| k.as_str()) == Some("h") {
+                s.get(1).and_then(|v| v.parse::<Uuid>().ok())
+            } else {
+                None
+            }
+        }) else {
+            continue;
+        };
+        participation.record_self_event(channel_id, &event);
+        recorded += 1;
+    }
+    tracing::info!(recorded, "participation rehydrated from recent history");
 }
 
 /// Resolve the agent's owner pubkey at startup.
@@ -1958,6 +2071,9 @@ async fn tokio_main() -> Result<()> {
                     ]
                 }),
                 require_mention: !config.no_mention_filter,
+                // Explicit --engagement wins over the legacy
+                // --no-mention-filter mapping (see mentions_mode_engagement).
+                engagement: Some(config.mentions_mode_engagement()),
                 filter: None,
                 compiled_filter: None,
                 consecutive_timeouts: std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0)),
@@ -1970,6 +2086,7 @@ async fn tokio_main() -> Result<()> {
                 channels: filter::ChannelScope::All("all".into()),
                 kinds: config.kinds_override.clone().unwrap_or_default(),
                 require_mention: false,
+                engagement: Some(filter::EngagementMode::All),
                 filter: None,
                 compiled_filter: None,
                 consecutive_timeouts: std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0)),
@@ -2013,6 +2130,21 @@ async fn tokio_main() -> Result<()> {
     let dedup_mode = config.dedup_mode;
     let mut queue =
         EventQueue::new(dedup_mode).with_in_flight_deadline(config.max_turn_duration_secs);
+
+    // Thread-engagement machinery. Only populated/consulted when some rule
+    // carries Thread engagement; costs nothing otherwise.
+    let thread_engagement_active = rules
+        .iter()
+        .any(|r| r.effective_engagement() == filter::EngagementMode::Thread);
+    let mut participation = participation::ParticipationTracker::new();
+    let mut engagement_guard = participation::EngagementGuard::new(
+        config.max_agent_chain,
+        Duration::from_secs(config.thread_engage_cooldown),
+    );
+    if thread_engagement_active {
+        let rehydrate_rest = relay.rest_client();
+        rehydrate_participation(&mut participation, &rehydrate_rest, &pubkey_hex).await;
+    }
 
     // Online means the harness can receive work, not merely that its socket is
     // connected. Publishing after channel subscriptions gives desktop callers
@@ -2566,6 +2698,17 @@ async fn tokio_main() -> Result<()> {
                             }
 
                             if config.ignore_self && buzz_event.event.pubkey.to_hex() == pubkey_hex {
+                                // Self-authored events are the participation
+                                // source of truth: with channel-wide delivery
+                                // (Thread engagement) every reply the agent
+                                // posts — via buzz-cli inside the subprocess or
+                                // harness-side delivery — flows back here.
+                                if thread_engagement_active {
+                                    participation.record_self_event(
+                                        buzz_event.channel_id,
+                                        &buzz_event.event,
+                                    );
+                                }
                                 tracing::debug!(channel_id = %buzz_event.channel_id, "dropping self-authored event");
                                 continue;
                             }
@@ -2712,14 +2855,85 @@ async fn tokio_main() -> Result<()> {
                                 }
                             }
 
-                            let matched = filter::match_event(&buzz_event.event, buzz_event.channel_id, &rules, &pubkey_hex).await;
-                            let prompt_tag = match matched {
-                                Some(m) => m.prompt_tag,
+                            // Thread-engagement resolution (deterministic):
+                            // does this event reply into a conversation the
+                            // agent participates in?
+                            let engagement_root = if thread_engagement_active {
+                                participation.thread_engagement_root(
+                                    buzz_event.channel_id,
+                                    &buzz_event.event,
+                                )
+                            } else {
+                                None
+                            };
+                            let matched = filter::match_event(
+                                &buzz_event.event,
+                                buzz_event.channel_id,
+                                &rules,
+                                &pubkey_hex,
+                                engagement_root.is_some(),
+                            )
+                            .await;
+                            let (prompt_tag, via_thread) = match matched {
+                                Some(m) => (m.prompt_tag, m.via_thread),
                                 None => {
                                     tracing::debug!(channel_id = %buzz_event.channel_id, kind = buzz_event.event.kind.as_u16(), "event matched no rule — dropping");
                                     continue;
                                 }
                             };
+
+                            // Guardrails apply ONLY to the thread-engaged
+                            // (non-mention) path. An explicit @mention or an
+                            // owner-authored trigger re-anchors the thread to
+                            // human intent and resets its chain budget.
+                            if let Some(root_hex) = engagement_root.as_deref() {
+                                let author = buzz_event.event.pubkey.to_hex();
+                                let author_is_owner =
+                                    owner_cache.get().is_some_and(|o| *o == author);
+                                if !via_thread || author_is_owner {
+                                    engagement_guard
+                                        .reset_chain(buzz_event.channel_id, root_hex);
+                                }
+                                if via_thread && !author_is_owner {
+                                    match engagement_guard.admit_thread_turn(
+                                        buzz_event.channel_id,
+                                        root_hex,
+                                        std::time::Instant::now(),
+                                    ) {
+                                        Ok(depth) => {
+                                            tracing::info!(
+                                                channel_id = %buzz_event.channel_id,
+                                                event_id = %buzz_event.event.id,
+                                                chain_depth = depth,
+                                                "thread engagement — firing turn without mention"
+                                            );
+                                            emit_engagement_decision(
+                                                observer.as_ref(),
+                                                &buzz_event,
+                                                "engaged",
+                                                Some(depth),
+                                                None,
+                                            );
+                                        }
+                                        Err(reason) => {
+                                            tracing::info!(
+                                                channel_id = %buzz_event.channel_id,
+                                                event_id = %buzz_event.event.id,
+                                                reason = reason.as_str(),
+                                                "thread engagement suppressed"
+                                            );
+                                            emit_engagement_decision(
+                                                observer.as_ref(),
+                                                &buzz_event,
+                                                "suppressed",
+                                                None,
+                                                Some(reason.as_str()),
+                                            );
+                                            continue;
+                                        }
+                                    }
+                                }
+                            }
                             if host_final_outbox.contains_source_event(&buzz_event.event.id) {
                                 tracing::info!(
                                     channel_id = %buzz_event.channel_id,
@@ -6477,6 +6691,9 @@ mod build_mcp_servers_tests {
             kinds_override: None,
             channels_override: None,
             no_mention_filter: false,
+            engagement: None,
+            max_agent_chain: 3,
+            thread_engage_cooldown: 15,
             config_path: std::path::PathBuf::from("./buzz-acp.toml"),
             host_final_outbox_dir: std::path::PathBuf::from("./host-final-outbox"),
             context_message_limit: 12,
@@ -6700,6 +6917,9 @@ mod error_outcome_emission_tests {
             kinds_override: None,
             channels_override: None,
             no_mention_filter: false,
+            engagement: None,
+            max_agent_chain: 3,
+            thread_engage_cooldown: 15,
             config_path: std::path::PathBuf::from("./buzz-acp.toml"),
             host_final_outbox_dir: std::path::PathBuf::from("./host-final-outbox"),
             context_message_limit: 12,
