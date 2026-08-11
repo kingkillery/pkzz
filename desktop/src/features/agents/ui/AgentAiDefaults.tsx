@@ -1,10 +1,10 @@
 import type * as React from "react";
 import type { InheritedDefault } from "./bakedEnvHelpers";
-import { getPersonaProviderOptions } from "./agentConfigOptions";
+import { PERSONA_LLM_PROVIDER_OPTIONS } from "./agentConfigOptions";
 import { Button } from "@/shared/ui/button";
 
 function providerLabel(providerId: string) {
-  const option = getPersonaProviderOptions("", "buzz-agent").find(
+  const option = PERSONA_LLM_PROVIDER_OPTIONS.find(
     (candidate) => candidate.id === providerId,
   );
   return option?.label ?? providerId;

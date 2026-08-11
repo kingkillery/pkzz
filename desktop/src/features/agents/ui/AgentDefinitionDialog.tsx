@@ -538,10 +538,8 @@ export function AgentDefinitionDialog({
     modelFieldVisible,
     provider: effectiveProvider,
   });
-  // On internal Block builds, BUZZ_AGENT_PROVIDER is baked in and a boot
-  // migration rewrites any persisted Databricks v1 values → v2. Hide the v1
-  // option there so it is not offered for new selections. OSS builds have no
-  // baked provider, so v1 remains visible.
+  // Internal builds migrate baked Databricks v1 values to v2 and hide v1
+  // from new selections; OSS builds retain it.
   const hideProviderIds = React.useMemo(
     () =>
       (bakedEnvKeys ?? []).includes("BUZZ_AGENT_PROVIDER")
@@ -556,6 +554,7 @@ export function AgentDefinitionDialog({
       ? inheritedProviderDefault.value
       : "",
     hideProviderIds,
+    selectedRuntime?.providerEnvVar,
   );
   const providerSelectValue = isCustomProviderEditing
     ? CUSTOM_PROVIDER_DROPDOWN_VALUE

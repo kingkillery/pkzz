@@ -789,8 +789,10 @@ impl Config {
         let databricks_host = env("DATABRICKS_HOST");
         let databricks_model = env("DATABRICKS_MODEL");
         // Cline exposes an OpenAI-compatible gateway, so it rides the OpenAi
-        // route with its own credential and base-URL defaults rather than a
-        // separate Provider variant (which every dispatch match would need).
+        // route with its own credential and fixed documented host rather than
+        // a separate Provider variant (which every dispatch match would need).
+        // Never inherit OPENAI_COMPAT_BASE_URL here: a stale generic endpoint
+        // would receive the user's Cline bearer credential.
         let requested_provider = env("BUZZ_AGENT_PROVIDER");
         let cline_selected = requested_provider
             .as_deref()
@@ -843,9 +845,7 @@ impl Config {
                         .as_deref(),
                 )
                 .ok_or_else(|| "config: CLINE_MODEL required".to_string())?,
-                env("OPENAI_COMPAT_BASE_URL")
-                    .filter(|value| !value.trim().is_empty())
-                    .unwrap_or_else(|| CLINE_BASE_URL.to_string()),
+                CLINE_BASE_URL.to_string(),
                 parse_openai_api(env("OPENAI_COMPAT_API").as_deref())?,
             ),
             Provider::OpenAi => (
@@ -1389,9 +1389,10 @@ mod tests {
     }
 
     #[test]
-    fn cline_base_url_points_at_the_documented_gateway() {
+    fn cline_transport_is_pinned_to_the_documented_gateway() {
+        // The named Cline provider must never inherit OPENAI_COMPAT_BASE_URL:
         // https://docs.cline.bot/api/getting-started documents
-        // POST https://api.cline.bot/api/v1/chat/completions
+        // POST https://api.cline.bot/api/v1/chat/completions.
         assert_eq!(CLINE_BASE_URL, "https://api.cline.bot/api/v1");
     }
 
