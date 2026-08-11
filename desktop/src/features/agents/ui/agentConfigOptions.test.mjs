@@ -12,6 +12,8 @@ import {
   shouldPersistImplicitRuntimePreference,
   sortPersonaRuntimes,
   runtimeSupportsLlmProviderSelection,
+  PERSONA_LLM_PROVIDER_OPTIONS,
+  requiredCredentialEnvKeys,
 } from "./agentConfigOptions.tsx";
 import { formatModelDiscoveryErrorStatus } from "./personaModelDiscoveryStatus.ts";
 
@@ -413,4 +415,16 @@ test("getProviderApiKeyLabel_unknown_provider_returns_null", () => {
 test("getProviderApiKeyLabel_provider_id_trimmed_and_lowercased", () => {
   // Mirrors getProviderApiKeyEnvVar normalisation behaviour.
   assert.equal(getProviderApiKeyLabel(" Anthropic "), "Anthropic API Key");
+});
+
+test("cline is an LLM provider option with its own credential", () => {
+  const option = PERSONA_LLM_PROVIDER_OPTIONS.find((o) => o.id === "cline");
+  assert.ok(option, "cline must be selectable as an LLM provider");
+  assert.equal(option.label, "Cline");
+
+  // buzz-agent resolves CLINE_API_KEY (falling back to OPENAI_COMPAT_API_KEY)
+  // and defaults the base URL to https://api.cline.bot/api/v1.
+  assert.deepEqual(requiredCredentialEnvKeys("buzz-agent", "cline"), [
+    "CLINE_API_KEY",
+  ]);
 });

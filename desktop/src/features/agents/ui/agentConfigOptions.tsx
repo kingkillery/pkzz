@@ -136,6 +136,15 @@ const PROVIDER_CREDENTIAL_CONFIG: Partial<
     secretEnvVar: "OPENROUTER_API_KEY",
     apiKeyLabel: "OpenRouter API Key",
   },
+  // Cline exposes an OpenAI-compatible gateway
+  // (https://api.cline.bot/api/v1). buzz-agent accepts CLINE_API_KEY and
+  // falls back to OPENAI_COMPAT_API_KEY, so the credential machinery here
+  // stays on the dedicated key. Issue keys at app.cline.bot > API Keys.
+  cline: {
+    requiredEnvKeys: ["CLINE_API_KEY"],
+    secretEnvVar: "CLINE_API_KEY",
+    apiKeyLabel: "Cline API Key",
+  },
 };
 
 const DEFAULT_MODEL_OPTION: PersonaModelOption = {
@@ -148,6 +157,7 @@ export const PERSONA_LLM_PROVIDER_OPTIONS: readonly PersonaModelOption[] = [
   { id: "openai", label: "OpenAI" },
   { id: "openai-compat", label: "OpenAI-compatible" },
   { id: "openrouter", label: "OpenRouter" },
+  { id: "cline", label: "Cline" },
   { id: "relay-mesh", label: "Pkzz shared compute" },
   { id: "databricks", label: "Databricks" },
   { id: "databricks_v2", label: "Databricks v2" },

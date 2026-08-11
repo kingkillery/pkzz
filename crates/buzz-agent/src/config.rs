@@ -780,14 +780,31 @@ pub struct Config {
     pub prompt_caching: bool,
 }
 
+/// Cline's OpenAI-compatible gateway. Keys are issued at app.cline.bot and
+/// sent as bearer tokens to `/chat/completions`.
+pub const CLINE_BASE_URL: &str = "https://api.cline.bot/api/v1";
+
 impl Config {
     pub fn from_env() -> Result<Self, String> {
         let databricks_host = env("DATABRICKS_HOST");
         let databricks_model = env("DATABRICKS_MODEL");
+        // Cline exposes an OpenAI-compatible gateway, so it rides the OpenAi
+        // route with its own credential and base-URL defaults rather than a
+        // separate Provider variant (which every dispatch match would need).
+        let requested_provider = env("BUZZ_AGENT_PROVIDER");
+        let cline_selected = requested_provider
+            .as_deref()
+            .map(|value| value.trim().eq_ignore_ascii_case("cline"))
+            .unwrap_or(false);
+        let openai_compat_key = if cline_selected {
+            env("CLINE_API_KEY").or_else(|| env("OPENAI_COMPAT_API_KEY"))
+        } else {
+            env("OPENAI_COMPAT_API_KEY")
+        };
         let provider = resolve_provider(
-            env("BUZZ_AGENT_PROVIDER").as_deref(),
+            requested_provider.as_deref(),
             env("ANTHROPIC_API_KEY").as_deref(),
-            env("OPENAI_COMPAT_API_KEY").as_deref(),
+            openai_compat_key.as_deref(),
             env("OPENROUTER_API_KEY").as_deref(),
         )?;
 
@@ -813,6 +830,23 @@ impl Config {
                 .ok_or_else(|| "config: ANTHROPIC_MODEL required".to_string())?,
                 env_or("ANTHROPIC_BASE_URL", "https://api.anthropic.com"),
                 OpenAiApi::Auto, // unused for Anthropic
+            ),
+            Provider::OpenAi if cline_selected => (
+                openai_compat_key
+                    .clone()
+                    .filter(|value| !value.trim().is_empty())
+                    .ok_or_else(|| "config: CLINE_API_KEY required".to_string())?,
+                resolve_model(
+                    buzz_agent_model.as_deref(),
+                    env("CLINE_MODEL")
+                        .or_else(|| env("OPENAI_COMPAT_MODEL"))
+                        .as_deref(),
+                )
+                .ok_or_else(|| "config: CLINE_MODEL required".to_string())?,
+                env("OPENAI_COMPAT_BASE_URL")
+                    .filter(|value| !value.trim().is_empty())
+                    .unwrap_or_else(|| CLINE_BASE_URL.to_string()),
+                parse_openai_api(env("OPENAI_COMPAT_API").as_deref())?,
             ),
             Provider::OpenAi => (
                 req("OPENAI_COMPAT_API_KEY")?,
@@ -1058,6 +1092,10 @@ fn resolve_provider(
                 "anthropic" => Err(
                     "config: ANTHROPIC_API_KEY required".into(),
                 ),
+                // Cline's gateway is OpenAI-compatible; the credential arrives as
+                // CLINE_API_KEY (falling back to OPENAI_COMPAT_API_KEY).
+                "cline" if present_nonempty(openai_key) => Ok(Provider::OpenAi),
+                "cline" => Err("config: CLINE_API_KEY required".into()),
                 "openai" | "openai-compat" if present_nonempty(openai_key) => Ok(Provider::OpenAi),
                 "openai" | "openai-compat" => Err(
                     "config: OPENAI_COMPAT_API_KEY required".into(),
@@ -1323,6 +1361,38 @@ mod tests {
         assert!(err.contains("OPENAI_COMPAT_API_KEY required"), "{err}");
         let err = resolve_provider(None, None, None, None).unwrap_err();
         assert!(err.contains("BUZZ_AGENT_PROVIDER is required"), "{err}");
+    }
+
+    #[test]
+    fn cline_selects_the_openai_compatible_route() {
+        // Cline's gateway speaks OpenAI Chat Completions, so it maps onto the
+        // OpenAi provider rather than a bespoke variant.
+        assert_eq!(
+            resolve_provider(Some("cline"), None, Some("sk-cline"), None).unwrap(),
+            Provider::OpenAi
+        );
+        assert_eq!(
+            resolve_provider(Some("CLINE"), None, Some("sk-cline"), None).unwrap(),
+            Provider::OpenAi
+        );
+    }
+
+    #[test]
+    fn cline_without_a_key_names_the_cline_credential() {
+        let err = resolve_provider(Some("cline"), None, None, None).unwrap_err();
+        assert!(
+            err.contains("CLINE_API_KEY"),
+            "error should name the Cline credential, got: {err}"
+        );
+        let blank = resolve_provider(Some("cline"), None, Some("   "), None).unwrap_err();
+        assert!(blank.contains("CLINE_API_KEY"), "got: {blank}");
+    }
+
+    #[test]
+    fn cline_base_url_points_at_the_documented_gateway() {
+        // https://docs.cline.bot/api/getting-started documents
+        // POST https://api.cline.bot/api/v1/chat/completions
+        assert_eq!(CLINE_BASE_URL, "https://api.cline.bot/api/v1");
     }
 
     #[test]
