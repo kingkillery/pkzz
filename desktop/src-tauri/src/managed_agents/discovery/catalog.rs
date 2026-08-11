@@ -197,4 +197,49 @@ pub(super) const KNOWN_ACP_RUNTIMES: &[KnownAcpRuntime] = &[
         },
         readiness_policy: RuntimeReadinessPolicy::AcpModelCatalog,
     },
+    KnownAcpRuntime {
+        id: "cline",
+        label: "Cline",
+        // Cline speaks ACP natively via `cline --acp`; there is no adapter to
+        // install. Verified against a live initialize handshake (agentInfo
+        // name "cline"), which also advertises its three auth methods.
+        commands: &["cline"],
+        aliases: &[],
+        avatar_url: "",
+        source: HarnessSource::Preset,
+        default_args: &["--acp"],
+        // Cline manages its own MCP servers (`cline mcp`); Pkzz injects none.
+        mcp_command: None,
+        mcp_hooks: false,
+        underlying_cli: None,
+        cli_install_commands: &["npm install -g cline"],
+        cli_install_commands_windows: &["npm install -g cline"],
+        adapter_install_commands: &[],
+        cli_install_instructions_url: "https://github.com/cline/cline",
+        adapter_install_instructions_url: "",
+        cli_install_hint: "Pkzz talks to Cline through its CLI's ACP mode (cline --acp).",
+        adapter_install_hint: "",
+        skill_dir: None,
+        // Cline advertised no ACP model-catalog capability at initialize, so
+        // Pkzz must not claim switching it cannot perform.
+        supports_acp_model_switching: false,
+        model_env_var: None,
+        provider_env_var: None,
+        provider_locked: false,
+        default_env: &[],
+        config_file_path: None,
+        config_file_format: None,
+        supports_acp_native_config: false,
+        thinking_env_var: None,
+        max_tokens_env_var: None,
+        context_limit_env_var: None,
+        max_rounds_env_var: None,
+        required_normalized_fields: &[],
+        authentication: RuntimeAuthentication::AcpMethods {
+            login_hint: "Sign in from Pkzz (Cline, ClinePass, or ChatGPT Subscription), or from a terminal with `cline auth`.",
+        },
+        // Readiness stops at authentication: Cline exposes no ACP model
+        // catalog to probe.
+        readiness_policy: RuntimeReadinessPolicy::Authentication,
+    },
 ];

@@ -1578,6 +1578,40 @@ mod wave0_foundation_tests {
             .is_none_or(|command| command == "ompk"));
     }
 
+    /// Cline speaks ACP natively (`cline --acp`) and advertises its own sign-in
+    /// methods (Cline, ClinePass, ChatGPT Subscription) at initialize, so the
+    /// catalog must project it as a preset needing no adapter install.
+    #[test]
+    fn cline_catalog_projection_is_native_acp_with_account_connect() {
+        let _path_guard = crate::managed_agents::lock_path_mutex();
+        let runtime = known_acp_runtime_exact("cline").unwrap();
+        let entry = discover_acp_runtime_phase1(runtime).entry;
+
+        assert_eq!(entry.id, "cline");
+        assert_eq!(entry.source, HarnessSource::Preset);
+        assert_eq!(entry.default_args, vec!["--acp"]);
+        assert_eq!(entry.auth_status, AuthStatus::Unknown);
+        assert!(
+            entry.can_connect_account,
+            "sign-in options are adapter-advertised; the account connect path must stay open"
+        );
+        assert!(runtime.adapter_install_commands.is_empty());
+        assert!(runtime.underlying_cli.is_none());
+        assert!(entry
+            .command
+            .as_deref()
+            .is_none_or(|command| command == "cline"));
+    }
+
+    #[test]
+    fn cline_default_args_survive_a_legacy_pin_without_args() {
+        assert_eq!(normalize_agent_args("cline", Vec::new()), vec!["--acp"]);
+        assert_eq!(
+            normalize_agent_args("cline", vec!["custom".to_string()]),
+            vec!["custom"]
+        );
+    }
+
     #[test]
     fn legacy_ompk_pin_recovers_catalog_args_without_changing_safe_default() {
         assert_eq!(normalize_agent_args("ompk", Vec::new()), vec!["acp"]);
