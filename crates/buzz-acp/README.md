@@ -119,6 +119,17 @@ All configuration is via environment variables (or CLI flags — every env var h
 
 **Legacy env vars:** `BUZZ_ACP_PRIVATE_KEY`, `BUZZ_ACP_API_TOKEN`, and `BUZZ_ACP_TURN_TIMEOUT` (replaced by `BUZZ_ACP_IDLE_TIMEOUT`) are still accepted as fallbacks.
 
+### OMPK Execution Requests
+
+| Flag | Env Var | Default | Description |
+|------|---------|---------|-------------|
+| `--no-ompk-execution` | `BUZZ_ACP_NO_OMPK_EXECUTION` | `false` | Reject signed, tagged OMPK execution requests. Ordinary ACP conversation handling is unchanged. |
+| `--ompk-allowed-workspaces <path>` | `BUZZ_ACP_OMPK_ALLOWED_WORKSPACES` | — | Absolute existing directory roots allowed for `ompk-cwd`. The flag is repeatable and both forms accept comma-delimited values. An empty list denies explicit cwd placement without disabling default execution. |
+
+Allowed roots are canonicalized at startup. Each requested cwd is canonicalized
+and must remain under one of those roots. Invalid configured roots fail startup;
+invalid requests fail without echoing their path in the normal error text.
+
 ### Parallel Agents & Heartbeat
 
 | Flag | Env Var | Default | Description |
@@ -315,12 +326,44 @@ Forum event kinds:
 2. **Channel discovery** — Queries the relay REST API for accessible channels, subscribes to each.
 3. **Event loop** — Listens for @mention events (kind 9 with the agent's pubkey in a `#p` tag). Events queue per channel.
 4. **Prompting** — When events are pending and no prompt is in flight for that channel, drains all queued events for the oldest channel into a single batched prompt via ACP `session/prompt`.
-5. **Agent response** — The agent processes the prompt and uses the Pkzz CLI (`send_message`, `get_messages`, etc.) to interact with Pkzz.
-6. **Recovery** — If the agent crashes, the harness respawns it. If the relay disconnects, the harness reconnects with a `since` filter to avoid missing events.
+5. **Agent response** — The agent processes the prompt and can use the Pkzz CLI (`send_message`, `get_messages`, etc.) for progress and interaction. An ACP runtime that acknowledges Pkzz's host-final extension can also return one semantic final reply for durable delivery to the triggering conversation.
+6. **Recovery** — If the agent crashes, the harness respawns it. If the relay disconnects, the harness reconnects with a `since` filter to avoid missing events. Failed final publications remain in the durable outbox for retry.
 
 Each channel has at most one prompt in flight. Multiple channels can be processed concurrently when agents > 1.
 
 > **Note:** On startup, the harness replays all unprocessed @mentions since the last run. Expect a burst of activity if there are stale events in the channel.
+
+## Structured OMPK Execution
+
+`buzz messages send --ompk-execution` marks a signed message as an OMPK
+execution request. With no placement option, the harness keeps its normal cwd
+and OMPK's existing execution defaults remain authoritative. Add
+`--ompk-cwd <absolute-directory>` to request a configured, allowed workspace:
+
+```bash
+buzz messages send --channel <channel-uuid> \
+  --mention <ompk-agent-pubkey> \
+  --ompk-execution \
+  --ompk-cwd /srv/workspaces/project-a \
+  --content "Run the assigned task and report validation evidence"
+```
+
+The message must still target an OMPK-backed Pkzz agent through the normal
+mention, author, and engagement rules. Pkzz validates the structural request
+and passes an accepted cwd through ACP `session/new`; OMPK owns agent and worker
+execution. The signed trigger event ID correlates retries, observer status, and
+the result delivered to the original channel/thread.
+
+Current OMPK ACP supports default execution and an explicit session cwd. It
+does **not** expose runner registration or a machine/host placement field, so
+Pkzz does not SSH, select a remote host, or pretend that its separate
+managed-agent provider placement is OMPK per-request placement. Installing or
+running a Pkzz client does not make that machine an OMPK runner. Future
+cross-machine requests require an explicitly enabled and authenticated OMPK
+runner; Pkzz may pass structural placement constraints, but OMPK must select
+and execute on the runner. See
+[OMPK agent execution from Pkzz](../../docs/ompk-agent-execution.md) for the
+contract, lifecycle, validation, security boundary, and verification path.
 
 ## Bring Your Own Harness (BYOH)
 
