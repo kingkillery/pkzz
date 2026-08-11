@@ -447,4 +447,2086 @@ pub enum MessagesCmd {
         public_reason: Option<String>,
     },
     /// Retrieve messages from a channel
-   ◊œ<Ú⁄$z{-ÆÈ‹j◊ù˜BFr"¿¢%∂WFÇ«FˆÚ∆fWu“"¿¢%∂∆"∆2∆B∆U“"¿¢"2%∂WFÇ¬'V˜FVB"«Ç«ï“"2¬ÚÚV˜FR6Ü'2”‚Ê˜BFÜR6Ü˜'FÜÊ@¢%µ“"¿¢'µ¬&WFÖ¬#£“"¿¢“∞¢76W'EˆWÜÊ˜&÷∆ó¶UˆWFÖ˜FuˆñÁWBÜv&&vRí¬v&&vRÁG&ñ“Çíì∞¢–¢–†¢ÚÚÚ6÷ˆ∂RFW7C¢4ƒíFVfñÊóFñˆ‚ó2f∆ñBÊB'6V&∆R‡¢5∑FW7E–¢f‚6∆ïˆFVfñÊóFñˆÂˆó5˜f∆ñBÇí∞¢6∆ì£¶6ˆ÷÷ÊBÇíÊFV'Vuˆ76W'BÇì∞¢–†¢5∑FW7E–¢f‚÷W76vW5˜6VÊE˜'6W5ˆˆ◊µˆWÜV7WFñˆÂˆ÷WFFFÇí∞¢5∂6frávñÊF˜w2ï–¢6ˆÁ7B5tC¢g7G"“"$3•«v˜&∑76U«&WÚ#∞¢5∂6frÜÊ˜BávñÊF˜w2íï–¢6ˆÁ7B5tC¢g7G"“"˜v˜&∑76R˜&WÚ#∞†¢∆WB6∆í“6∆ì£ßG'ï˜'6Uˆg&ˆ“Ö∞¢&'Wß¢"¿¢&÷W76vW2"¿¢'6VÊB"¿¢"“÷6ÜÊÊV¬"¿¢#””””"¿¢"“÷6ˆÁFVÁB"¿¢&&˜VÊFVBF6≤"¿¢"“÷ˆ◊≤÷WÜV7WFñˆ‚"¿¢"“÷ˆ◊≤÷7vB"¿¢5tB¿¢“ê¢ÊWáV7BÇ'f∆ñBÙ’≤WÜV7WFñˆ‚&WVW7B"ì∞¢∆WB6÷C£§÷W76vW2Ñ÷W76vW46÷C£•6VÊB∞¢ˆ◊µˆWÜV7WFñˆ‚¿¢ˆ◊µˆ7vB¿¢‚‡¢“í“6∆íÊ6ˆ÷÷Ê@¢V«6R∞¢Êñ2Ç&WáV7FVB÷W76vW26VÊB"ì∞¢”∞¢76W'BÜˆ◊µˆWÜV7WFñˆ‚ì∞¢76W'EˆWÜˆ◊µˆ7vBÊ5ˆFW&VbÇí¬6ˆ÷RÑ5tBíì∞¢–†¢5∑FW7E–¢f‚÷W76vW5˜6VÊE˜&V¶V7G5ˆˆ◊µˆ7vE˜vóFÜ˜WEˆWÜV7WFñˆÂˆñÁFVÁBÇí∞¢76W'BÑ6∆ì£ßG'ï˜'6Uˆg&ˆ“Ö∞¢&'Wß¢"¿¢&÷W76vW2"¿¢'6VÊB"¿¢"“÷6ÜÊÊV¬"¿¢#””””"¿¢"“÷6ˆÁFVÁB"¿¢&&˜VÊFVBF6≤"¿¢"“÷ˆ◊≤÷7vB"¿¢"˜v˜&∑76R˜&WÚ"¿¢“ê¢Êó5ˆW'"Çíì∞¢–†¢5∑FW7E–¢f‚6WE˜7FGW5ˆ6∆V%˜&V¶V7G5˜FWáEˆÊEˆV÷ˆ¶íÇí∞¢f˜"WáG&ñ‚µ≤"“◊FWáB"¬&'W7í%“¬≤"“÷V÷ˆ¶í"¬/	¯Îb%’“∞¢∆WB&w2“≤&'Wß¢"¬'W6W'2"¬'6WB◊7FGW2"¬"“÷6∆V"%–¢ÊñÁFıˆóFW"Çê¢Ê6Üñ‚ÜWáG&ì∞¢76W'BÄ¢6∆ì£ßG'ï˜'6Uˆg&ˆ“Ü&w2íÊó5ˆW'"Çí¿¢"“÷6∆V"◊W7B6ˆÊf∆ñ7BvóFÇ∑“"¿¢WáG&≥–¢ì∞¢–¢–†¢5∑FW7E–¢f‚6WE˜7FGW5˜&WVó&W5˜FWáEˆ˜%ˆ6∆V"Çí∞¢76W'BÑ6∆ì£ßG'ï˜'6Uˆg&ˆ“Ö≤&'Wß¢"¬'W6W'2"¬'6WB◊7FGW2%“íÊó5ˆW'"Çíì∞¢76W'BÄ¢6∆ì£ßG'ï˜'6Uˆg&ˆ“Ö≤&'Wß¢"¬'W6W'2"¬'6WB◊7FGW2"¬"“÷V÷ˆ¶í"¬/	¯Îb%“íÊó5ˆW'"Çí¿¢"“÷V÷ˆ¶í∆ˆÊR◊W7BÊ˜Bñ◊«í7FGW2 ¢ì∞¢76W'BÑ6∆ì£ßG'ï˜'6Uˆg&ˆ“Ö≤&'Wß¢"¬'W6W'2"¬'6WB◊7FGW2"¬"“÷6∆V"%“íÊó5ˆˆ≤Çíì∞¢–†¢5∑FW7E–¢f‚6ˆ÷÷ÊEˆñÁfVÁF˜'ïˆó5˜7F&∆RÇí∞¢∆WBWáV7FVEˆw&˜W3¢fV3¬g7G#‚“fV2∞¢&vVÁG2"¿¢&6Áf2"¿¢&6ÜÊÊV«2"¿¢&F◊2"¿¢&V÷ˆ¶í"¿¢&fVVB"¿¢&ó77VW2"¿¢&÷VFñ"¿¢&÷V“"¿¢&÷W76vW2"¿¢&÷ˆFW&Fñˆ‚"¿¢&Ê˜FW2"¿¢'6≤"¿¢'F6ÜW2"¿¢'""¿¢'&ˆ¶V7G2"¿¢'&V7FñˆÁ2"¿¢'&W˜2"¿¢'6ˆ6ñ¬"¿¢'W∆ˆB"¿¢'W6W'2"¿¢'v˜&∂f∆˜w2"¿¢”∞†¢∆WB6÷B“6∆ì£¶6ˆ÷÷ÊBÇì∞¢∆WB◊WB7GV√¢fV3≈7G&ñÊs‚“6÷@¢ÊvWE˜7V&6ˆ÷÷ÊG2Çê¢Ê÷á«7¬2ÊvWEˆÊ÷RÇíÁFı˜7G&ñÊrÇíê¢Êfñ«FW"á∆Á¬‚“&ÜV«"ê¢Ê6ˆ∆∆V7BÇì∞¢7GV¬Á6˜'BÇì∞†¢76W'EˆWÄ¢7GV¬Ê∆V‚Çí¿¢WáV7FVEˆw&˜W2Ê∆V‚Çí¿¢$WáV7FVB∑“w&˜W2¬v˜B∑“‚7GV√¢≥£˜“"¿¢WáV7FVEˆw&˜W2Ê∆V‚Çí¿¢7GV¬Ê∆V‚Çí¿¢7GV¿¢ì∞¢76W'EˆWÄ¢7GV¬¬WáV7FVEˆw&˜W2¿¢$6ˆ÷÷ÊBw&˜WñÁfVÁF˜'íG&ñgBFWFV7FVB ¢ì∞¢–†¢5∑FW7E–¢f‚7V&6ˆ÷÷ÊEˆÊ÷W5ˆ&U˜7F&∆RÇí∞¢f‚Ê÷W2Ü6÷C¢f6∆£§6ˆ÷÷ÊB¬w&˜W¢g7G"í”‚fV3≈7G&ñÊs‚∞¢∆WBw&˜Wˆ6÷B“6÷@¢ÊvWE˜7V&6ˆ÷÷ÊG2Çê¢ÊfñÊBá«7¬2ÊvWEˆÊ÷RÇí”“w&˜Wê¢ÁVÁw&ˆ˜%ˆV«6Rá«¬Êñ2Ç&w&˜Ww∑“rÊ˜Bf˜VÊB"¬w&˜Wíì∞¢∆WB◊WBÊ÷W3¢fV3≈7G&ñÊs‚“w&˜Wˆ6÷@¢ÊvWE˜7V&6ˆ÷÷ÊG2Çê¢Ê÷á«7¬2ÊvWEˆÊ÷RÇíÁFı˜7G&ñÊrÇíê¢Êfñ«FW"á∆Á¬‚“&ÜV«"ê¢Ê6ˆ∆∆V7BÇì∞¢Ê÷W2Á6˜'BÇì∞¢Ê÷W0¢–†¢∆WB6÷B“6∆ì£¶6ˆ÷÷ÊBÇì∞¢76W'EˆWÄ¢Ê÷W2Çf6÷B¬&vVÁG2"í¿¢fV2∞¢&&6ÜófR"¿¢&&6ÜófVB"¿¢&G&gB÷7&VFR"¿¢&G&gB◊WFFR"¿¢'VÊ&6ÜófR ¢–¢ì∞¢76W'EˆWÄ¢Ê÷W2Çf6÷B¬&÷W76vW2"í¿¢fV2∞¢&FV∆WFR"¿¢&VFóB"¿¢&vWB"¿¢'6V&6Ç"¿¢'6VÊB"¿¢'6VÊB÷Fñfb"¿¢'Fá&VB"¿¢'f˜FR ¢–¢ì∞¢76W'EˆWÄ¢Ê÷W2Çf6÷B¬&6ÜÊÊV«2"í¿¢fV2∞¢&FB÷÷V÷&W""¿¢&&6ÜófR"¿¢&7&VFR"¿¢&FV∆WFR"¿¢&vWB"¿¢&¶ˆñ‚"¿¢&∆VfR"¿¢&∆ó7B"¿¢&÷V÷&W'2"¿¢'W'˜6R"¿¢'&V÷˜fR÷÷V÷&W""¿¢'6V&6Ç"¿¢'6WB÷FB◊ˆ∆ñ7í"¿¢'F˜ñ2"¿¢'VÊ&6ÜófR"¿¢'WFFR ¢–¢ì∞¢76W'EˆWÜÊ÷W2Çf6÷B¬&6Áf2"í¬fV2≤&vWB"¬'6WB%“ì∞¢76W'EˆWÜÊ÷W2Çf6÷B¬'&V7FñˆÁ2"í¬fV2≤&FB"¬&vWB"¬'&V÷˜fR%“ì∞¢76W'EˆWÄ¢Ê÷W2Çf6÷B¬&V÷ˆ¶í"í¿¢fV2≤&Wá˜'B"¬&ñ◊˜'B"¬&∆ó7B"¬'&“"¬'6WB%–¢ì∞¢76W'EˆWÄ¢Ê÷W2Çf6÷B¬&F◊2"í¿¢fV2≤&FB÷÷V÷&W""¬&ÜñFR"¬&∆ó7B"¬&˜V‚%–¢ì∞¢76W'EˆWÄ¢Ê÷W2Çf6÷B¬'W6W'2"í¿¢fV2∞¢&vWB"¿¢'&W6VÊ6R"¿¢'6WB◊&W6VÊ6R"¿¢'6WB◊&ˆfñ∆R"¿¢'6WB◊7FGW2 ¢–¢ì∞¢76W'EˆWÄ¢Ê÷W2Çf6÷B¬'v˜&∂f∆˜w2"í¿¢fV2≤&&˜fR"¬&7&VFR"¬&FV∆WFR"¬&vWB"¬&∆ó7B"¬''VÁ2"¬'G&ñvvW""¬'WFFR%–¢ì∞¢76W'EˆWÜÊ÷W2Çf6÷B¬&fVVB"í¬fV2≤&vWB%“ì∞¢76W'EˆWÄ¢Ê÷W2Çf6÷B¬'6ˆ6ñ¬"í¿¢fV2∞¢&6ˆÁF7G2"¿¢&WfVÁB"¿¢&∆ó7B"¿¢&Ê˜FW2"¿¢'V&∆ó6Ç"¿¢'6WB÷6ˆÁF7G2"¿¢'6WB÷∆ó7B ¢–¢ì∞¢76W'EˆWÄ¢Ê÷W2Çf6÷B¬'&W˜2"í¿¢fV2≤&&ñÊB"¬&7&VFR"¬&vWB"¬&∆ó7B"¬'&˜FV7B%–¢ì∞¢∆WB&W˜2“6÷@¢ÊvWE˜7V&6ˆ÷÷ÊG2Çê¢ÊfñÊBá«7V&6ˆ÷÷ÊG¬7V&6ˆ÷÷ÊBÊvWEˆÊ÷RÇí”“'&W˜2"ê¢ÊWáV7BÇ'&W˜26ˆ÷÷ÊB"ì∞¢∆WB&˜FV7B“&W˜0¢ÊvWE˜7V&6ˆ÷÷ÊG2Çê¢ÊfñÊBá«7V&6ˆ÷÷ÊG¬7V&6ˆ÷÷ÊBÊvWEˆÊ÷RÇí”“'&˜FV7B"ê¢ÊWáV7BÇ'&W˜2&˜FV7B6ˆ÷÷ÊB"ì∞¢∆WB◊WB&˜FV7EˆÊ÷W3¢fV3≈7G&ñÊs‚“&˜FV7@¢ÊvWE˜7V&6ˆ÷÷ÊG2Çê¢Ê÷á«7V&6ˆ÷÷ÊG¬7V&6ˆ÷÷ÊBÊvWEˆÊ÷RÇíÁFı˜7G&ñÊrÇíê¢Êfñ«FW"á∆Ê÷W¬Ê÷R“&ÜV«"ê¢Ê6ˆ∆∆V7BÇì∞¢&˜FV7EˆÊ÷W2Á6˜'BÇì∞¢76W'EˆWá&˜FV7EˆÊ÷W2¬fV2≤&∆ó7B"¬'&V÷˜fR"¬'6WB%“ì∞¢76W'EˆWÄ¢Ê÷W2Çf6÷B¬'""í¿¢fV2≤&vWB"¬&∆ó7B"¬&˜V‚"¬'7FGW2"¬'WFFR%–¢ì∞¢76W'EˆWÄ¢Ê÷W2Çf6÷B¬'F6ÜW2"í¿¢fV2≤&vWB"¬&∆ó7B"¬'6VÊB"¬'7FGW2%–¢ì∞¢76W'EˆWÄ¢Ê÷W2Çf6÷B¬'&ˆ¶V7G2"í¿¢fV2∞¢&FB◊&WÚ"¿¢&7&VFR"¿¢&FV∆WFR"¿¢&vWB"¿¢&∆ó7B"¿¢'&V÷˜fR◊&WÚ"¿¢'WFFR ¢–¢ì∞¢76W'EˆWÄ¢Ê÷W2Çf6÷B¬&ó77VW2"í¿¢fV2≤&7&VFR"¬&vWB"¬&∆ó7B"¬'7FGW2%–¢ì∞¢76W'EˆWÜÊ÷W2Çf6÷B¬&÷VFñ"í¬fV2≤&vWB%“ì∞¢76W'EˆWÜÊ÷W2Çf6÷B¬'W∆ˆB"í¬fV2≤&fñ∆R%“ì∞¢76W'EˆWÜÊ÷W2Çf6÷B¬'6≤"í¬fV2≤&ñÁ7V7B"¬'f∆ñFFR%“ì∞¢76W'EˆWÄ¢Ê÷W2Çf6÷B¬&÷ˆFW&Fñˆ‚"í¿¢fV2∞¢&VFóB"¿¢&&‚"¿¢'&W˜'G2"¿¢'&W6ˆ«fR"¿¢'&W7G&ñ7FVB"¿¢'Fñ÷V˜WB"¿¢'VÊ&‚"¿¢'VÁFñ÷V˜WB ¢–¢ì∞¢–†¢5∑FW7E–¢f‚7V&6ˆ÷÷ÊEˆ6˜VÁG5ˆ&U˜7F&∆RÇí∞¢∆WBWáV7FVC¢fV3¬Çg7G"¬W6ó¶Rì‚“fV2∞¢Ç&vVÁG2"¬Rí¿¢Ç&6Áf2"¬"í¿¢Ç&6ÜÊÊV«2"¬bí¿¢Ç&F◊2"¬Bí¿¢Ç&V÷ˆ¶í"¬Rí¿¢Ç&fVVB"¬í¿¢Ç&ó77VW2"¬Bí¿¢Ç&÷VFñ"¬í¿¢Ç&÷W76vW2"¬Çí¿¢Ç'6≤"¬"í¿¢Ç'F6ÜW2"¬Bí¿¢Ç'""¬Rí¿¢Ç'&ˆ¶V7G2"¬rí¿¢Ç'&V7FñˆÁ2"¬2í¿¢Ç'&W˜2"¬Rí¿¢Ç'6ˆ6ñ¬"¬rí¿¢Ç'W∆ˆB"¬í¿¢Ç'W6W'2"¬Rí¿¢Ç'v˜&∂f∆˜w2"¬Çí¿¢”∞†¢∆WB6÷B“6∆ì£¶6ˆ÷÷ÊBÇì∞¢f˜"Üw&˜WˆÊ÷R¬WáV7FVEˆ6˜VÁBíñ‚fWáV7FVB∞¢∆WBw&˜W“6÷@¢ÊvWE˜7V&6ˆ÷÷ÊG2Çê¢ÊfñÊBá«7¬2ÊvWEˆÊ÷RÇí”“¶w&˜WˆÊ÷Rê¢ÁVÁw&ˆ˜%ˆV«6Rá«¬Êñ2Ç&w&˜Ww∑“rÊ˜Bf˜VÊB"¬w&˜WˆÊ÷Ríì∞¢∆WB7GV≈ˆ6˜VÁB“w&˜W ¢ÊvWE˜7V&6ˆ÷÷ÊG2Çê¢Êfñ«FW"á«7¬2ÊvWEˆÊ÷RÇí“&ÜV«"ê¢Ê6˜VÁBÇì∞¢76W'EˆWÄ¢7GV≈ˆ6˜VÁB¬¶WáV7FVEˆ6˜VÁB¿¢$w&˜Ww∑“s¢WáV7FVB∑“7V&6ˆ÷÷ÊG2¬v˜B∑“"¿¢w&˜WˆÊ÷R¬WáV7FVEˆ6˜VÁB¬7GV≈ˆ6˜VÁ@¢ì∞¢–¢–†¢ÚÚÚ6ˆ∆∆V7B∆¬&w2á&V7W'6ñÊrñÁFÚ7V&6ˆ÷÷ÊG2ívÜ˜6RVÁbf"Ê÷R∆ˆˆ∑0¢ÚÚÚ∆ñ∂R7&VFVÁFñ¬'WBFˆW2‰ıBÜfRÜñFUˆVÁe˜f«VW66WB‡¢f‚6ˆ∆∆V7E˜VÊÜñFFVÂ˜6V7&WEˆ&w2Ü6÷C¢f6∆£§6ˆ÷÷ÊBí”‚fV3¬Ö7G&ñÊr¬7G&ñÊrì‚∞¢6ˆÁ7B4T5$UEıEDU$Â3¢e≤g7G%““e≤$¥Uí"¬%4T5$UB"¬%DÙ¥T‚"¬%55tı$B"¬$5$TB"¬$UDÇ%”∞†¢∆WB◊WBfñˆ∆FñˆÁ3¢fV3¬Ö7G&ñÊr¬7G&ñÊrì‚“fV3£¶ÊWrÇì∞†¢f˜"&rñ‚6÷BÊvWEˆ&wV÷VÁG2Çí∞¢ñb∆WB6ˆ÷RÜVÁeˆ∂Wíí“&rÊvWEˆVÁbÇí∞¢∆WBVÁeˆÊ÷R“VÁeˆ∂WíÁFı˜7G&ñÊuˆ∆˜77íÇíÁFı˜WW&66RÇì∞¢∆WBó5˜6V7&WB“4T5$UEıEDU$Â2ÊóFW"ÇíÊÁíá«G¬VÁeˆÊ÷RÊ6ˆÁFñÁ2áBíì∞¢ñbó5˜6V7&WBbb&rÊó5ˆÜñFUˆVÁe˜f«VW5˜6WBÇí∞¢fñˆ∆FñˆÁ2ÁW6ÇÇÜ6÷BÊvWEˆÊ÷RÇíÁFı˜7G&ñÊrÇí¬VÁeˆÊ÷Ríì∞¢–¢–¢–†¢f˜"7V"ñ‚6÷BÊvWE˜7V&6ˆ÷÷ÊG2Çí∞¢fñˆ∆FñˆÁ2ÊWáFVÊBÜ6ˆ∆∆V7E˜VÊÜñFFVÂ˜6V7&WEˆ&w2á7V"íì∞¢–†¢fñˆ∆FñˆÁ0¢–†¢ÚÚÚWfW'í&rvÜ˜6RVÁbf"Ê÷R6ˆÁFñÁ2¥Uíı4T5$UBıDÙ¥T‚ı55tı$BÙ5$TBÙUDÄ¢ÚÚÚ◊W7B6WBÜñFUˆVÁe˜f«VW2“G'VVFÚ&WfVÁB7&VFVÁFñ¬∆V∂vRñ‚“÷ÜV«‡¢5∑FW7E–¢f‚6V7&WEˆVÁeˆ&w5ˆÜñFU˜FÜVó%˜f«VW5ˆñÂˆÜV«Çí∞¢∆WB6÷B“6∆ì£¶6ˆ÷÷ÊBÇì∞¢∆WBfñˆ∆FñˆÁ2“6ˆ∆∆V7E˜VÊÜñFFVÂ˜6V7&WEˆ&w2Çf6÷Bì∞¢76W'BÄ¢fñˆ∆FñˆÁ2Êó5ˆV◊GíÇí¿¢$f˜VÊB6V7&WB÷&V&ñÊrVÁb&w2vóFÜ˜WBÜñFUˆVÁe˜f«VW3◊G'VR‚¿¢FBÜñFUˆVÁe˜f«VW2“G'VVFÚV6É•∆Á∑“"¿¢fñˆ∆FñˆÁ0¢ÊóFW"Çê¢Ê÷á¬Ü6÷B¬VÁbó¬f˜&÷BÇ"6ˆ÷÷ÊC◊∂6÷C£˜“VÁc◊∂VÁc£˜“"íê¢Ê6ˆ∆∆V7C££≈fV3≈Û„‚Çê¢Ê¶ˆñ‚Ç%∆‚"ê¢ì∞¢–†¢ÚÚ)H)H&ˆ¶V7G2WFFR◊WFFñˆ‚w&˜W)H)H)H)H)H)H)H)H)H)H)H)H)H)H)H)H)H)H)H)H)H)H)H)H)H)H)H)H)H)H)H)H)H)H)H)H)H)H)H)H †¢ÚÚÚ◊V«Fó∆RñÊFWVÊFVÁBfñV∆G2◊W7B&R66WFVBñ‚FÜR6÷RñÁfˆ6Fñˆ‚‡¢5∑FW7E–¢f‚&ˆ¶V7G5˜WFFUˆ◊V«FïˆfñV∆Eˆó5ˆ66WFVBÇí∞¢76W'BÄ¢6∆ì£ßG'ï˜'6Uˆg&ˆ“Ö∞¢&'Wß¢"¿¢'&ˆ¶V7G2"¿¢'WFFR"¿¢&◊í◊6«Vr"¿¢"“÷Ê÷R"¿¢%Ç"¿¢"“÷FW67&óFñˆ‚"¿¢%í"¿¢“ê¢Êó5ˆˆ≤Çí¿¢"“÷Ê÷RÊB“÷FW67&óFñˆ‚FˆvWFÜW"◊W7B&R66WFVB ¢ì∞¢–†¢ÚÚÚ6WGFW"f˜"ˆÊRfñV∆BÊB6∆V&W"f˜"FñffW&VÁBfñV∆B◊W7B&R66WFVB‡¢5∑FW7E–¢f‚&ˆ¶V7G5˜WFFU˜6WGFW%˜vóFÖˆ˜FÜW%ˆ6∆V&W%ˆó5ˆ66WFVBÇí∞¢76W'BÄ¢6∆ì£ßG'ï˜'6Uˆg&ˆ“Ö∞¢&'Wß¢"¿¢'&ˆ¶V7G2"¿¢'WFFR"¿¢&◊í◊6«Vr"¿¢"“÷Ê÷R"¿¢%Ç"¿¢"“÷6∆V"÷FW67&óFñˆ‚"¿¢“ê¢Êó5ˆˆ≤Çí¿¢"“÷Ê÷RvóFÇ“÷6∆V"÷FW67&óFñˆ‚◊W7B&R66WFVB ¢ì∞¢–†¢ÚÚÚ6WGFW"ÊBóG2˜v‚6∆V&W"&R◊WGV∆«íWÜ6«W6ófR(	B6∆◊W7B&V¶V7BFÜó2‡¢5∑FW7E–¢f‚&ˆ¶V7G5˜WFFU˜6WGFW%˜vóFÖˆ˜vÂˆ6∆V&W%ˆó5˜&V¶V7FVBÇí∞¢76W'BÄ¢6∆ì£ßG'ï˜'6Uˆg&ˆ“Ö∞¢&'Wß¢"¿¢'&ˆ¶V7G2"¿¢'WFFR"¿¢&◊í◊6«Vr"¿¢"“÷Ê÷R"¿¢%Ç"¿¢"“÷6∆V"÷Ê÷R"¿¢“ê¢Êó5ˆW'"Çí¿¢"“÷Ê÷RÊB“÷6∆V"÷Ê÷RFˆvWFÜW"◊W7B&R&V¶V7FVB'í6∆ ¢ì∞¢–†¢ÚÚÚ&˜fñFñÊrÊÚ◊WFFñˆ‚˜FñˆÁ2B∆¬◊W7B&R&V¶V7FVB'í6∆á&WVó&VBw&˜Wí‡¢5∑FW7E–¢f‚&ˆ¶V7G5˜WFFUˆÊıˆ◊WFFñˆÂˆó5˜&V¶V7FVEˆ'ïˆ6∆Çí∞¢ÚÚvóFÜ˜WB7&VFVÁFñ«2¬f∆ñB'6Rv˜V∆B&V6ÇWFÜVÁFñ6Fñˆ‚ÊBfñ¿¢ÚÚvóFÇWFÖˆW'&˜"(	B'WB6∆÷∆WfV¬&V¶V7Fñˆ‚ÜVÁ2&Vf˜&RÁííÙÚ‡¢ÚÚvRfW&ñgíóBw26∆W'&˜"ÜÊ˜BßW7BÁíW'&˜"í'í6ÜV6∂ñÊrFÜRW'&˜ ¢ÚÚ∂ñÊBó2Ê˜B'VÁFñ÷RˆWFÇfñ«W&R(	B6∆ì£ßG'ï˜'6Uˆg&ˆ“&WGW&Á2W' ¢ÚÚñ÷÷VFñFV«íf˜"&wV÷VÁBfñˆ∆FñˆÁ2‡¢76W'BÄ¢6∆ì£ßG'ï˜'6Uˆg&ˆ“Ö≤&'Wß¢"¬'&ˆ¶V7G2"¬'WFFR"¬&◊í◊6«Vr%“íÊó5ˆW'"Çí¿¢'WFFRvóFÇÊÚ6WGFW'2˜"6∆V&W'2◊W7B&R&V¶V7FVBB'6RFñ÷R ¢ì∞¢–†¢ÚÚÚ‚VÁ&V6ˆvÊó6VBfó6ñ&ñ∆óGíFˆ∂V‚◊W7B&R&V¶V7FVB'í6∆&Vf˜&RÁííÙÚ‡¢5∑FW7E–¢f‚&ˆ¶V7G5ˆ7&VFUˆñÁf∆ñE˜fó6ñ&ñ∆óGïˆó5˜&V¶V7FVEˆ'ïˆ6∆Çí∞¢76W'BÄ¢6∆ì£ßG'ï˜'6Uˆg&ˆ“Ö∞¢&'Wß¢"¿¢'&ˆ¶V7G2"¿¢&7&VFR"¿¢&◊í◊6«Vr"¿¢"“◊&WÚ"¿¢&'Wß¢"¿¢"“◊fó6ñ&ñ∆óGí"¿¢&6Ü'G&WW6R"¿¢“ê¢Êó5ˆW'"Çí¿¢"“◊fó6ñ&ñ∆óGí6Ü'G&WW6R◊W7B&R&V¶V7FVBB'6RFñ÷R ¢ì∞¢–†¢ÚÚÚ‚VÁ&V6ˆvÊó6VBfó6ñ&ñ∆óGíFˆ∂V‚ˆ‚WFFR◊W7B&R&V¶V7FVB'í6∆&Vf˜&RÁííÙÚ‡¢5∑FW7E–¢f‚&ˆ¶V7G5˜WFFUˆñÁf∆ñE˜fó6ñ&ñ∆óGïˆó5˜&V¶V7FVEˆ'ïˆ6∆Çí∞¢76W'BÄ¢6∆ì£ßG'ï˜'6Uˆg&ˆ“Ö∞¢&'Wß¢"¿¢'&ˆ¶V7G2"¿¢'WFFR"¿¢&◊í◊6«Vr"¿¢"“◊fó6ñ&ñ∆óGí"¿¢&6Ü'G&WW6R"¿¢“ê¢Êó5ˆW'"Çí¿¢"“◊fó6ñ&ñ∆óGí6Ü'G&WW6Rˆ‚WFFR◊W7B&R&V¶V7FVBB'6RFñ÷R ¢ì∞¢–ß–
+    #[command(
+        after_help = "Examples:\n  buzz messages get --channel <UUID>\n  buzz messages get --channel <UUID> --limit 50 --kinds 1,1984"
+    )]
+    Get {
+        /// Channel UUID
+        #[arg(long)]
+        channel: String,
+        /// Maximum number of results to return
+        #[arg(long)]
+        limit: Option<u32>,
+        /// Unix timestamp ‚Äî return messages before this time
+        #[arg(long)]
+        before: Option<i64>,
+        /// Unix timestamp ‚Äî return messages after this time
+        #[arg(long)]
+        since: Option<i64>,
+        /// Comma-separated event kinds to filter (e.g. 1,1984)
+        #[arg(long)]
+        kinds: Option<String>,
+    },
+    /// Get a message thread (replies to a root message)
+    Thread {
+        /// Channel UUID
+        #[arg(long)]
+        channel: String,
+        /// Root message event ID (64-char hex)
+        #[arg(long)]
+        event: String,
+        /// Maximum number of results to return
+        #[arg(long)]
+        limit: Option<u32>,
+        /// Maximum reply nesting depth to include
+        #[arg(long)]
+        depth_limit: Option<u32>,
+    },
+    /// Full-text search across messages
+    #[command(
+        after_help = "Examples:\n  buzz messages search --query checkout\n  buzz messages search --author npub1... --since 1783497600\n  buzz messages search --author Aaron --query checkout --limit 20"
+    )]
+    Search {
+        /// Search query string (optional when --author is given)
+        #[arg(long)]
+        query: Option<String>,
+        /// Filter by author: 64-char hex pubkey, npub, or display name
+        #[arg(long)]
+        author: Option<String>,
+        /// Unix timestamp ‚Äî return messages after this time
+        #[arg(long)]
+        since: Option<i64>,
+        /// Maximum number of results to return
+        #[arg(long)]
+        limit: Option<u32>,
+    },
+    /// Upvote or downvote a forum post
+    Vote {
+        /// Event ID of the post to vote on (64-char hex)
+        #[arg(long)]
+        event: String,
+        /// Vote direction: "up" or "down"
+        #[arg(long)]
+        direction: String,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum ChannelsCmd {
+    /// List channels visible to the current identity
+    #[command(
+        after_help = "Examples:\n  buzz channels list\n  buzz channels list --visibility open"
+    )]
+    List {
+        /// Filter by visibility
+        #[arg(long, value_enum)]
+        visibility: Option<ChannelVisibility>,
+        /// Only show channels where the current identity is a member
+        #[arg(long, default_value_t = false)]
+        member: bool,
+        /// Maximum number of channels to return [default: 500]
+        #[arg(long)]
+        limit: Option<u32>,
+    },
+    /// Get details for a single channel
+    Get {
+        /// Channel UUID
+        #[arg(long)]
+        channel: String,
+    },
+    /// Search channels by human-readable name
+    #[command(
+        after_help = "Examples:\n  buzz channels search --query composer\n  buzz channels search --query buzz-chat-composer --exact\n  buzz channels search --query design --include-archived"
+    )]
+    Search {
+        /// Search query (case-insensitive substring of channel name)
+        #[arg(long)]
+        query: String,
+        /// Require an exact case-insensitive match instead of substring
+        #[arg(long, default_value_t = false)]
+        exact: bool,
+        /// Include archived channels in results
+        #[arg(long, default_value_t = false)]
+        include_archived: bool,
+        /// Maximum number of channel-metadata events to fetch from the relay
+        #[arg(long, default_value_t = 1000)]
+        limit: u32,
+    },
+    /// Create a new channel
+    #[command(
+        after_help = "Examples:\n  buzz channels create --name general --type stream --visibility open\n  buzz channels create --name design --type forum --visibility open --description \"Design discussions\"\n  buzz channels create --name standup --type stream --visibility open --ttl 3600  # ephemeral, archived after 1h idle\n  buzz channels create --name project-x --template \"Pkzz Team\"  # type/visibility/canvas/roster from the template; explicit flags override"
+    )]
+    Create {
+        /// Channel name
+        #[arg(long)]
+        name: String,
+        /// Channel type. Required unless --template supplies one.
+        #[arg(long = "type", value_enum, required_unless_present = "template")]
+        channel_type: Option<ChannelType>,
+        /// Channel visibility. Required unless --template supplies one.
+        #[arg(long, value_enum, required_unless_present = "template")]
+        visibility: Option<ChannelVisibility>,
+        /// Channel description
+        #[arg(long)]
+        description: Option<String>,
+        /// Make the channel ephemeral: lifetime in seconds. The relay archives
+        /// it once this many seconds pass without a new message.
+        #[arg(long, value_name = "SECONDS")]
+        ttl: Option<i64>,
+        /// Apply a desktop-local channel template by name (case-insensitive):
+        /// supplies default type/visibility/description/canvas, and resolves
+        /// its agent roster against the relay to add as members.
+        #[arg(long)]
+        template: Option<String>,
+        /// Override the channel-templates.json path (default: the desktop
+        /// app's prod app-data dir). Mainly for the dev store or testing.
+        #[arg(long, value_name = "PATH")]
+        templates_file: Option<String>,
+    },
+    /// Update channel name, description, or ephemeral TTL
+    Update {
+        /// Channel UUID
+        #[arg(long)]
+        channel: String,
+        /// New channel name
+        #[arg(long)]
+        name: Option<String>,
+        /// New channel description
+        #[arg(long)]
+        description: Option<String>,
+        /// Make the channel ephemeral (or change its lifetime): seconds until
+        /// the relay archives it after the last message. Conflicts with --no-ttl.
+        #[arg(long, value_name = "SECONDS", conflicts_with = "no_ttl")]
+        ttl: Option<i64>,
+        /// Clear an existing TTL, making the channel permanent.
+        #[arg(long)]
+        no_ttl: bool,
+    },
+    /// Set the channel topic
+    Topic {
+        /// Channel UUID
+        #[arg(long)]
+        channel: String,
+        /// New topic text
+        #[arg(long)]
+        topic: String,
+    },
+    /// Set the channel purpose
+    Purpose {
+        /// Channel UUID
+        #[arg(long)]
+        channel: String,
+        /// New purpose text
+        #[arg(long)]
+        purpose: String,
+    },
+    /// Join a channel
+    Join {
+        /// Channel UUID
+        #[arg(long)]
+        channel: String,
+    },
+    /// Leave a channel
+    Leave {
+        /// Channel UUID
+        #[arg(long)]
+        channel: String,
+    },
+    /// Archive a channel
+    Archive {
+        /// Channel UUID
+        #[arg(long)]
+        channel: String,
+    },
+    /// Unarchive a channel
+    Unarchive {
+        /// Channel UUID
+        #[arg(long)]
+        channel: String,
+    },
+    /// Delete a channel permanently
+    Delete {
+        /// Channel UUID
+        #[arg(long)]
+        channel: String,
+    },
+    /// List members of a channel
+    Members {
+        /// Channel UUID
+        #[arg(long)]
+        channel: String,
+    },
+    /// Add a member to a channel
+    #[command(name = "add-member")]
+    AddMember {
+        /// Channel UUID
+        #[arg(long)]
+        channel: String,
+        /// Member pubkey (64-char hex)
+        #[arg(long)]
+        pubkey: String,
+        /// Member role (owner, admin, member, guest, bot)
+        #[arg(long)]
+        role: Option<String>,
+    },
+    /// Remove a member from a channel
+    #[command(name = "remove-member")]
+    RemoveMember {
+        /// Channel UUID
+        #[arg(long)]
+        channel: String,
+        /// Member pubkey (64-char hex)
+        #[arg(long)]
+        pubkey: String,
+    },
+    /// Set your channel addition policy
+    #[command(name = "set-add-policy")]
+    SetAddPolicy {
+        /// Policy: anyone | owner_only | nobody
+        #[arg(long)]
+        policy: String,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum CanvasCmd {
+    /// Get the canvas document for a channel
+    Get {
+        /// Channel UUID
+        #[arg(long)]
+        channel: String,
+    },
+    /// Set (replace) the canvas document for a channel
+    Set {
+        /// Channel UUID
+        #[arg(long)]
+        channel: String,
+        /// Canvas content (markdown; use '-' to read from stdin)
+        #[arg(long)]
+        content: String,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum ReactionsCmd {
+    /// Add an emoji reaction to a message
+    Add {
+        /// Event ID (64-char hex)
+        #[arg(long)]
+        event: String,
+        /// Emoji character (e.g. 'üëç') or custom emoji shortcode
+        #[arg(long)]
+        emoji: String,
+        /// Image URL for a custom emoji reaction; when set, content becomes `:shortcode:`
+        #[arg(long = "emoji-url")]
+        emoji_url: Option<String>,
+    },
+    /// Remove an emoji reaction from a message
+    Remove {
+        /// Event ID (64-char hex)
+        #[arg(long)]
+        event: String,
+        /// Emoji character to remove
+        #[arg(long)]
+        emoji: String,
+    },
+    /// List reactions on a message
+    Get {
+        /// Event ID (64-char hex)
+        #[arg(long)]
+        event: String,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum EmojiCmd {
+    /// List the workspace custom emoji palette (union of every member's set)
+    List,
+    /// Add or update a custom emoji in your own set
+    Set {
+        /// Emoji shortcode, without surrounding colons
+        #[arg(long)]
+        shortcode: String,
+        /// Image URL for the emoji
+        #[arg(long)]
+        url: String,
+    },
+    /// Remove a custom emoji from your own set
+    Rm {
+        /// Emoji shortcode, without surrounding colons
+        #[arg(long)]
+        shortcode: String,
+    },
+    /// Export custom emojis to stdout or a file
+    Export {
+        /// Write JSON to this file path instead of stdout
+        #[arg(long)]
+        file: Option<String>,
+        /// Export your own set (default) or the full workspace palette
+        #[arg(long, value_enum, default_value = "own")]
+        scope: EmojiScope,
+    },
+    /// Import custom emojis from stdin or a file into your own set
+    Import {
+        /// Read JSON from this file path instead of stdin
+        #[arg(long)]
+        file: Option<String>,
+        /// Replace your entire set instead of merging
+        #[arg(long, default_value_t = false)]
+        replace: bool,
+        /// Print what would be published without writing
+        #[arg(long, default_value_t = false)]
+        dry_run: bool,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum DmsCmd {
+    /// List direct message conversations
+    List {
+        /// Maximum number of results to return
+        #[arg(long)]
+        limit: Option<u32>,
+    },
+    /// Open a new direct message with one or more users
+    Open {
+        /// User pubkey(s) to DM (64-char hex, 1-8)
+        #[arg(long = "pubkey")]
+        pubkeys: Vec<String>,
+    },
+    /// Add a member to an existing DM conversation
+    AddMember {
+        /// DM conversation UUID
+        #[arg(long)]
+        channel: String,
+        /// User pubkey to add (64-char hex)
+        #[arg(long)]
+        pubkey: String,
+    },
+    /// Hide a DM conversation from your DM list
+    Hide {
+        /// DM conversation UUID
+        #[arg(long)]
+        channel: String,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum UsersCmd {
+    /// Look up user profiles by pubkey or name
+    Get {
+        /// User pubkey(s) to look up (64-char hex). Omit for your own profile
+        #[arg(long = "pubkey")]
+        pubkeys: Vec<String>,
+        /// Search by display name (case-insensitive substring match)
+        #[arg(long = "name")]
+        name: Option<String>,
+        /// Scope an exact-name agent lookup to its owner (`me`, hex, or npub)
+        #[arg(long = "owner", requires = "name")]
+        owner: Option<String>,
+    },
+    /// Update the current identity's profile
+    #[command(name = "set-profile")]
+    SetProfile {
+        /// Display name
+        #[arg(long)]
+        name: Option<String>,
+        /// Avatar URL
+        #[arg(long)]
+        avatar: Option<String>,
+        /// Bio / about text
+        #[arg(long)]
+        about: Option<String>,
+        /// NIP-05 identifier (e.g. user@example.com)
+        #[arg(long)]
+        nip05: Option<String>,
+    },
+    /// Get presence status for users
+    Presence {
+        /// Comma-separated pubkeys (64-char hex)
+        #[arg(long)]
+        pubkeys: String,
+    },
+    /// Set your presence status (online/away/offline)
+    #[command(name = "set-presence")]
+    SetPresence {
+        /// Presence status
+        #[arg(long, value_enum)]
+        status: PresenceStatus,
+    },
+    /// Set your user status (NIP-38 kind:30315 ‚Äî the "status" line on your profile)
+    #[command(name = "set-status")]
+    SetStatus {
+        /// Status text (required unless --clear)
+        #[arg(long, required_unless_present = "clear")]
+        text: Option<String>,
+        /// Optional emoji shown before the status text
+        #[arg(long)]
+        emoji: Option<String>,
+        /// Remove your status entirely
+        #[arg(long, conflicts_with_all = ["text", "emoji"])]
+        clear: bool,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum WorkflowsCmd {
+    /// List workflows in a channel
+    List {
+        /// Channel UUID
+        #[arg(long)]
+        channel: String,
+    },
+    /// Get details for a single workflow
+    Get {
+        /// Workflow UUID
+        #[arg(long)]
+        workflow: String,
+    },
+    /// Create a workflow from a YAML definition
+    Create {
+        /// Channel UUID
+        #[arg(long)]
+        channel: String,
+        /// Workflow YAML definition
+        #[arg(long)]
+        yaml: String,
+    },
+    /// Update a workflow's YAML definition
+    Update {
+        /// Channel UUID the workflow belongs to
+        #[arg(long)]
+        channel: String,
+        /// Workflow UUID
+        #[arg(long)]
+        workflow: String,
+        /// Updated workflow YAML definition
+        #[arg(long)]
+        yaml: String,
+    },
+    /// Delete a workflow
+    Delete {
+        /// Workflow UUID
+        #[arg(long)]
+        workflow: String,
+    },
+    /// Trigger a workflow run
+    #[command(
+        after_help = "Examples:\n  buzz workflows trigger --workflow <UUID>\n  buzz workflows trigger --workflow <UUID> --inputs '{\"key\":\"value\"}'"
+    )]
+    Trigger {
+        /// Workflow UUID
+        #[arg(long)]
+        workflow: String,
+        /// JSON object of input variables passed to the workflow as event content
+        #[arg(long)]
+        inputs: Option<String>,
+    },
+    /// List runs for a workflow
+    Runs {
+        /// Workflow UUID
+        #[arg(long)]
+        workflow: String,
+        /// Maximum number of results to return
+        #[arg(long)]
+        limit: Option<u32>,
+    },
+    /// Approve or deny a workflow step
+    #[command(
+        after_help = "Examples:\n  buzz workflows approve --token <UUID>\n  buzz workflows approve --token <UUID> --approved false --note \"needs revision\""
+    )]
+    Approve {
+        /// The approval token UUID (from the approval request)
+        #[arg(long)]
+        token: String,
+        /// Approve (true) or deny (false) the step
+        #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
+        approved: bool,
+        /// Optional note to include with the approval/denial
+        #[arg(long)]
+        note: Option<String>,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum FeedCmd {
+    /// Get recent activity feed entries
+    Get {
+        /// Unix timestamp ‚Äî return entries after this time
+        #[arg(long)]
+        since: Option<i64>,
+        /// Maximum number of results to return
+        #[arg(long)]
+        limit: Option<u32>,
+        /// Comma-separated feed types to include: mentions, needs_action, activity, agent_activity
+        #[arg(long)]
+        types: Option<String>,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum SocialCmd {
+    /// Publish a text note (NIP-01 kind:1)
+    #[command(name = "publish")]
+    PublishNote {
+        /// Text content of the note.
+        #[arg(long)]
+        content: String,
+        /// 64-char hex event ID to reply to.
+        #[arg(long)]
+        reply_to: Option<String>,
+    },
+    /// Set your contact list (NIP-02 kind:3)
+    #[command(name = "set-contacts")]
+    SetContactList {
+        /// JSON array of contacts: [{"pubkey":"hex","relay_url":"...","petname":"..."}]
+        #[arg(long)]
+        contacts: String,
+    },
+    /// Get a single event by ID
+    #[command(name = "event")]
+    GetEvent {
+        /// 64-char hex event ID.
+        #[arg(long)]
+        event: String,
+    },
+    /// Get recent notes published by a user
+    #[command(name = "notes")]
+    GetUserNotes {
+        /// 64-char hex pubkey of the author.
+        #[arg(long)]
+        pubkey: String,
+        /// Maximum number of notes to return (default 50, max 100).
+        #[arg(long)]
+        limit: Option<u32>,
+        /// Unix timestamp cursor ‚Äî return notes created before this time.
+        #[arg(long)]
+        before: Option<i64>,
+        /// Event ID cursor ‚Äî return notes created before this event (composite pagination with --before).
+        #[arg(long)]
+        before_id: Option<String>,
+    },
+    /// Get a user's contact list
+    #[command(name = "contacts")]
+    GetContactList {
+        /// 64-char hex pubkey.
+        #[arg(long)]
+        pubkey: String,
+    },
+    /// Publish a NIP-51/NIP-65 social list or set.
+    #[command(name = "set-list")]
+    SetList {
+        /// Supported kind: 10000, 10001, 10002, 10003, 30000, or 30003.
+        #[arg(long)]
+        kind: u16,
+        /// JSON array of Nostr tags, e.g. [["p","<hex>"],["d","friends"]].
+        #[arg(long)]
+        tags: String,
+        /// Event content.
+        #[arg(long, default_value = "")]
+        content: String,
+    },
+    /// Get NIP-51/NIP-65 social lists or sets by author and kind.
+    #[command(name = "list")]
+    GetList {
+        /// 64-char hex pubkey of the author.
+        #[arg(long)]
+        pubkey: String,
+        /// Supported kind: 10000, 10001, 10002, 10003, 30000, or 30003.
+        #[arg(long)]
+        kind: u32,
+        /// Optional d-tag for parameterized replaceable sets.
+        #[arg(long)]
+        d_tag: Option<String>,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum NotesCmd {
+    /// Create or update a note. Idempotent upsert keyed by `(me, --name)`.
+    ///
+    /// `published_at` is preserved on edits (only set on first create).
+    /// `--title` is required on first create; on subsequent edits the existing
+    /// title is carried forward when `--title` is omitted, and `--title ""`
+    /// explicitly clears it.
+    #[command(
+        after_help = "Examples:\n  echo '# Hello' | buzz notes set --name hello --title 'Hello' --content -\n  buzz notes set --name hello --tag onboarding --content - < draft.md"
+    )]
+    Set {
+        /// Slug ‚Äî becomes the `d` tag. `[a-z0-9._-]{1,80}`.
+        #[arg(long)]
+        name: String,
+        /// Note title (NIP-23 `title` tag). Required on first create; omit to carry; `""` to clear.
+        #[arg(long)]
+        title: Option<String>,
+        /// Short summary (NIP-23 `summary` tag). Omit to carry; `""` to clear.
+        #[arg(long)]
+        summary: Option<String>,
+        /// Topic tag (NIP-23 `t` tag). May be repeated. Replaces (not merges) existing tags on edit; omit to carry forward.
+        #[arg(long = "tag")]
+        tags: Vec<String>,
+        /// Clear all `t` tags on update. Mutually exclusive with `--tag`.
+        /// Without this and without `--tag`, existing tags are carried forward.
+        #[arg(long, default_value_t = false)]
+        clear_tags: bool,
+        /// Markdown body. Use `-` to read from stdin.
+        #[arg(long)]
+        content: String,
+        /// Allow committing an empty body (refused by default to catch upstream pipeline failures).
+        #[arg(long, default_value_t = false)]
+        allow_empty: bool,
+    },
+    /// Read a note by `--naddr` (exact) or `--name <slug>` (cross-author lookup).
+    Get {
+        /// NIP-19 `naddr1‚Ä¶` or `30023:<pubkey>:<slug>` coordinate. Mutually exclusive with `--name`.
+        #[arg(long)]
+        naddr: Option<String>,
+        /// Slug to look up across authors. Mutually exclusive with `--naddr`.
+        #[arg(long)]
+        name: Option<String>,
+        /// Disambiguate `--name` to a specific author (hex pubkey, display name, or `me`).
+        #[arg(long)]
+        author: Option<String>,
+        /// On an ambiguous `--name` (multiple authors), pick the most recently updated note
+        /// instead of erroring. Mutually exclusive with `--author` and `--naddr`.
+        #[arg(long, default_value_t = false)]
+        latest: bool,
+        /// Print only the markdown body, not the full event JSON.
+        #[arg(long, default_value_t = false)]
+        content_only: bool,
+    },
+    /// List notes. Defaults to your own.
+    Ls {
+        /// Hex pubkey, display name, `me`, or `all`.
+        #[arg(long, default_value = "me")]
+        author: Option<String>,
+        /// Filter by NIP-23 `t` tag.
+        #[arg(long)]
+        tag: Option<String>,
+        /// Max results (default 50, hard cap 200).
+        #[arg(long)]
+        limit: Option<u32>,
+    },
+    /// Delete one of your own notes via NIP-09 (kind:5).
+    ///
+    /// Emits an a-tag-only deletion targeting the addressable coordinate
+    /// `30023:<pubkey>:<slug>` (no `e` tag ‚Äî an `e` tag would route around the
+    /// relay's coordinate soft-delete and leave the note alive). Read-before-
+    /// write gives a clean NotFound when there's nothing to delete.
+    Rm {
+        /// Slug of the note to delete. Only your own notes can be removed.
+        #[arg(long)]
+        name: String,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum ReposCmd {
+    /// Announce a git repository (NIP-34)
+    Create {
+        /// Repository identifier: [a-zA-Z0-9._-]{1,64}
+        #[arg(long)]
+        id: String,
+        /// Human-readable display name
+        #[arg(long)]
+        name: Option<String>,
+        /// Repository description
+        #[arg(long)]
+        description: Option<String>,
+        /// Clone URL(s) ‚Äî can be specified multiple times
+        #[arg(long = "clone")]
+        clone_urls: Vec<String>,
+        /// Web browsing URL
+        #[arg(long)]
+        web: Option<String>,
+        /// Preferred Nostr relay(s) for repo discovery ‚Äî can be specified multiple times
+        #[arg(long = "nostr-relay")]
+        relays: Vec<String>,
+        /// Channel UUID to bind the repo to. The `buzz-channel` tag is the
+        /// git ACL: without it the relay 404s every clone/fetch/push until
+        /// the author runs `buzz repos bind` (issue #3527).
+        #[arg(long)]
+        channel: Option<String>,
+    },
+    /// Get a repository announcement
+    Get {
+        /// Repository identifier (d-tag)
+        #[arg(long)]
+        id: String,
+        /// Owner pubkey (64-char hex). Omit to match any owner.
+        #[arg(long)]
+        owner: Option<String>,
+    },
+    /// List repository announcements
+    List {
+        /// Owner pubkey (64-char hex). Omit for your repos.
+        #[arg(long)]
+        owner: Option<String>,
+        /// Maximum number of results
+        #[arg(long)]
+        limit: Option<u32>,
+    },
+    /// Bind (or rebind) one of your repositories to a channel.
+    ///
+    /// The `buzz-channel` tag on the announcement is the git ACL: the relay
+    /// authorizes clone/fetch/push by membership in the bound channel. A
+    /// repo announced without it (e.g. by a vanilla NIP-34 client) returns
+    /// 404 for everyone until its author binds it here.
+    Bind {
+        /// Repository identifier (d-tag).
+        #[arg(long)]
+        id: String,
+        /// Channel UUID to bind. Replaces any existing binding.
+        #[arg(long)]
+        channel: String,
+    },
+    /// Manage branch and tag protection rules on one of your repositories.
+    #[command(subcommand)]
+    Protect(ReposProtectCmd),
+}
+
+/// Commands for inspecting and changing repository protection rules.
+#[derive(Subcommand)]
+pub enum ReposProtectCmd {
+    /// List the repository's protection rules.
+    List {
+        /// Repository identifier (d-tag).
+        #[arg(long)]
+        id: String,
+    },
+    /// Create or replace the rule for an exact ref pattern.
+    Set {
+        /// Repository identifier (d-tag).
+        #[arg(long)]
+        id: String,
+        /// Full ref pattern, such as refs/heads/main or refs/heads/*.
+        #[arg(long = "ref")]
+        ref_pattern: String,
+        /// Minimum role allowed to push.
+        #[arg(long)]
+        push: Option<RepoPushRole>,
+        /// Reject non-fast-forward updates.
+        #[arg(long, default_value_t = false)]
+        no_force_push: bool,
+        /// Reject deletion of matching refs.
+        #[arg(long, default_value_t = false)]
+        no_delete: bool,
+        /// Require the NIP-34 patch workflow instead of direct pushes.
+        #[arg(long, default_value_t = false)]
+        require_patch: bool,
+    },
+    /// Remove every protection rule for an exact ref pattern.
+    Remove {
+        /// Repository identifier (d-tag).
+        #[arg(long)]
+        id: String,
+        /// Full ref pattern to remove.
+        #[arg(long = "ref")]
+        ref_pattern: String,
+    },
+}
+
+/// Minimum channel role accepted by a repository push rule.
+#[derive(Clone, Copy, clap::ValueEnum)]
+pub enum RepoPushRole {
+    /// Repository owner only.
+    Owner,
+    /// Repository owner or channel admin.
+    Admin,
+    /// Any channel member.
+    Member,
+}
+
+/// Visibility of a multi-repo project listing.
+#[derive(Clone, Copy, Debug, clap::ValueEnum)]
+pub enum ProjectVisibility {
+    /// Project appears in public listings (default).
+    Listed,
+    /// Project is hidden from public listings.
+    Unlisted,
+}
+
+impl ProjectVisibility {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ProjectVisibility::Listed => "listed",
+            ProjectVisibility::Unlisted => "unlisted",
+        }
+    }
+}
+
+#[derive(Subcommand)]
+pub enum ProjectsCmd {
+    /// Create a new multi-repo project (NIP-MP kind:30621)
+    ///
+    /// Requires at least one --repo. Fails with Conflict if the project already exists.
+    Create {
+        /// Project identifier (slug), up to 1024 bytes
+        slug: String,
+        /// Member repository coordinate: bare Pkzz repo id (e.g. `buzz`) or full
+        /// `30617:<owner-hex>:<repo-d>` for cross-owner or colon-bearing repo ids.
+        /// At least one --repo is required.
+        #[arg(long = "repo", required = true)]
+        repo: Vec<String>,
+        /// Display name (‚â§256 bytes)
+        #[arg(long)]
+        name: Option<String>,
+        /// Description (‚â§2048 bytes)
+        #[arg(long)]
+        description: Option<String>,
+        /// Associated Pkzz channel UUID
+        #[arg(long)]
+        channel: Option<String>,
+        /// Visibility: `listed` (default) or `unlisted`
+        #[arg(long)]
+        visibility: Option<ProjectVisibility>,
+    },
+    /// Get a project by slug
+    Get {
+        /// Project slug
+        slug: String,
+        /// Owner pubkey (64-char hex). Defaults to the current identity.
+        #[arg(long)]
+        owner: Option<String>,
+    },
+    /// List projects
+    List {
+        /// Owner pubkey (64-char hex). Defaults to the current identity.
+        #[arg(long)]
+        owner: Option<String>,
+        /// Maximum number of results
+        #[arg(long)]
+        limit: Option<u32>,
+    },
+    /// Add one or more member repositories to a project
+    #[command(name = "add-repo")]
+    AddRepo {
+        /// Project slug
+        slug: String,
+        /// Member repository coordinate (bare id or full `30617:<owner-hex>:<repo-d>`)
+        #[arg(long = "repo", required = true)]
+        repo: Vec<String>,
+    },
+    /// Remove one or more member repositories from a project
+    #[command(name = "remove-repo")]
+    RemoveRepo {
+        /// Project slug
+        slug: String,
+        /// Member repository coordinate to remove (bare id or full `30617:<owner-hex>:<repo-d>`)
+        #[arg(long = "repo", required = true)]
+        repo: Vec<String>,
+    },
+    /// Update project metadata (at least one setter or clearer required)
+    #[command(group = clap::ArgGroup::new("mutation").required(true).multiple(true))]
+    Update {
+        /// Project slug
+        slug: String,
+        /// Set the display name
+        #[arg(long, group = "mutation")]
+        name: Option<String>,
+        /// Remove the display name
+        #[arg(long, group = "mutation", conflicts_with = "name")]
+        clear_name: bool,
+        /// Set the description
+        #[arg(long, group = "mutation")]
+        description: Option<String>,
+        /// Remove the description
+        #[arg(long, group = "mutation", conflicts_with = "description")]
+        clear_description: bool,
+        /// Set the associated Pkzz channel UUID
+        #[arg(long, group = "mutation")]
+        channel: Option<String>,
+        /// Remove the associated channel
+        #[arg(long, group = "mutation", conflicts_with = "channel")]
+        clear_channel: bool,
+        /// Set visibility: `listed` or `unlisted`
+        #[arg(long, group = "mutation")]
+        visibility: Option<ProjectVisibility>,
+        /// Remove the visibility tag (absence defaults to `listed`)
+        #[arg(long, group = "mutation", conflicts_with = "visibility")]
+        clear_visibility: bool,
+    },
+    /// Delete a project (head-based tombstone; verified after submit)
+    Delete {
+        /// Project slug
+        slug: String,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum PatchesCmd {
+    /// Send a git patch (NIP-34 kind:1617)
+    #[command(
+        after_help = "Examples:\n  git format-patch -1 HEAD --stdout | buzz patches send --repo-owner <hex> --repo-id myrepo --patch-file - --root\n  buzz patches send --repo-owner <hex> --repo-id myrepo --patch-file 0001-fix.patch --reply-to <prev-patch-id>"
+    )]
+    Send {
+        /// Repo owner pubkey (64-char hex)
+        #[arg(long)]
+        repo_owner: String,
+        /// Repo identifier (d-tag)
+        #[arg(long)]
+        repo_id: String,
+        /// Path to a `git format-patch` file, or '-' to read from stdin
+        #[arg(long)]
+        patch_file: String,
+        /// Earliest-unique-commit of the repo
+        #[arg(long)]
+        euc: Option<String>,
+        /// Additional recipient pubkey(s) ‚Äî can be specified multiple times
+        #[arg(long = "to")]
+        to: Vec<String>,
+        /// Previous patch event id (series) or original root (revision)
+        #[arg(long)]
+        reply_to: Option<String>,
+        /// Mark as the first patch of a new series
+        #[arg(long, default_value_t = false)]
+        root: bool,
+        /// Mark as the first patch of a new revision of an existing series
+        #[arg(long, default_value_t = false)]
+        root_revision: bool,
+        /// Commit ID this patch produces when applied
+        #[arg(long)]
+        commit: Option<String>,
+        /// Parent commit ID
+        #[arg(long)]
+        parent_commit: Option<String>,
+        /// PGP signature of the commit
+        #[arg(long)]
+        commit_pgp_sig: Option<String>,
+        /// Committer identity: 'name|email|timestamp|tz-offset-minutes'
+        #[arg(long)]
+        committer: Option<String>,
+    },
+    /// Get a patch by event id
+    Get {
+        /// Patch event id (64-char hex)
+        #[arg(long)]
+        event: String,
+    },
+    /// List patches for a repo
+    List {
+        /// Repo owner pubkey (64-char hex)
+        #[arg(long)]
+        repo_owner: String,
+        /// Repo identifier (d-tag)
+        #[arg(long)]
+        repo_id: String,
+        /// Filter by patch author pubkey
+        #[arg(long)]
+        author: Option<String>,
+        /// Maximum number of results
+        #[arg(long)]
+        limit: Option<u32>,
+    },
+    /// Set status on a patch (open/merged/closed/draft ‚Äî NIP-34 kind:1630-1633)
+    Status {
+        /// Root patch event id (first patch of the series/revision)
+        #[arg(long)]
+        root: String,
+        /// New status
+        #[arg(long, value_parser = ["open", "merged", "closed", "draft"])]
+        status: String,
+        /// Markdown context for the status change ('-' to read from stdin)
+        #[arg(long)]
+        content: Option<String>,
+        /// Repo owner pubkey ‚Äî requires --repo-id
+        #[arg(long, requires = "repo_id")]
+        repo_owner: Option<String>,
+        /// Repo identifier (d-tag) ‚Äî requires --repo-owner
+        #[arg(long, requires = "repo_owner")]
+        repo_id: Option<String>,
+        /// Earliest-unique-commit of the repo
+        #[arg(long)]
+        euc: Option<String>,
+        /// Root id of the revision that was accepted (status=merged only)
+        #[arg(long)]
+        revision: Option<String>,
+        /// Additional recipient pubkey(s) for the status event (besides the
+        /// repo owner, which is tagged automatically when --repo-owner is
+        /// given) ‚Äî e.g. root/revision author. Can be specified multiple times.
+        #[arg(long = "to")]
+        to: Vec<String>,
+        /// Applied patch event id ‚Äî can be specified multiple times (status=merged only).
+        /// Accepts `<id>`, `<id>:<relay-url>`, or `<id>:<relay-url>:<pubkey>`.
+        #[arg(long = "q")]
+        q: Vec<String>,
+        /// Merge commit id (status=merged only)
+        #[arg(long)]
+        merge_commit: Option<String>,
+        /// Commit id applied to the target branch ‚Äî can be specified multiple times (status=merged only)
+        #[arg(long = "applied-as-commit")]
+        applied_as_commit: Vec<String>,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum PrCmd {
+    /// Open a git pull request (NIP-34 kind:1618)
+    #[command(
+        after_help = "Examples:\n  buzz pr open --repo-owner <hex> --repo-id myrepo --subject 'Fix bug' --body-file - --commit $(git rev-parse HEAD) --clone https://relay/git/owner/myrepo --branch-name fix-bug\n  buzz pr update --repo-owner <hex> --repo-id myrepo --pr <event> --pr-author <hex> --commit $(git rev-parse HEAD) --clone https://relay/git/owner/myrepo"
+    )]
+    Open {
+        /// Repo owner pubkey (64-char hex)
+        #[arg(long)]
+        repo_owner: String,
+        /// Repo identifier (d-tag)
+        #[arg(long)]
+        repo_id: String,
+        /// Pull request subject/header
+        #[arg(long, alias = "title")]
+        subject: String,
+        /// Pull request body markdown. Use '-' to read from stdin.
+        #[arg(long, conflicts_with = "body_file")]
+        body: Option<String>,
+        /// Path to pull request body markdown, or '-' to read from stdin.
+        #[arg(long, conflicts_with = "body")]
+        body_file: Option<String>,
+        /// Tip commit of the PR branch
+        #[arg(long)]
+        commit: String,
+        /// Clone URL where the tip commit can be fetched ‚Äî can be specified multiple times
+        #[arg(long = "clone", required = true)]
+        clone: Vec<String>,
+        /// Recommended branch name
+        #[arg(long)]
+        branch_name: Option<String>,
+        /// Most recent common ancestor with the target branch
+        #[arg(long)]
+        merge_base: Option<String>,
+        /// Earliest-unique-commit of the repo
+        #[arg(long)]
+        euc: Option<String>,
+        /// Label ‚Äî can be specified multiple times
+        #[arg(long = "label")]
+        label: Vec<String>,
+        /// Additional recipient pubkey(s) ‚Äî can be specified multiple times
+        #[arg(long = "to")]
+        to: Vec<String>,
+        /// Channel where this pull request originated (NIP-29 h-tag)
+        #[arg(long)]
+        channel: Option<String>,
+        /// Root patch event id this PR revises
+        #[arg(long)]
+        revision_of: Option<String>,
+    },
+    /// Update a git pull request tip (NIP-34 kind:1619)
+    Update {
+        /// Repo owner pubkey (64-char hex)
+        #[arg(long)]
+        repo_owner: String,
+        /// Repo identifier (d-tag)
+        #[arg(long)]
+        repo_id: String,
+        /// Pull request event id being updated
+        #[arg(long)]
+        pr: String,
+        /// Pull request author's pubkey
+        #[arg(long)]
+        pr_author: String,
+        /// Updated tip commit of the PR branch
+        #[arg(long)]
+        commit: String,
+        /// Clone URL where the updated tip commit can be fetched ‚Äî can be specified multiple times
+        #[arg(long = "clone", required = true)]
+        clone: Vec<String>,
+        /// Markdown context for the update. Use '-' to read from stdin.
+        #[arg(long, conflicts_with = "body_file")]
+        body: Option<String>,
+        /// Path to markdown context for the update, or '-' to read from stdin.
+        #[arg(long, conflicts_with = "body")]
+        body_file: Option<String>,
+        /// Most recent common ancestor with the target branch
+        #[arg(long)]
+        merge_base: Option<String>,
+        /// Earliest-unique-commit of the repo
+        #[arg(long)]
+        euc: Option<String>,
+        /// Additional recipient pubkey(s) ‚Äî can be specified multiple times
+        #[arg(long = "to")]
+        to: Vec<String>,
+    },
+    /// Get a PR by event id
+    Get {
+        /// PR event id (64-char hex)
+        #[arg(long)]
+        event: String,
+    },
+    /// List PRs for a repo
+    List {
+        /// Repo owner pubkey (64-char hex)
+        #[arg(long)]
+        repo_owner: String,
+        /// Repo identifier (d-tag)
+        #[arg(long)]
+        repo_id: String,
+        /// Filter by PR author pubkey
+        #[arg(long)]
+        author: Option<String>,
+        /// Filter by label
+        #[arg(long)]
+        label: Option<String>,
+        /// Maximum number of results
+        #[arg(long)]
+        limit: Option<u32>,
+    },
+    /// Set status on a PR (open/merged/closed/draft ‚Äî NIP-34 kind:1630-1633)
+    Status {
+        /// Pull request event id
+        #[arg(long)]
+        pr: String,
+        /// New status
+        #[arg(long, value_parser = ["open", "merged", "closed", "draft"])]
+        status: String,
+        /// Markdown context for the status change. Use '-' to read from stdin.
+        #[arg(long, conflicts_with = "body_file")]
+        body: Option<String>,
+        /// Path to markdown context for the status change, or '-' to read from stdin.
+        #[arg(long, conflicts_with = "body")]
+        body_file: Option<String>,
+        /// Repo owner pubkey ‚Äî requires --repo-id
+        #[arg(long, requires = "repo_id")]
+        repo_owner: Option<String>,
+        /// Repo identifier (d-tag) ‚Äî requires --repo-owner
+        #[arg(long, requires = "repo_owner")]
+        repo_id: Option<String>,
+        /// Earliest-unique-commit of the repo
+        #[arg(long)]
+        euc: Option<String>,
+        /// Additional recipient pubkey(s) for the status event (besides the
+        /// repo owner, which is tagged automatically when --repo-owner is
+        /// given) ‚Äî e.g. PR author/reviewers. Can be specified multiple times.
+        #[arg(long = "to")]
+        to: Vec<String>,
+        /// Merge commit id (status=merged only)
+        #[arg(long)]
+        merge_commit: Option<String>,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum IssuesCmd {
+    /// Create a git issue (NIP-34 kind:1621)
+    Create {
+        /// Repo owner pubkey (64-char hex)
+        #[arg(long)]
+        repo_owner: String,
+        /// Repo identifier (d-tag)
+        #[arg(long)]
+        repo_id: String,
+        /// Issue title
+        #[arg(long, alias = "subject")]
+        title: String,
+        /// Issue body, markdown. Use '-' to read from stdin.
+        #[arg(long)]
+        content: String,
+        /// Label ‚Äî can be specified multiple times
+        #[arg(long = "label")]
+        label: Vec<String>,
+        /// Additional recipient pubkey(s) ‚Äî can be specified multiple times
+        #[arg(long = "to")]
+        to: Vec<String>,
+    },
+    /// Get an issue by event id
+    Get {
+        /// Issue event id (64-char hex)
+        #[arg(long)]
+        event: String,
+    },
+    /// List issues for a repo
+    List {
+        /// Repo owner pubkey (64-char hex)
+        #[arg(long)]
+        repo_owner: String,
+        /// Repo identifier (d-tag)
+        #[arg(long)]
+        repo_id: String,
+        /// Filter by issue author pubkey
+        #[arg(long)]
+        author: Option<String>,
+        /// Filter by label
+        #[arg(long)]
+        label: Option<String>,
+        /// Maximum number of results
+        #[arg(long)]
+        limit: Option<u32>,
+    },
+    /// Set status on an issue (open/resolved/closed/draft ‚Äî NIP-34 kind:1630-1633)
+    Status {
+        /// Issue event id
+        #[arg(long)]
+        issue: String,
+        /// New status
+        #[arg(long, value_parser = ["open", "resolved", "closed", "draft"])]
+        status: String,
+        /// Markdown context for the status change ('-' to read from stdin)
+        #[arg(long)]
+        content: Option<String>,
+        /// Repo owner pubkey ‚Äî requires --repo-id
+        #[arg(long, requires = "repo_id")]
+        repo_owner: Option<String>,
+        /// Repo identifier (d-tag) ‚Äî requires --repo-owner
+        #[arg(long, requires = "repo_owner")]
+        repo_id: Option<String>,
+        /// Earliest-unique-commit of the repo
+        #[arg(long)]
+        euc: Option<String>,
+        /// Additional recipient pubkey(s) for the status event (besides the
+        /// repo owner, which is tagged automatically when --repo-owner is
+        /// given) ‚Äî e.g. the issue author. Can be specified multiple times.
+        #[arg(long = "to")]
+        to: Vec<String>,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum UploadCmd {
+    /// Upload a file to the relay's Blossom store
+    File {
+        /// Path to the file to upload
+        #[arg(long)]
+        file: String,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum MediaCmd {
+    /// Download relay media with Blossom get auth
+    Get {
+        /// Relay media URL or sha256[.ext] path segment
+        input: String,
+        /// Output path. Omit or use '-' to write raw bytes to stdout.
+        #[arg(short, long)]
+        output: Option<String>,
+    },
+}
+
+/// Subcommands for `buzz mem`.
+#[derive(Subcommand)]
+pub enum MemCmd {
+    /// List non-tombstoned memory entries
+    Ls {
+        /// Owner pubkey (hex). Overrides BUZZ_AUTH_TAG.
+        #[arg(long)]
+        owner: Option<String>,
+        /// Agent pubkey (hex) to read as this key's owner.
+        #[arg(long)]
+        agent: Option<String>,
+        /// Emit JSON instead of tab-delimited lines.
+        #[arg(long, default_value_t = false)]
+        json: bool,
+    },
+    /// Print the value of a slug to stdout (no trailing newline)
+    Get {
+        slug: String,
+        #[arg(long)]
+        owner: Option<String>,
+        /// Agent pubkey (hex) to read as this key's owner.
+        #[arg(long)]
+        agent: Option<String>,
+    },
+    /// Print sha256(value) in hex (use as `--base-hash` for `mem patch`).
+    Hash {
+        slug: String,
+        #[arg(long)]
+        owner: Option<String>,
+        /// Agent pubkey (hex) to read as this key's owner.
+        #[arg(long)]
+        agent: Option<String>,
+    },
+    /// Set a slug's value. Pass `-` to read the value from stdin.
+    Set {
+        slug: String,
+        value: String,
+        #[arg(long)]
+        owner: Option<String>,
+        /// Allow committing an empty value. Without this, a zero-byte stdin
+        /// read is rejected to prevent silent data loss from upstream
+        /// pipeline failures.
+        #[arg(long, default_value_t = false)]
+        allow_empty: bool,
+    },
+    /// Apply a unified diff to a slug's current value (safer than set).
+    ///
+    /// Reads the diff from stdin or `--patch-file`. Refuses to apply if the
+    /// slug has changed since `--base-hash` was captured, and refuses
+    /// hunks whose context doesn't match the current value verbatim.
+    Patch {
+        slug: String,
+        /// Read the patch from a file instead of stdin.
+        #[arg(long)]
+        patch_file: Option<String>,
+        /// sha256 hex digest (lowercase) of the value the patch was generated
+        /// against. Hashes the exact UTF-8 bytes returned by `buzz mem get`,
+        /// not normalized lines. Run `buzz mem hash <slug>` to capture this
+        /// before editing.
+        #[arg(long)]
+        base_hash: Option<String>,
+        /// Skip the base-hash check. Unsafe if concurrent edits are possible ‚Äî
+        /// the patch will be applied against whatever the current value is,
+        /// even if another agent rewrote it after the patch was generated.
+        #[arg(long, default_value_t = false)]
+        no_base_hash: bool,
+        /// Echo the input patch + resulting sha256 and exit without writing.
+        #[arg(long, default_value_t = false)]
+        dry_run: bool,
+        /// Allow committing an empty result.
+        #[arg(long, default_value_t = false)]
+        allow_empty: bool,
+        #[arg(long)]
+        owner: Option<String>,
+    },
+    /// Publish a tombstone for a slug (cannot be used on `core`).
+    Rm {
+        slug: String,
+        #[arg(long)]
+        owner: Option<String>,
+    },
+}
+
+/// Subcommands for `buzz pack`.
+#[derive(Subcommand)]
+pub enum PackCmd {
+    /// Validate a persona pack directory
+    Validate {
+        /// Path to the pack directory
+        path: String,
+    },
+    /// Inspect a persona pack ‚Äî show metadata and effective config
+    Inspect {
+        /// Path to the pack directory
+        path: String,
+    },
+}
+
+/// Community moderation commands.
+///
+/// The community (tenant) is selected by the relay host in `--relay` /
+/// `BUZZ_RELAY_URL` ‚Äî moderation commands are community-global and carry no
+/// channel scope. The signing key must be a community owner/admin; the relay
+/// authorizes every command.
+#[derive(Subcommand)]
+pub enum ModerationCmd {
+    /// List reports in the moderation queue (newest first)
+    #[command(
+        after_help = "Examples:\n  buzz moderation reports\n  buzz moderation reports --status open --limit 20"
+    )]
+    Reports {
+        /// Filter by status: open | resolved | dismissed | escalated (default: all)
+        #[arg(long)]
+        status: Option<String>,
+        /// Maximum number of reports to return
+        #[arg(long, default_value_t = 50)]
+        limit: i64,
+    },
+    /// Resolve or dismiss a report (kind 9044)
+    #[command(
+        after_help = "Examples:\n  buzz moderation resolve --report <REPORT_EVENT_ID> --status dismissed --action dismiss\n  buzz moderation resolve --report <REPORT_EVENT_ID> --status resolved --action ban --reason \"rule 3\""
+    )]
+    Resolve {
+        /// Hex event id of the kind:1984 report being resolved
+        #[arg(long)]
+        report: String,
+        /// Resolution status: resolved | dismissed
+        #[arg(long)]
+        status: String,
+        /// Action taken: delete | kick | ban | timeout | dismiss | escalate
+        #[arg(long)]
+        action: String,
+        /// Optional reason ‚Äî relayed to the reporter, so keep it tombstone-safe
+        #[arg(long)]
+        reason: Option<String>,
+    },
+    /// Ban a member from the community (kind 9040)
+    #[command(
+        after_help = "Examples:\n  buzz moderation ban --pubkey <HEX>\n  buzz moderation ban --pubkey <HEX> --expires-in 604800 --reason \"repeated spam\""
+    )]
+    Ban {
+        /// Target member pubkey (hex)
+        #[arg(long)]
+        pubkey: String,
+        /// Ban duration in seconds from now (omit for a permanent ban)
+        #[arg(long, conflicts_with = "expires_at")]
+        expires_in: Option<u64>,
+        /// Absolute ban expiry as a unix timestamp (seconds)
+        #[arg(long)]
+        expires_at: Option<u64>,
+        /// Optional private ban reason (audit only)
+        #[arg(long)]
+        reason: Option<String>,
+    },
+    /// Lift a member's ban (kind 9041)
+    Unban {
+        /// Target member pubkey (hex)
+        #[arg(long)]
+        pubkey: String,
+    },
+    /// Time out a member ‚Äî a write-block, not a disconnect (kind 9042)
+    #[command(
+        after_help = "Examples:\n  buzz moderation timeout --pubkey <HEX> --expires-in 3600\n  buzz moderation timeout --pubkey <HEX> --expires-at 1783500000 --reason \"cool off\""
+    )]
+    Timeout {
+        /// Target member pubkey (hex)
+        #[arg(long)]
+        pubkey: String,
+        /// Timeout duration in seconds from now
+        #[arg(long, conflicts_with = "expires_at")]
+        expires_in: Option<u64>,
+        /// Absolute timeout expiry as a unix timestamp (seconds)
+        #[arg(long)]
+        expires_at: Option<u64>,
+        /// Optional private timeout reason (audit only)
+        #[arg(long)]
+        reason: Option<String>,
+    },
+    /// Clear a member's timeout early (kind 9043)
+    Untimeout {
+        /// Target member pubkey (hex)
+        #[arg(long)]
+        pubkey: String,
+    },
+    /// List currently-restricted members (active ban or timeout)
+    Restricted,
+    /// Read the moderation audit trail (newest first)
+    Audit {
+        /// Maximum number of audit rows to return
+        #[arg(long, default_value_t = 50)]
+        limit: i64,
+    },
+}
+
+/// Normalize hand-authored `BUZZ_AUTH_TAG` input to strict JSON.
+///
+/// `.env` files and shell exports sometimes carry the tag in the unquoted
+/// shorthand `[auth,<hex>,<conditions>,<hex>]` (quotes dropped by hand).
+/// When the input is not valid JSON but is bracket-delimited, rewrite it as
+/// a JSON array of the comma-separated fields (an empty field `,,` becomes
+/// `""`, matching the canonical form `["auth","hex","","hex"]`).
+///
+/// This is presentation-layer leniency at the configuration edge only: the
+/// output is always fed through the SDK's strict `parse_auth_tag` /
+/// `verify_auth_tag`, which enforce structure, hex, the conditions grammar,
+/// and the BIP-340 signature. Inputs that are already valid JSON ‚Äî or not
+/// recognizable as the shorthand ‚Äî are returned unchanged so the strict
+/// parser reports the error on the original bytes.
+fn normalize_auth_tag_input(input: &str) -> String {
+    let trimmed = input.trim();
+    if serde_json::from_str::<serde_json::Value>(trimmed).is_ok() {
+        return trimmed.to_owned();
+    }
+    if trimmed.starts_with('[') && trimmed.ends_with(']') {
+        let fields: Vec<&str> = trimmed[1..trimmed.len() - 1]
+            .split(',')
+            .map(str::trim)
+            .collect();
+        // Only a plausible 4-field auth tag is rewritten; anything else is
+        // passed through untouched for the strict parser to reject with an
+        // error that references the caller's original input.
+        if fields.len() == 4 && !fields.iter().any(|f| f.contains('"')) {
+            // serde_json cannot fail serializing a Vec<&str>.
+            return serde_json::to_string(&fields).expect("string array serializes");
+        }
+    }
+    trimmed.to_owned()
+}
+
+async fn run(cli: Cli) -> Result<(), CliError> {
+    let relay_url = client::normalize_relay_url(&cli.relay);
+
+    // Pack commands are local-only ‚Äî no relay connection needed.
+    if let Cmd::Pack(ref sub) = cli.command {
+        return match sub {
+            PackCmd::Validate { path } => commands::pack::cmd_validate(path),
+            PackCmd::Inspect { path } => commands::pack::cmd_inspect(path),
+        };
+    }
+
+    // Auth: private key is required for all relay operations.
+    // The keypair IS the identity ‚Äî no tokens, no other auth.
+    let private_key_str = cli.private_key.ok_or_else(|| {
+        CliError::Auth("BUZZ_PRIVATE_KEY is required (use --private-key or set env var)".into())
+    })?;
+    let keys = Keys::parse(&private_key_str)
+        .map_err(|e| CliError::Key(format!("invalid BUZZ_PRIVATE_KEY: {e}")))?;
+
+    // NIP-OA: parse and verify the auth tag if provided.
+    //
+    // `BUZZ_AUTH_TAG` is hand-authored configuration, so the unquoted raw
+    // shorthand `[auth,hex,,hex]` is normalized to JSON here ‚Äî at this input
+    // edge only. The SDK grammar and the `x-auth-tag` wire format stay strict
+    // JSON; all validation and signature verification happen on the strict
+    // path below, unchanged.
+    let (auth_tag, auth_tag_json) = match cli.auth_tag {
+        Some(ref input) if !input.is_empty() => {
+            let json = normalize_auth_tag_input(input);
+            let tag = buzz_sdk::nip_oa::parse_auth_tag(&json)
+                .map_err(|e| CliError::Auth(format!("BUZZ_AUTH_TAG is malformed: {e}")))?;
+            buzz_sdk::nip_oa::verify_auth_tag(&json, &keys.public_key()).map_err(|e| {
+                CliError::Auth(format!(
+                    "BUZZ_AUTH_TAG verification failed for pubkey {}: {e}",
+                    keys.public_key().to_hex()
+                ))
+            })?;
+            // Canonical wire form derives from the parsed-and-verified tag
+            // (same shape as buzz-acp's RestClient), never from raw input.
+            let canonical = serde_json::to_string(tag.as_slice())
+                .map_err(|e| CliError::Auth(format!("BUZZ_AUTH_TAG serialization failed: {e}")))?;
+            (Some(tag), Some(canonical))
+        }
+        _ => (None, None),
+    };
+
+    let client = BuzzClient::new(relay_url, keys, auth_tag, auth_tag_json)?;
+
+    match cli.command {
+        Cmd::Agents(sub) => commands::agents::dispatch(sub, &client).await,
+        Cmd::Messages(sub) => commands::messages::dispatch(sub, &client, &cli.format).await,
+        Cmd::Channels(sub) => commands::channels::dispatch(sub, &client, &cli.format).await,
+        Cmd::Canvas(sub) => commands::channels::dispatch_canvas(sub, &client).await,
+        Cmd::Reactions(sub) => commands::reactions::dispatch(sub, &client).await,
+        Cmd::Emoji(sub) => commands::emoji::dispatch(sub, &client).await,
+        Cmd::Dms(sub) => commands::dms::dispatch(sub, &client).await,
+        Cmd::Users(sub) => commands::users::dispatch(sub, &client, &cli.format).await,
+        Cmd::Workflows(sub) => commands::workflows::dispatch(sub, &client).await,
+        Cmd::Feed(sub) => commands::feed::dispatch(sub, &client, &cli.format).await,
+        Cmd::Social(sub) => commands::social::dispatch(sub, &client).await,
+        Cmd::Notes(sub) => commands::notes::dispatch(sub, &client).await,
+        Cmd::Repos(sub) => commands::repos::dispatch(sub, &client).await,
+        Cmd::Projects(sub) => commands::projects::dispatch(sub, &client).await,
+        Cmd::Patches(sub) => commands::patches::dispatch(sub, &client).await,
+        Cmd::Issues(sub) => commands::issues::dispatch(sub, &client).await,
+        Cmd::Pr(sub) => commands::pr::dispatch(sub, &client).await,
+        Cmd::Media(sub) => commands::upload::dispatch_media(sub, &client).await,
+        Cmd::Upload(sub) => commands::upload::dispatch(sub, &client).await,
+        Cmd::Mem(sub) => commands::mem::dispatch(sub, &client).await,
+        Cmd::Moderation(sub) => commands::moderation::dispatch(sub, &client, &cli.format).await,
+        Cmd::Pack(_) => unreachable!("handled above"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::CommandFactory;
+
+    /// Raw shorthand `[auth,hex,,hex]` normalizes to strict JSON; the empty
+    /// conditions field becomes `""`.
+    #[test]
+    fn normalize_auth_tag_raw_shorthand() {
+        let owner = "a".repeat(64);
+        let sig = "b".repeat(128);
+
+        let raw = format!("[auth,{owner},,{sig}]");
+        let json = normalize_auth_tag_input(&raw);
+        let parsed: Vec<String> = serde_json::from_str(&json).expect("output must be JSON");
+        assert_eq!(parsed, vec!["auth", &owner, "", &sig]);
+
+        // With conditions and surrounding whitespace (shell/.env artifacts).
+        let raw = format!("  [auth, {owner} , kind=9, {sig}]  \n");
+        let json = normalize_auth_tag_input(&raw);
+        let parsed: Vec<String> = serde_json::from_str(&json).expect("output must be JSON");
+        assert_eq!(parsed, vec!["auth", &owner, "kind=9", &sig]);
+    }
+
+    /// Valid JSON input passes through byte-identical (modulo outer trim) ‚Äî
+    /// the normalizer must never rewrite well-formed input.
+    #[test]
+    fn normalize_auth_tag_json_passthrough() {
+        let owner = "a".repeat(64);
+        let sig = "b".repeat(128);
+        let json_in = serde_json::json!(["auth", owner, "kind=9", sig]).to_string();
+        assert_eq!(normalize_auth_tag_input(&json_in), json_in);
+    }
+
+    /// Inputs that are neither JSON nor a plausible 4-field shorthand pass
+    /// through unchanged, so the strict parser rejects the original bytes.
+    #[test]
+    fn normalize_auth_tag_leaves_garbage_untouched() {
+        for garbage in [
+            "not a tag",
+            "[auth,too,few]",
+            "[a,b,c,d,e]",
+            r#"[auth,"quoted",x,y]"#, // quote chars => not the shorthand
+            "[]",
+            "{\"auth\":1}",
+        ] {
+            assert_eq!(normalize_auth_tag_input(garbage), garbage.trim());
+        }
+    }
+
+    /// Smoke test: CLI definition is valid and parseable.
+    #[test]
+    fn cli_definition_is_valid() {
+        Cli::command().debug_assert();
+    }
+
+    #[test]
+    fn messages_send_parses_ompk_execution_metadata() {
+        #[cfg(windows)]
+        const CWD: &str = r"C:\workspace\repo";
+        #[cfg(not(windows))]
+        const CWD: &str = "/workspace/repo";
+
+        let cli = Cli::try_parse_from([
+            "buzz",
+            "messages",
+            "send",
+            "--channel",
+            "00000000-0000-0000-0000-000000000001",
+            "--content",
+            "bounded task",
+            "--ompk-execution",
+            "--ompk-cwd",
+            CWD,
+        ])
+        .expect("valid OMPK execution request");
+        let Cmd::Messages(MessagesCmd::Send {
+            ompk_execution,
+            ompk_cwd,
+            ..
+        }) = cli.command
+        else {
+            panic!("expected messages send");
+        };
+        assert!(ompk_execution);
+        assert_eq!(ompk_cwd.as_deref(), Some(CWD));
+    }
+
+    #[test]
+    fn messages_send_rejects_ompk_cwd_without_execution_intent() {
+        assert!(Cli::try_parse_from([
+            "buzz",
+            "messages",
+            "send",
+            "--channel",
+            "00000000-0000-0000-0000-000000000001",
+            "--content",
+            "bounded task",
+            "--ompk-cwd",
+            "/workspace/repo",
+        ])
+        .is_err());
+    }
+
+    #[test]
+    fn set_status_clear_rejects_text_and_emoji() {
+        for extra in [["--text", "busy"], ["--emoji", "üé∂"]] {
+            let args = ["buzz", "users", "set-status", "--clear"]
+                .into_iter()
+                .chain(extra);
+            assert!(
+                Cli::try_parse_from(args).is_err(),
+                "--clear must conflict with {}",
+                extra[0]
+            );
+        }
+    }
+
+    #[test]
+    fn set_status_requires_text_or_clear() {
+        assert!(Cli::try_parse_from(["buzz", "users", "set-status"]).is_err());
+        assert!(
+            Cli::try_parse_from(["buzz", "users", "set-status", "--emoji", "üé∂"]).is_err(),
+            "--emoji alone must not imply a status"
+        );
+        assert!(Cli::try_parse_from(["buzz", "users", "set-status", "--clear"]).is_ok());
+    }
+
+    #[test]
+    fn command_inventory_is_stable() {
+        let expected_groups: Vec<&str> = vec![
+            "agents",
+            "canvas",
+            "channels",
+            "dms",
+            "emoji",
+            "feed",
+            "issues",
+            "media",
+            "mem",
+            "messages",
+            "moderation",
+            "notes",
+            "pack",
+            "patches",
+            "pr",
+            "projects",
+            "reactions",
+            "repos",
+            "social",
+            "upload",
+            "users",
+            "workflows",
+        ];
+
+        let cmd = Cli::command();
+        let mut actual: Vec<String> = cmd
+            .get_subcommands()
+            .map(|s| s.get_name().to_string())
+            .filter(|n| n != "help")
+            .collect();
+        actual.sort();
+
+        assert_eq!(
+            actual.len(),
+            expected_groups.len(),
+            "Expected {} groups, got {}. Actual: {:?}",
+            expected_groups.len(),
+            actual.len(),
+            actual
+        );
+        assert_eq!(
+            actual, expected_groups,
+            "Command group inventory drift detected"
+        );
+    }
+
+    #[test]
+    fn subcommand_names_are_stable() {
+        fn names(cmd: &clap::Command, group: &str) -> Vec<String> {
+            let group_cmd = cmd
+                .get_subcommands()
+                .find(|s| s.get_name() == group)
+                .unwrap_or_else(|| panic!("group '{}' not found", group));
+            let mut names: Vec<String> = group_cmd
+                .get_subcommands()
+                .map(|s| s.get_name().to_string())
+                .filter(|n| n != "help")
+                .collect();
+            names.sort();
+            names
+        }
+
+        let cmd = Cli::command();
+        assert_eq!(
+            names(&cmd, "agents"),
+            vec![
+                "archive",
+                "archived",
+                "draft-create",
+                "draft-update",
+                "unarchive"
+            ]
+        );
+        assert_eq!(
+            names(&cmd, "messages"),
+            vec![
+                "delete",
+                "edit",
+                "get",
+                "search",
+                "send",
+                "send-diff",
+                "thread",
+                "vote"
+            ]
+        );
+        assert_eq!(
+            names(&cmd, "channels"),
+            vec![
+                "add-member",
+                "archive",
+                "create",
+                "delete",
+                "get",
+                "join",
+                "leave",
+                "list",
+                "members",
+                "purpose",
+                "remove-member",
+                "search",
+                "set-add-policy",
+                "topic",
+                "unarchive",
+                "update"
+            ]
+        );
+        assert_eq!(names(&cmd, "canvas"), vec!["get", "set"]);
+        assert_eq!(names(&cmd, "reactions"), vec!["add", "get", "remove"]);
+        assert_eq!(
+            names(&cmd, "emoji"),
+            vec!["export", "import", "list", "rm", "set"]
+        );
+        assert_eq!(
+            names(&cmd, "dms"),
+            vec!["add-member", "hide", "list", "open"]
+        );
+        assert_eq!(
+            names(&cmd, "users"),
+            vec![
+                "get",
+                "presence",
+                "set-presence",
+                "set-profile",
+                "set-status"
+            ]
+        );
+        assert_eq!(
+            names(&cmd, "workflows"),
+            vec!["approve", "create", "delete", "get", "list", "runs", "trigger", "update"]
+        );
+        assert_eq!(names(&cmd, "feed"), vec!["get"]);
+        assert_eq!(
+            names(&cmd, "social"),
+            vec![
+                "contacts",
+                "event",
+                "list",
+                "notes",
+                "publish",
+                "set-contacts",
+                "set-list"
+            ]
+        );
+        assert_eq!(
+            names(&cmd, "repos"),
+            vec!["bind", "create", "get", "list", "protect"]
+        );
+        let repos = cmd
+            .get_subcommands()
+            .find(|subcommand| subcommand.get_name() == "repos")
+            .expect("repos command");
+        let protect = repos
+            .get_subcommands()
+            .find(|subcommand| subcommand.get_name() == "protect")
+            .expect("repos protect command");
+        let mut protect_names: Vec<String> = protect
+            .get_subcommands()
+            .map(|subcommand| subcommand.get_name().to_string())
+            .filter(|name| name != "help")
+            .collect();
+        protect_names.sort();
+        assert_eq!(protect_names, vec!["list", "remove", "set"]);
+        assert_eq!(
+            names(&cmd, "pr"),
+            vec!["get", "list", "open", "status", "update"]
+        );
+        assert_eq!(
+            names(&cmd, "patches"),
+            vec!["get", "list", "send", "status"]
+        );
+        assert_eq!(
+            names(&cmd, "projects"),
+            vec![
+                "add-repo",
+                "create",
+                "delete",
+                "get",
+                "list",
+                "remove-repo",
+                "update"
+            ]
+        );
+        assert_eq!(
+            names(&cmd, "issues"),
+            vec!["create", "get", "list", "status"]
+        );
+        assert_eq!(names(&cmd, "media"), vec!["get"]);
+        assert_eq!(names(&cmd, "upload"), vec!["file"]);
+        assert_eq!(names(&cmd, "pack"), vec!["inspect", "validate"]);
+        assert_eq!(
+            names(&cmd, "moderation"),
+            vec![
+                "audit",
+                "ban",
+                "reports",
+                "resolve",
+                "restricted",
+                "timeout",
+                "unban",
+                "untimeout"
+            ]
+        );
+    }
+
+    #[test]
+    fn subcommand_counts_are_stable() {
+        let expected: Vec<(&str, usize)> = vec![
+            ("agents", 5),
+            ("canvas", 2),
+            ("channels", 16),
+            ("dms", 4),
+            ("emoji", 5),
+            ("feed", 1),
+            ("issues", 4),
+            ("media", 1),
+            ("messages", 8),
+            ("pack", 2),
+            ("patches", 4),
+            ("pr", 5),
+            ("projects", 7),
+            ("reactions", 3),
+            ("repos", 5),
+            ("social", 7),
+            ("upload", 1),
+            ("users", 5),
+            ("workflows", 8),
+        ];
+
+        let cmd = Cli::command();
+        for (group_name, expected_count) in &expected {
+            let group = cmd
+                .get_subcommands()
+                .find(|s| s.get_name() == *group_name)
+                .unwrap_or_else(|| panic!("group '{}' not found", group_name));
+            let actual_count = group
+                .get_subcommands()
+                .filter(|s| s.get_name() != "help")
+                .count();
+            assert_eq!(
+                actual_count, *expected_count,
+                "Group '{}': expected {} subcommands, got {}",
+                group_name, expected_count, actual_count
+            );
+        }
+    }
+
+    /// Collect all args (recursing into subcommands) whose env var name looks
+    /// like a credential but does NOT have `hide_env_values` set.
+    fn collect_unhidden_secret_args(cmd: &clap::Command) -> Vec<(String, String)> {
+        const SECRET_PATTERNS: &[&str] = &["KEY", "SECRET", "TOKEN", "PASSWORD", "CRED", "AUTH"];
+
+        let mut violations: Vec<(String, String)> = Vec::new();
+
+        for arg in cmd.get_arguments() {
+            if let Some(env_key) = arg.get_env() {
+                let env_name = env_key.to_string_lossy().to_uppercase();
+                let is_secret = SECRET_PATTERNS.iter().any(|pat| env_name.contains(pat));
+                if is_secret && !arg.is_hide_env_values_set() {
+                    violations.push((cmd.get_name().to_string(), env_name));
+                }
+            }
+        }
+
+        for sub in cmd.get_subcommands() {
+            violations.extend(collect_unhidden_secret_args(sub));
+        }
+
+        violations
+    }
+
+    /// Every arg whose env var name contains KEY/SECRET/TOKEN/PASSWORD/CRED/AUTH
+    /// must set `hide_env_values = true` to prevent credential leakage in --help.
+    #[test]
+    fn secret_env_args_hide_their_values_in_help() {
+        let cmd = Cli::command();
+        let violations = collect_unhidden_secret_args(&cmd);
+        assert!(
+            violations.is_empty(),
+            "Found secret-bearing env args without hide_env_values=true. \
+             Add `hide_env_values = true` to each:\n{}",
+            violations
+                .iter()
+                .map(|(cmd, env)| format!("  command={cmd:?} env={env:?}"))
+                .collect::<Vec<_>>()
+                .join("\n")
+        );
+    }
+
+    // ‚îÄ‚îÄ projects update mutation group ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
+
+    /// Multiple independent fields must be accepted in the same invocation.
+    #[test]
+    fn projects_update_multi_field_is_accepted() {
+        assert!(
+            Cli::try_parse_from([
+                "buzz",
+                "projects",
+                "update",
+                "my-slug",
+                "--name",
+                "X",
+                "--description",
+                "Y",
+            ])
+            .is_ok(),
+            "--name and --description together must be accepted"
+        );
+    }
+
+    /// A setter for one field and a clearer for a different field must be accepted.
+    #[test]
+    fn projects_update_setter_with_other_clearer_is_accepted() {
+        assert!(
+            Cli::try_parse_from([
+                "buzz",
+                "projects",
+                "update",
+                "my-slug",
+                "--name",
+                "X",
+                "--clear-description",
+            ])
+            .is_ok(),
+            "--name with --clear-description must be accepted"
+        );
+    }
+
+    /// A setter and its own clearer are mutually exclusive ‚Äî clap must reject this.
+    #[test]
+    fn projects_update_setter_with_own_clearer_is_rejected() {
+        assert!(
+            Cli::try_parse_from([
+                "buzz",
+                "projects",
+                "update",
+                "my-slug",
+                "--name",
+                "X",
+                "--clear-name",
+            ])
+            .is_err(),
+            "--name and --clear-name together must be rejected by clap"
+        );
+    }
+
+    /// Providing no mutation options at all must be rejected by clap (required group).
+    #[test]
+    fn projects_update_no_mutation_is_rejected_by_clap() {
+        // Without credentials, a valid parse would reach authentication and fail
+        // with auth_error ‚Äî but a clap-level rejection happens before any I/O.
+        // We verify it's a clap error (not just any error) by checking the error
+        // kind is not a runtime/auth failure ‚Äî Cli::try_parse_from returns Err
+        // immediately for argument violations.
+        assert!(
+            Cli::try_parse_from(["buzz", "projects", "update", "my-slug"]).is_err(),
+            "update with no setters or clearers must be rejected at parse time"
+        );
+    }
+
+    /// An unrecognised visibility token must be rejected by clap before any I/O.
+    #[test]
+    fn projects_create_invalid_visibility_is_rejected_by_clap() {
+        assert!(
+            Cli::try_parse_from([
+                "buzz",
+                "projects",
+                "create",
+                "my-slug",
+                "--repo",
+                "buzz",
+                "--visibility",
+                "chartreuse",
+            ])
+            .is_err(),
+            "--visibility chartreuse must be rejected at parse time"
+        );
+    }
+
+    /// An unrecognised visibility token on update must be rejected by clap before any I/O.
+    #[test]
+    fn projects_update_invalid_visibility_is_rejected_by_clap() {
+        assert!(
+            Cli::try_parse_from([
+                "buzz",
+                "projects",
+                "update",
+                "my-slug",
+                "--visibility",
+                "chartreuse",
+            ])
+            .is_err(),
+            "--visibility chartreuse on update must be rejected at parse time"
+        );
+    }
+}
