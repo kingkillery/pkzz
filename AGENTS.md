@@ -160,6 +160,49 @@ simple and testable.
 thread root events. Any code that inserts replies must update these counters —
 check existing reply handlers for the pattern.
 
+### Engagement discernment workbook
+
+`docs/engagement-discernment-workbook.md` is the field workbook for deciding
+when agents should speak, stay quiet, or escalate to a human. It is an
+evidence-gathering instrument, not a speculative design document.
+
+**Before collecting data:**
+
+- Use a dedicated lab channel with `engagement = "thread"`; keep other
+  channels on deterministic `mentions` behavior.
+- Put at least two agents in the lab and complete the workbook's four-step
+  smoke ladder: mention, plain thread reply, unrelated-thread silence, then
+  rapid-fire replies that exercise cooldown suppression.
+- Confirm evidence is observable in the session panel's **Raw ACP activity**
+  view or the **Harness Log** panel before relying on the study.
+
+**When and how to fill it in:**
+
+- Add a row immediately after **real dogfood friction**, while the event is
+  still traceable. Never invent entries from unit tests, hypothetical
+  scenarios, or reconstructed memory.
+- Use §3A for false silence, §3B for false speech, §3C for chain-cap/cooldown
+  verdicts, §3D for human-escalation boundaries, and §3E for agent-to-agent
+  bounce sessions.
+- Record the date, channel/thread or event reference, what actually happened,
+  what should have happened, and the rule/telemetry reason if known. Use
+  severity `1 = shrug`, `2 = annoying`, `3 = broke the flow of work`. Reference
+  events instead of copying secrets or sensitive conversation content.
+- Change only one engagement knob at a time. Log every change in §4, link it
+  to the motivating §3 rows, and observe it for several days before recording
+  a verdict.
+- Name repeated failure shapes and candidate signals in §5 only after the
+  field log shows a pattern. Do not convert a single anecdote into scheduler
+  logic.
+
+**Do not resume implementation of `open` scheduling or the escalation kind
+until every §6 gate is checked:** at least two weeks with two agents in the
+lab, at least 15 false-silence/false-speech entries across §3A–B, at least five
+escalation entries in §3D, named §5 failure shapes, and at least one completed
+§4 knob-tuning cycle. At pickup, derive the first heuristic scheduler only
+from §5 evidence and preserve the invariant: deterministic by default,
+experiments opt-in per channel, and every new behavior emits a decision frame.
+
 ---
 
 ## Agent CLI (`buzz-cli`)
