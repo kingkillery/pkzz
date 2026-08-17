@@ -353,14 +353,12 @@ fn foreign_identity_pending_record_in_shared_dir_is_left_untouched() {
 
     let outbox_b = HostFinalDeliveryOutbox::open(&directory, relay_b, &keys_b.public_key())
         .expect("identity B outbox opens shared dir");
-    assert_eq!(
-        outbox_b.contains_source_event(&source_event_id_a),
-        false,
+    assert!(
+        !outbox_b.contains_source_event(&source_event_id_a),
         "foreign source event should not be indexed by identity B"
     );
-    assert_eq!(
-        outbox_b.contains_source_event(&target_a.trigger_event_id),
-        false,
+    assert!(
+        !outbox_b.contains_source_event(&target_a.trigger_event_id),
         "foreign trigger event should not be indexed by identity B"
     );
 
