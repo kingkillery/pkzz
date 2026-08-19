@@ -31,6 +31,13 @@ Thumbs.db
 # Scratch / working files (AI reviews, notes, drafts)
 .scratch/
 
+# OMPK harness local plan output (per-run scratch, not project-wide)
+.ompk/plans/
+
+# Personal quickstart skill copies (not project-wide)
+.agents/skills/qs/
+.agents/skills/qs-parallelprd/
+
 # Playwright artifacts
 playwright-report/
 test-results/
