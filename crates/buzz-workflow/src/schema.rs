@@ -405,6 +405,29 @@ mod tests {
     }
 
     #[test]
+    fn parse_obsidian_note_webhook_example() {
+        // Pins the recipe documented in docs/obsidian-integration.md: an
+        // Obsidian plugin/script POSTs {title, vault, path, content} as the
+        // webhook JSON body, which the relay flattens into webhook_fields
+        // and exposes as {{trigger.<field>}}.
+        let yaml = concat!(
+            "name: Obsidian Note Sync\n",
+            "description: Posts an Obsidian note to this channel via webhook trigger\n",
+            "trigger:\n  on: webhook\n",
+            "steps:\n",
+            "  - id: post_note\n    action: send_message\n",
+            "    text: '**{{trigger.title}}** ({{trigger.vault}}/{{trigger.path}})\n\n{{trigger.content | truncate(2000)}}'\n",
+        );
+        let (def, _) = parse_yaml(yaml).expect("parse failed");
+        assert!(matches!(def.trigger, TriggerDef::Webhook));
+        assert_eq!(def.steps.len(), 1);
+        assert!(matches!(
+            &def.steps[0].action,
+            ActionDef::SendMessage { .. }
+        ));
+    }
+
+    #[test]
     fn validate_rejects_empty_name() {
         let yaml =
             "name: ''\ntrigger:\n  on: message_posted\nsteps:\n  - id: s1\n    action: send_message\n    text: hi\n";
